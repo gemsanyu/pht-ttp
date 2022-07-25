@@ -110,21 +110,25 @@ def train_batch(agent, agent_opt, batch):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
     env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
     
-    tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, entropy = solve(agent, env)
-    # critic costs is total profit if all items are taken
-    critic_costs = torch.sum(profits, dim=-1)
-    agent_loss, entropy_loss = update(agent, agent_opt, total_costs, critic_costs, logprobs, entropy)
+    tour_list, item_selection, tour_lengths, total_profits, total_gains, logprobs, entropy = solve(agent, env)
+    # central self critic
+    agent.eval()
+    with torch.no_grad():
+        _, _, _, _, greedy_gains, _, _ = solve(agent, env)
+        centralizer = (total_gains - greedy_gains).mean()
+        critic_gains = greedy_gains + centralizer
+    agent_loss, entropy_loss = update(agent, agent_opt, total_gains, critic_gains, logprobs, entropy)
     return agent_loss, entropy_loss
 
 
-def update(agent, agent_opt, total_costs, critic_costs, logprobs, entropy):
+def update(agent, agent_opt, total_gains, critic_gains, logprobs, entropy):
     # critic costs is total profit if all items are taken
     # so smaller advangae is better, 
     # if crit costs < total costs, then adv is negative (small)
-    advantage = (critic_costs - total_costs).to(agent.device) # total costs
+    advantage = (total_gains - critic_gains).to(agent.device) # total costs
     # standardize advantage
-    advantage = (advantage-advantage.mean())/(advantage.std()+1e-8)
-    agent_loss = ((advantage.detach())*logprobs).mean()
+    # advantage = (advantage-advantage.mean())/(advantage.std()+1e-8)
+    agent_loss = -((advantage.detach())*logprobs).mean()
     entropy_loss = -entropy.mean()
     loss = agent_loss + 0.02*entropy_loss
     

@@ -118,12 +118,15 @@ def train_batch(agent, agent_opt, batch):
 
 
 def update(agent, agent_opt, total_costs, critic_costs, logprobs, entropy):
-    advantage = (critic_costs - total_costs).to(agent.device) # lengths
+    # critic costs is total profit if all items are taken
+    # so smaller advangae is better, 
+    # if crit costs < total costs, then adv is negative (small)
+    advantage = (critic_costs - total_costs).to(agent.device) # total costs
     # standardize advantage
     advantage = (advantage-advantage.mean())/(advantage.std()+1e-8)
-    agent_loss = ((advantage.detach())*logprobs).mean()
+    agent_loss = -((advantage.detach())*logprobs).mean()
     entropy_loss = entropy.mean()
-    loss = -(agent_loss + 0.02*entropy_loss)
+    loss = agent_loss + 0.02*entropy_loss
     
     #update agent
     agent_opt.zero_grad(set_to_none=True)

@@ -28,7 +28,7 @@ def setup(args):
     writer = SummaryWriter(log_dir=model_summary_dir.absolute())
 
     checkpoint_root = "checkpoints"
-    checkpoint_dir = pathlib.Path(".")/checkpoint_root/"sop"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/args.title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir/(args.title+".pt")
 

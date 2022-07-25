@@ -112,7 +112,7 @@ def train_batch(agent, agent_opt, batch):
     
     tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, entropy = solve(agent, env)
     # critic costs is total profit if all items are taken
-    critic_costs = torch.sum(total_profits, dim=-1)
+    critic_costs = torch.sum(profits, dim=-1)
     agent_loss, entropy_loss = update(agent, agent_opt, total_costs, critic_costs, logprobs, entropy)
     return agent_loss, entropy_loss
 
@@ -125,7 +125,7 @@ def update(agent, agent_opt, total_costs, critic_costs, logprobs, entropy):
     # standardize advantage
     advantage = (advantage-advantage.mean())/(advantage.std()+1e-8)
     agent_loss = -((advantage.detach())*logprobs).mean()
-    entropy_loss = entropy.mean()
+    entropy_loss = -entropy.mean()
     loss = agent_loss + 0.02*entropy_loss
     
     #update agent

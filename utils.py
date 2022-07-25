@@ -124,7 +124,7 @@ def update(agent, agent_opt, total_costs, critic_costs, logprobs, entropy):
     advantage = (critic_costs - total_costs).to(agent.device) # total costs
     # standardize advantage
     advantage = (advantage-advantage.mean())/(advantage.std()+1e-8)
-    agent_loss = -((advantage.detach())*logprobs).mean()
+    agent_loss = ((advantage.detach())*logprobs).mean()
     entropy_loss = -entropy.mean()
     loss = agent_loss + 0.02*entropy_loss
     

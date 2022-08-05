@@ -36,6 +36,10 @@ def get_parser():
                         type=int,
                         default=64,
                         help="dataloader batch size")
+    parser.add_argument('--num-training-samples',
+                        type=int,
+                        default=1000,
+                        help="dataloader batch size")
     
     # Agent
     parser.add_argument('--max-grad-norm',
@@ -46,5 +50,30 @@ def get_parser():
                         type=float,
                         default=1e-4,
                         help="learning rate")
-    
+    parser.add_argument('--encoder-size',
+                        type=int,
+                        default=64,
+                        help='Encoder layer\'s size.')
+    parser.add_argument('--pointer-layers',
+                        type=int,
+                        default=2,
+                        help='Total layer(s) for pointer.')
+    parser.add_argument('--pointer-neurons',
+                        nargs='?',
+                        type=int,
+                        default=None,
+                        help='Total neurons for pointer.')
+    parser.add_argument('--dropout',
+                        type=float,
+                        default=0.2,
+                        help='Dropout.')
+    parser.add_argument('--use-critic',
+                        type=bool,
+                        default=False,
+                        help='Use critic (True) or use self-critic (False).')
+    parser.add_argument('--n-glimpses',
+                        type=int,
+                        default=1,
+                        help="num of repetition for glimpse computation")
+
     return parser

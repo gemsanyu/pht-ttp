@@ -3,10 +3,15 @@ import sys
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader, random_split
+from tqdm import tqdm
+
 
 from arguments import get_parser
 from setup import setup
-from utils import train_epoch
+from ttp.ttp_dataset import TTPDataset
+from ttp.ttp_env import TTPEnv
+from utils import solve, compute_loss, update, write_training_progress, write_validation_progress, write_test_progress
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -18,12 +23,63 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
-def run(args):
-    agent, agent_opt, last_epoch, last_step, writer, checkpoint_path, train_dataloader, eval_batch = setup(args)
-    for epoch in range(last_epoch, args.max_epoch):
-        last_step = train_epoch(agent, agent_opt, checkpoint_path, last_step, epoch, writer, train_dataloader, eval_batch)
+def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.02):
+    agent.train()
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
+    critic_costs = None
+    for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
+        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
+        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
+        critic_costs = total_costs.mean()
+        agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, logprobs, sum_entropies)
+        loss = agent_loss + entropy_loss_alpha*entropy_loss
+        update(agent, agent_opt, loss)
+        write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), entropy_loss.detach(), critic_costs, logprobs.detach().mean(), writer)
 
-if __name__=='__main__':
+@torch.no_grad()
+def validation_one_epoch(agent, validation_dataset, writer):
+    agent.eval()
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
+    tour_length_list = []
+    total_profit_list = []
+    total_cost_list = []
+    logprob_list = []
+    for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
+        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
+        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
+        tour_length_list += [tour_lengths]
+        total_profit_list += [total_profits]
+        total_cost_list += [total_costs]
+        logprob_list += [logprobs]
+    mean_tour_length = torch.cat(tour_length_list).mean()
+    mean_total_profit = torch.cat(total_profit_list).mean()
+    mean_total_cost = torch.cat(total_cost_list).mean()
+    mean_logprob = torch.cat(logprob_list).mean()
+
+    write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
+
+@torch.no_grad()
+def test_one_epoch(agent, test_env, writer):
+    agent.eval()
+    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
+    write_test_progress(tour_length, total_profit, total_cost, logprob, writer)    
+        
+
+def run(args):
+    agent, agent_opt, last_epoch, last_step, writer, checkpoint_path, test_env = setup(args)
+    validation_size = int(0.1*args.num_training_samples)
+    training_size = args.num_training_samples - validation_size
+    for epoch in range(last_epoch, args.max_epoch):
+        dataset = TTPDataset(num_samples=args.num_training_samples)
+        dataset.new_num_items_per_city()
+        train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
+        train_one_epoch(agent, agent_opt, train_dataset, writer)
+        validation_one_epoch(agent, validation_dataset, writer)
+        test_one_epoch(agent, test_env, writer)
+
+if __name__ == '__main__':
     args = prepare_args()
     torch.set_num_threads(1)
     torch.manual_seed(args.seed)

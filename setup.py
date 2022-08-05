@@ -7,18 +7,18 @@ from torch.utils.data import DataLoader
 
 from agent.agent import Agent
 from ttp.ttp_dataset import TTPDataset
+from ttp.ttp_env import TTPEnv
 
 def setup(args):
     # similar to Attention learn routing default
-    agent = Agent(n_heads=8,
-                 n_gae_layers=3,
-                 input_dim=7,
-                 embed_dim=128,
-                #  embed_dim=64,
-                 gae_ff_hidden=512,
-                #  gae_ff_hidden=64,
-                 tanh_clip=10,
-                 device=args.device)    
+    agent = Agent(device=args.device,
+                  static_encoder_size=args.encoder_size,
+                  dynamic_encoder_size=args.encoder_size,
+                  decoder_encoder_size=args.encoder_size,
+                  pointer_num_layers=args.pointer_layers,
+                  pointer_num_neurons=args.encoder_size,
+                  dropout=args.dropout,
+                  n_glimpses=args.n_glimpses)   
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=1e-4)
     
     summary_root = "runs"
@@ -46,12 +46,11 @@ def setup(args):
         last_epoch = checkpoint["epoch"]
         last_step = checkpoint["step"]
 
-    train_dataset = TTPDataset(num_samples=1000)
-    # train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
+    test_dataset = TTPDataset(dataset_name=args.dataset_name)
+    test_dataloader = DataLoader(test_dataset, batch_size=1)
+    test_batch = next(iter(test_dataloader))
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+        
 
-    eval_dataset = TTPDataset(dataset_name=args.dataset_name)
-    eval_dataloader = DataLoader(eval_dataset, batch_size=1)
-    eval_batch = next(iter(eval_dataloader))
-
-    return agent, agent_opt, last_epoch, last_step, writer, checkpoint_path, train_dataloader, eval_batch
+    return agent, agent_opt, last_epoch, last_step, writer, checkpoint_path, test_env

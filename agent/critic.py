@@ -1,41 +1,38 @@
-import torch
-from agent.graph_encoder import GraphAttentionEncoder
+from typing import List
 
-CPU_DEVICE = torch.device("cpu")
+import torch as T
 
-class Critic(torch.jit.ScriptModule):
-# class Critic(torch.nn.Module):
-    def __init__(
-        self,
-        input_dim,
-        embedding_dim,
-        hidden_dim,
-        n_layers,
-        device=CPU_DEVICE
-    ):
-        super(Critic, self).__init__()
+from agent.embedding import Embedder
 
-        self.hidden_dim = hidden_dim
+CPU_DEVICE = T.device("cpu")
+
+class Critic(T.jit.ScriptModule):
+# class Critic(T.nn.Module):
+    def __init__(self, 
+                 dynamic_feature_size: int=5,
+                 static_feature_size: int=8,
+                 embedding_size: int = 64,
+                 device: T.device = CPU_DEVICE) -> None:
+        super().__init__()
+        self.static_encoder = Embedder(static_feature_size,embedding_size,device, use_relu=True)
+        self.dynamic_encoder = Embedder(dynamic_feature_size,embedding_size,device, use_relu=True)
+        self.value_layer = T.nn.Sequential(
+                                Embedder(2*embedding_size,20,device),
+                                T.nn.ReLU(),
+                                Embedder(20,20,device),
+                                T.nn.ReLU(),
+                                Embedder(20,1,device)               
+                            )
+        self.embedding_size = embedding_size
         self.device = device
-        self.encoder = GraphAttentionEncoder(
-            node_dim=input_dim,
-            n_heads=8,
-            embed_dim=embedding_dim,
-            n_layers=n_layers
-        )
+        self.to(device)
 
-        self.value_head = torch.nn.Sequential(
-            torch.nn.Linear(embedding_dim, hidden_dim),
-            torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, 1)
-        )
-        self.to(self.device)
-
-    @torch.jit.script_method
-    def forward(self, inputs: torch.Tensor):
-        """
-        :param inputs: (batch_size, graph_size, input_dim)
-        :return:
-        """
-        _, graph_embeddings = self.encoder(inputs)
-        return self.value_head(graph_embeddings).squeeze(1)
+    @T.jit.script_method
+    def forward(self, raw_static_feature: T.Tensor, raw_dynamic_feature:T.Tensor):
+        batch_size, num_vec, num_cust, _ = raw_static_feature.shape
+        static_features = self.static_encoder(raw_static_feature)
+        dynamic_features = self.dynamic_encoder(raw_dynamic_feature)
+        features = T.cat((static_features, dynamic_features), dim=-1)
+        features = features.view(batch_size, num_vec*num_cust, 2*self.embedding_size)
+        value = self.value_layer(features).sum(1)
+        return value

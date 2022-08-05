@@ -78,7 +78,7 @@ class TTPEnv(object):
         eligibility_mask = self.eligibility_mask
         return self.static_features, dynamic_features, eligibility_mask
         
-        # x0,y0,renting_rate,x,y,weight,profit,density  
+        # x0,y0,x,y,weight,profit,density  
     def get_static_features(self):
         self.num_static_features = 7
         dummy_idx = torch.arange(self.num_nodes)

@@ -1,3 +1,4 @@
+import os
 import random
 import sys
 
@@ -80,8 +81,9 @@ def run(args):
         test_one_epoch(agent, test_env, writer)
 
 if __name__ == '__main__':
+    torch.backends.cudnn.enabled = False
     args = prepare_args()
-    torch.set_num_threads(1)
+    torch.set_num_threads(os.cpu_count())
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

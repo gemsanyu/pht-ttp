@@ -32,7 +32,10 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, e
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        critic_costs = total_costs.mean()
+        if critic_costs is None:
+            critic_costs = total_costs.mean()
+        else:
+            critic_costs = critic_alpha*critic_costs + (1-critic_alpha)*total_costs.mean()
         agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, logprobs, sum_entropies)
         loss = agent_loss + entropy_loss_alpha*entropy_loss
         update(agent, agent_opt, loss)

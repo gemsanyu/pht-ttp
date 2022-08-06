@@ -59,8 +59,8 @@ class Agent(T.jit.ScriptModule):
         self.num_static_features = num_static_features
         self.num_dynamic_features = num_dynamic_features
 
-        self.static_encoder = Embedder(self.num_static_features, static_encoder_size, device=self.device, use_relu=True)
-        self.dynamic_encoder = Embedder(self.num_dynamic_features, dynamic_encoder_size, device=self.device, use_relu=True)
+        self.static_encoder = Embedder(self.num_static_features, static_encoder_size, device=self.device)
+        self.dynamic_encoder = Embedder(self.num_dynamic_features, dynamic_encoder_size, device=self.device)
         self.total_num_features = self.num_static_features + self.num_dynamic_features
         self.decoder_input_encoder = Embedder(static_encoder_size, decoder_encoder_size, device=device)
         # self.decoder_input_encoder = DecoderEmbedder(self.num_dynamic_features, self.num_static_features, self.embedding_size, device=device)

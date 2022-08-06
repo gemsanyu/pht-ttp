@@ -21,11 +21,12 @@ class Embedder(nn.Module):
             hidden_layer_sizes: size for layers in hidden layer
         '''
         super(Embedder, self).__init__()
-        self.layer = nn.Linear(input_size, hidden_size, device=device)
-        if use_relu:
-            self.layer = nn.Sequential(
-                            nn.Linear(input_size, hidden_size, device=device),
-                            nn.ReLU())
+        self.layer = nn.Conv1d(input_size, hidden_size, kernel_size=1, device=device)
+        # self.layer = nn.Linear(input_size, hidden_size, device=device)
+        # if use_relu:
+        #     self.layer = nn.Sequential(
+        #                     nn.Linear(input_size, hidden_size, device=device),
+        #                     nn.ReLU())
         self.to(device)
 
     def forward(self, input: T.Tensor) -> T.Tensor:
@@ -38,4 +39,8 @@ class Embedder(nn.Module):
                     (customers static features)
         Return: an embedded features
         '''
-        return self.layer(input)
+        if input.dim() == 3:
+            out = self.layer(input.permute(0,2,1)).permute(0,2,1)
+        else:
+            out = self.layer(input.unsqueeze(2)).squeeze(2)
+        return out

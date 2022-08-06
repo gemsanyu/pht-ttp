@@ -27,7 +27,7 @@ class Agent(T.jit.ScriptModule):
     def __init__(
             self,
             device: CPU_DEVICE,
-            num_static_features: int = 7,
+            num_static_features: int = 4,
             num_dynamic_features: int = 3,
             static_encoder_size: int = 64,
             dynamic_encoder_size: int = 64,
@@ -88,8 +88,8 @@ class Agent(T.jit.ScriptModule):
         batch_size, num_items, _ = static_embeddings.shape
         eligibility_mask = eligibility_mask.view(batch_size, 1, -1)
         decoder_input = self.decoder_input_encoder(previous_embeddings)
-        dynamic_embeddings = dynamic_embeddings.unsqueeze(1)
-        dynamic_embeddings = dynamic_embeddings.repeat_interleave(num_items, dim=1)
+        # dynamic_embeddings = dynamic_embeddings.unsqueeze(1)
+        # dynamic_embeddings = dynamic_embeddings.repeat_interleave(num_items, dim=1)
         features = T.cat((static_embeddings, dynamic_embeddings), dim=-1)
         # features = features.view(batch_size, num_vec*num_cust, 2*self.embedding_size)
 

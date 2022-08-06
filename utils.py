@@ -83,6 +83,7 @@ def solve(agent: Agent, env: TTPEnv):
 
 def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
     advantage = (total_costs - critic_costs).to(logprobs.device)
+    advantage = (advantage-advantage.mean())/(1e-8+advantage.std())
     agent_loss = -((advantage.detach())*logprobs).mean()
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss

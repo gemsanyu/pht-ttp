@@ -78,40 +78,48 @@ class TTPEnv(object):
         eligibility_mask = self.eligibility_mask
         return self.static_features, dynamic_features, eligibility_mask
         
-        # x0,y0,x,y,weight,profit,density  
+        # dist_to_origin, weight, profit, density  
     def get_static_features(self):
-        self.num_static_features = 7
+        self.num_static_features = 4
         dummy_idx = torch.arange(self.num_nodes)
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes)
         dummy_static_features = torch.zeros((self.batch_size, self.num_nodes, self.num_static_features), dtype=torch.float32)
         static_features = torch.zeros((self.batch_size, self.num_items, self.num_static_features), dtype=torch.float32)
 
-        static_features[:, :, :2] = self.norm_coords[:, 0, :].unsqueeze(1)
-        item_coords = self.norm_coords[self.item_batch_idx.ravel(), self.item_city_idx.ravel(), :]
-        static_features[:, :, 2:4] = item_coords.view(self.batch_size, self.num_items, 2)
-        static_features[:, :, 4] = self.norm_weights
-        static_features[:, :, 5] = self.norm_profits
-        static_features[:, :, 6] = self.norm_profits/self.norm_weights
+        origin_coords = self.norm_coords[:, 0, :].unsqueeze(1)
+        item_coords = self.norm_coords[self.item_batch_idx.ravel(), self.item_city_idx.ravel(), :].view(self.batch_size, self.num_items, 2)
+        item_dist_to_origin = torch.norm(origin_coords-item_coords, dim=2)
+        static_features[:, :, 0] = item_dist_to_origin
+        static_features[:, :, 1] = self.norm_weights
+        static_features[:, :, 2] = self.norm_profits
+        static_features[:, :, 3] = self.norm_profits/self.norm_weights
         
-        dummy_static_features[:, :, :2] = self.norm_coords[:, 0, :].unsqueeze(1)
-        dummy_static_features[:, :, 2:4] = self.norm_coords
+        dummy_dist_to_origin = torch.norm(origin_coords-self.norm_coords, dim=2)
+        dummy_static_features[:, :, 0] = dummy_dist_to_origin
 
         static_features = torch.cat((static_features, dummy_static_features), dim=1)
         return static_features
 
-        # is current profits penting?
-        # current_weight, current_profit, current_velocity
+        # dist_to_curr, current_weight, current_velocity
     def get_dynamic_features(self):
         self.num_dynamic_features = 3
-        dynamic_features = torch.zeros((self.batch_size, self.num_dynamic_features))
-        # dynamic_features[:, :2] = self.norm_coords[self.batch_idx, self.current_location, :]
-        dynamic_features[:, 0] = torch.sum(self.norm_weights*self.item_selection, dim=1)
-        dynamic_features[:, 1] = torch.sum(self.norm_profits*self.item_selection, dim=1)
+        # per item features = distance
+        current_coords = self.norm_coords[self.batch_idx, self.current_location, :].unsqueeze(1)
+        item_coords = self.norm_coords[self.item_batch_idx.ravel(), self.item_city_idx.ravel(), :].view(self.batch_size, self.num_items, 2)
+        item_dist_to_curr = torch.norm(current_coords-item_coords, dim=2)
+        dummy_dist_to_curr = torch.norm(self.norm_coords-current_coords, dim=2)
+        dist_to_curr = torch.cat((item_dist_to_curr, dummy_dist_to_curr), dim=1)
+        dist_to_curr = dist_to_curr.unsqueeze(2)
+
+        # global features weigh and velocity
+        global_dynamic_features = torch.zeros((self.batch_size, 2))
+        global_dynamic_features[:, 0] = torch.sum(self.norm_weights*self.item_selection, dim=1)
         current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
         current_vel = torch.maximum(current_vel, self.min_v)
-        dynamic_features[:, 2] = current_vel
-        # dynamic_features = dynamic_features.unsqueeze(1)
-        # dynamic_features = dynamic_features.expand(self.batch_size, self.num_items+self.num_nodes, self.num_dynamic_features)
+        global_dynamic_features[:, 1] = current_vel
+        global_dynamic_features = global_dynamic_features.unsqueeze(1)
+        global_dynamic_features = global_dynamic_features.repeat_interleave(self.num_items+self.num_nodes,dim=1)
+        dynamic_features = torch.cat([dist_to_curr, global_dynamic_features], dim=2)
         return dynamic_features
 
     def act(self, active_idx, selected_idx):

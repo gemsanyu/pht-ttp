@@ -1,7 +1,8 @@
 from operator import is_not
+from typing import Optional, Tuple
 import torch
 
-class TTPEnv(object):
+class TTPEnv(torch.jit.ScriptModule):
     def __init__(self,
                  coords, 
                  norm_coords, 
@@ -17,7 +18,7 @@ class TTPEnv(object):
                  renting_rate, 
                  item_city_idx,
                  item_city_mask):
-
+        super(TTPEnv, self).__init__()
         self.batch_size, self.num_nodes, _ = coords.shape
         _, self.num_items = profits.shape
         self.coords = coords
@@ -44,16 +45,18 @@ class TTPEnv(object):
         self.node_batch_idx = batch_idx.repeat_interleave(self.num_nodes)
         self.batch_idx = batch_idx.squeeze(1)
         
-        self.current_location = None
-        self.current_load = None
-        self.item_selection = None
-        self.tour_list = None
-        self.num_visited_nodes = None
-        self.is_selected = None
-        self.is_node_visited = None
-        self.eligibility_mask = None
-        self.all_city_idx = None
+        self.current_location:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.current_load:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.item_selection:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.tour_list:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.num_visited_nodes:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.is_selected:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.is_node_visited:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.eligibility_mask:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.all_city_idx:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
+        self.static_features:Optional[torch.Tensor] = torch.zeros((self.batch_size,), dtype=torch.long)
 
+    @torch.jit.script_method
     def reset(self):
         self.current_location = torch.zeros((self.batch_size,), dtype=torch.long)
         self.current_load = torch.zeros((self.batch_size,))
@@ -71,7 +74,7 @@ class TTPEnv(object):
         self.all_city_idx = torch.cat((self.item_city_idx, dummy_idx),dim=1)
         self.static_features = self.get_static_features()
         
-
+    @torch.jit.script_method
     def begin(self):
         self.reset()
         dynamic_features = self.get_dynamic_features()
@@ -79,12 +82,13 @@ class TTPEnv(object):
         return self.static_features, dynamic_features, eligibility_mask
         
         # dist_to_origin, weight, profit, density  
-    def get_static_features(self):
-        self.num_static_features = 4
+    @torch.jit.script_method
+    def get_static_features(self) -> torch.Tensor:
+        num_static_features = 4
         dummy_idx = torch.arange(self.num_nodes)
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes)
-        dummy_static_features = torch.zeros((self.batch_size, self.num_nodes, self.num_static_features), dtype=torch.float32)
-        static_features = torch.zeros((self.batch_size, self.num_items, self.num_static_features), dtype=torch.float32)
+        dummy_static_features = torch.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=torch.float32)
+        static_features = torch.zeros((self.batch_size, self.num_items, num_static_features), dtype=torch.float32)
 
         origin_coords = self.norm_coords[:, 0, :].unsqueeze(1)
         item_coords = self.norm_coords[self.item_batch_idx.ravel(), self.item_city_idx.ravel(), :].view(self.batch_size, self.num_items, 2)
@@ -101,8 +105,9 @@ class TTPEnv(object):
         return static_features
 
         # dist_to_curr, current_weight, current_velocity
-    def get_dynamic_features(self):
-        self.num_dynamic_features = 3
+    @torch.jit.script_method
+    def get_dynamic_features(self) -> torch.Tensor:
+        num_dynamic_features = 3
         # per item features = distance
         current_coords = self.norm_coords[self.batch_idx, self.current_location, :].unsqueeze(1)
         item_coords = self.norm_coords[self.item_batch_idx.ravel(), self.item_city_idx.ravel(), :].view(self.batch_size, self.num_items, 2)
@@ -122,7 +127,8 @@ class TTPEnv(object):
         dynamic_features = torch.cat([dist_to_curr, global_dynamic_features], dim=2)
         return dynamic_features
 
-    def act(self, active_idx, selected_idx):
+    @torch.jit.script_method
+    def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
         active_idx = active_idx.cpu()
         selected_idx = selected_idx.cpu()
@@ -135,10 +141,17 @@ class TTPEnv(object):
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
         dynamic_features = self.get_dynamic_features()
-        return dynamic_features, self.eligibility_mask
+        eligibility_mask = self.eligibility_mask
+        # mask only current location's items
+        dummy_mask = torch.ones((self.batch_size, self.num_nodes))
+        current_location_item_idx = self.current_location.unsqueeze(1).repeat_interleave(self.num_items, dim=1)
+        current_location_item_mask = self.item_city_idx == current_location_item_idx
+        current_mask = torch.cat([current_location_item_mask, dummy_mask], dim=1)
+        current_mask = torch.logical_and(eligibility_mask, current_mask)
+        return dynamic_features, current_mask
 
-
-    def take_item(self, active_idx, selected_item):
+    @torch.jit.script_method
+    def take_item(self, active_idx:torch.Tensor, selected_item:torch.Tensor):
         # set item as selected in item selection
         self.is_selected[active_idx, selected_item] = True
         self.item_selection[active_idx, selected_item] = True
@@ -158,7 +171,8 @@ class TTPEnv(object):
         if torch.any(is_diff_location):
             self.visit_node(active_idx[is_diff_location], selected_item_location[is_diff_location])
 
-    def visit_node(self, active_idx, selected_node):
+    @torch.jit.script_method
+    def visit_node(self, active_idx:torch.Tensor, selected_node:torch.Tensor):
         # set is selected
         self.is_selected[active_idx, selected_node+self.num_items] = True
         # set dummy item for the selected location is infeasible
@@ -181,8 +195,8 @@ class TTPEnv(object):
         if torch.any(is_all_visited):
             self.eligibility_mask[is_all_visited, self.num_items] = True
 
-
-    def finish(self):
+    @torch.jit.script_method
+    def finish(self)->Tuple[torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor,torch.Tensor]:
         # computing tour lenghts or travel time
         tour_A = self.tour_list
         tour_B = tour_A.roll(-1)

@@ -10,7 +10,6 @@ from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 
 def setup(args):
-    # similar to Attention learn routing default
     agent = Agent(device=args.device,
                   static_encoder_size=args.encoder_size,
                   dynamic_encoder_size=args.encoder_size,

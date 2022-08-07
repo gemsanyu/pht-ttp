@@ -48,10 +48,10 @@ def solve(agent: Agent, env: TTPEnv):
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
     static_features, dynamic_features, eligibility_mask = env.begin()
-    static_features =  static_features.to(agent.device)
+    static_features =  torch.from_numpy(static_features).to(agent.device)
     static_embeddings = agent.static_encoder(static_features)
-    dynamic_features = dynamic_features.to(agent.device)
-    eligibility_mask = eligibility_mask.to(agent.device)
+    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
     # initially pakai initial input
@@ -73,8 +73,8 @@ def solve(agent: Agent, env: TTPEnv):
         logprobs[active_idx] += logprob
         sum_entropies[active_idx] += entropy
         dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        dynamic_features = dynamic_features.to(agent.device)
-        eligibility_mask = eligibility_mask.to(agent.device)
+        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
         prev_selected_idx[active_idx] = selected_idx
         first_turn = False
     # # get total profits and tour lenghts

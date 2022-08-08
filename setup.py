@@ -43,7 +43,6 @@ def setup(args):
         agent.load_state_dict(checkpoint["agent_state_dict"])
         agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
         last_epoch = checkpoint["epoch"]
-        last_step = checkpoint["step"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
@@ -52,4 +51,4 @@ def setup(args):
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
         
 
-    return agent, agent_opt, last_epoch, last_step, writer, checkpoint_path, test_env
+    return agent, agent_opt, last_epoch, writer, checkpoint_path, test_env

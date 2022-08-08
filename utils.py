@@ -1,3 +1,4 @@
+import os
 from typing import NamedTuple
 
 import torch
@@ -104,18 +105,27 @@ def evaluate(agent, batch):
     return tour_list, item_selection, tour_length.item(), total_profit.item(), total_cost.item()
 
 
-def save(agent: Agent, agent_opt:torch.optim.Optimizer,epoch, step, checkpoint_path):
+def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, checkpoint_path):
     checkpoint = {
         "agent_state_dict":agent.state_dict(),
-        "agent_opt_state_dict":agent_opt.state_dict(),
+        "agent_opt_state_dict":agent_opt.state_dict(),  
+        "validation_cost":validation_cost,
         "epoch":epoch,
-        "step":step
     }
     # save twice to prevent failed saving,,, damn
     torch.save(checkpoint, checkpoint_path.absolute())
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
+    # saving best checkpoint
+    best_checkpoint_path = checkpoint_path.parent /(checkpoint_path.name + "_best")
+    if not os.path.isfile(best_checkpoint_path.absolute()):
+        torch.save(checkpoint, best_checkpoint_path)
+    else:
+        best_checkpoint =  torch.load(best_checkpoint_path.absolute())
+        best_validation_cost = best_checkpoint["validation_cost"]
+        if best_validation_cost < validation_cost:
+            torch.save(checkpoint, best_checkpoint_path.absolute())
 
 def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, writer):
     writer.add_scalar("Training Tour Length", tour_length)

@@ -12,7 +12,7 @@ from arguments import get_parser
 from setup import setup
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
-from utils import solve, compute_loss, update, write_training_progress, write_validation_progress, write_test_progress
+from utils import solve, compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -61,8 +61,9 @@ def validation_one_epoch(agent, validation_dataset, writer):
     mean_total_profit = torch.cat(total_profit_list).mean()
     mean_total_cost = torch.cat(total_cost_list).mean()
     mean_logprob = torch.cat(logprob_list).mean()
-
     write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
+    return mean_total_cost
+
 
 @torch.no_grad()
 def test_one_epoch(agent, test_env, writer):
@@ -80,8 +81,9 @@ def run(args):
         dataset.new_num_items_per_city()
         train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
         train_one_epoch(agent, agent_opt, train_dataset, writer)
-        validation_one_epoch(agent, validation_dataset, writer)
+        validation_cost = validation_one_epoch(agent, validation_dataset, writer)
         test_one_epoch(agent, test_env, writer)
+        save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
 
 if __name__ == '__main__':
     args = prepare_args()

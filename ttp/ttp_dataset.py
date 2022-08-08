@@ -20,7 +20,7 @@ from ttp.ttp import TTP
 class TTPDataset(Dataset):
     def __init__(self,
                  num_samples:int=1000000,
-                 num_nodes:int=50,
+                 num_nodes_list:List[int]=[50, 100],
                  num_items_per_city_list:List[int]=[1,3,5],
                  dataset_name=None
             ) -> None:
@@ -28,7 +28,7 @@ class TTPDataset(Dataset):
 
         if dataset_name is None:
             self.num_samples = num_samples
-            self.num_nodes = num_nodes
+            self.num_nodes_list = num_nodes_list
             self.num_items_per_city_list = num_items_per_city_list
             self.num_items_idx = 0
             self.prob = None
@@ -40,6 +40,7 @@ class TTPDataset(Dataset):
             self.num_items_per_city = self.prob.num_items_per_city
         
     def new_num_items_per_city(self):
+        self.num_nodes_idx = random.randint(0,len(self.num_nodes_list)-1)
         self.num_items_idx = random.randint(0,len(self.num_items_per_city_list)-1)
 
     def __len__(self):
@@ -47,8 +48,9 @@ class TTPDataset(Dataset):
 
     def __getitem__(self, index):
         if self.prob is None:
+            num_nodes = self.num_nodes_list[self.num_nodes_idx]
             num_items_per_city = self.num_items_per_city_list[self.num_items_idx]
-            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=num_items_per_city, prob_idx=index%1000)
+            prob = read_prob(num_nodes=num_nodes, num_items_per_city=num_items_per_city, prob_idx=index%1000)
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

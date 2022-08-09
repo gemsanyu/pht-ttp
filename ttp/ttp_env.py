@@ -174,12 +174,17 @@ class TTPEnv():
         if np.any(is_all_visited):
             self.eligibility_mask[is_all_visited, self.num_items] = True
 
-    def finish(self):
+    def finish(self, normalized=False):
         # computing tour lenghts or travel time
         tour_A = self.tour_list
         tour_B = np.roll(tour_A, shift=-1, axis=1)
-        edge_lengths = self.W[self.batch_idx_W, tour_A, tour_B]
-        selected_weights = self.item_selection.astype(dtype=np.float32) *self.weights
+        if normalized:
+            W, profits = self.norm_W, self.norm_profits
+        else:
+            W, profits = self.W, self.profits
+
+        edge_lengths = W[self.batch_idx_W, tour_A, tour_B]
+        selected_weights = self.item_selection.astype(dtype=np.float32)*self.weights
         selected_node_weights = np.zeros((self.batch_size, self.num_nodes), dtype=np.float32)
         np.put_along_axis(selected_node_weights, self.item_city_idx, selected_weights, axis=1)
         ordered_selected_weights = selected_node_weights[self.batch_idx_W, self.tour_list]
@@ -189,7 +194,7 @@ class TTPEnv():
         tour_lengths = (edge_lengths/velocity_list).sum(axis=-1)
 
         # total profit
-        selected_profits = self.item_selection*self.profits
+        selected_profits = self.item_selection*profits
         total_profits = selected_profits.sum(axis=-1)
 
         total_cost = total_profits - tour_lengths*self.renting_rate

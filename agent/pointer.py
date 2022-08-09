@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Dict, Optional, Tuple
 
 import torch as T
 import torch.nn as nn
@@ -62,6 +62,7 @@ class Pointer(nn.Module):
                 decoder_input: T.Tensor,
                 last_pointer_hidden_state: T.Tensor,
                 mask: T.Tensor,
+                param_dict: Optional[Dict[str, T.Tensor]]=None,
             ) -> Tuple[T.Tensor, T.Tensor]:
         '''
         ### Calculate pointer.
@@ -88,12 +89,31 @@ class Pointer(nn.Module):
         # compute glimpse first, but what is glimpse really?
         # its like there are multiple layers of attention
         q = rnn_out
+        if param_dict is not None:
+            glimpse_param_dict = {
+                                  "v":param_dict["v0"],
+                                  "fe_weight":param_dict["fe0_weight"],
+                                  "fe_bias":param_dict["fe0_bias"],
+                                  "qe_weight":param_dict["qe0_weight"],
+                                  "qe_bias":param_dict["qe0_bias"]
+                                 }
+            att_param_dict = {
+                                  "v":param_dict["v1"],
+                                  "fe_weight":param_dict["fe1_weight"],
+                                  "fe_bias":param_dict["fe1_bias"],
+                                  "qe_weight":param_dict["qe1_weight"],
+                                  "qe_bias":param_dict["qe1_bias"]
+                                 }
+        else:
+            glimpse_param_dict = None
+            att_param_dict = None
+
         for i in range(self.n_glimpses):
-            embedded_features, glimpse_logits = self.glimpse(query=q, features=features) #1*n
+            embedded_features, glimpse_logits = self.glimpse(query=q, features=features, param_dict=glimpse_param_dict) #1*n
             # mask the logit
             masked_glimpse_logits = glimpse_logits + mask.float().log()
             glimpse_att =  F.softmax(masked_glimpse_logits, dim=2)
             q = glimpse_att@embedded_features   
-        _, logits = self.attention_layer(query=q, features=features)
+        _, logits = self.attention_layer(query=q, features=features, param_dict=att_param_dict)
         masked_logits = logits + mask.float().log()
         return masked_logits, pointer_hidden_state

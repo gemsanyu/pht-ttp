@@ -1,6 +1,7 @@
 import os
 from typing import NamedTuple
 
+import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
 from scipy.stats import ttest_rel
@@ -44,7 +45,7 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
-def solve(agent: Agent, env: TTPEnv):
+def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
@@ -66,20 +67,20 @@ def solve(agent: Agent, env: TTPEnv):
             previous_embeddings = previous_embeddings.unsqueeze(1)
         next_pointer_hidden_states = last_pointer_hidden_states
         dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
-        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings)
+        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
-        selected_idx, logprob, entropy = agent.select(probs)
+        selected_idx, logprob = agent.select(probs)
         #save logprobs
         logprobs[active_idx] += logprob
-        sum_entropies[active_idx] += entropy
+        # sum_entropies[active_idx] += entropy
         dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
         dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
         eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
         prev_selected_idx[active_idx] = selected_idx
         first_turn = False
     # # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
+    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
 def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
@@ -89,11 +90,24 @@ def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss
 
+def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
+    remaining_profits = remaining_profits.to(logprobs.device)
+    tour_lengths = tour_lengths.to(logprobs.device)
+    profit_loss = ((remaining_profits.float())*logprobs).mean() # maximize hence the -
+    tour_length_loss = (tour_lengths*logprobs).mean()
+    return profit_loss, tour_length_loss
+
 def update(agent, agent_opt, loss):
     agent_opt.zero_grad(set_to_none=True)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
+
+def update_phn(phn, phn_opt, loss):
+    phn_opt.zero_grad(set_to_none=True)
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
+    phn_opt.step()
 
 def evaluate(agent, batch):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
@@ -127,6 +141,17 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
+def save_phn(phn, phn_opt, epoch, checkpoint_path):
+    checkpoint = {
+        "phn_state_dict":phn.state_dict(),
+        "phn_opt_state_dict":phn_opt.state_dict(),  
+        "epoch":epoch,
+    }
+    # save twice to prevent failed saving,,, damn
+    torch.save(checkpoint, checkpoint_path.absolute())
+    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
+    torch.save(checkpoint, checkpoint_backup_path.absolute())
+
 def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, writer):
     writer.add_scalar("Training Tour Length", tour_length)
     writer.add_scalar("Training Total Profit", total_profit)
@@ -149,4 +174,12 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test Total Profit", total_profit)
     writer.add_scalar("Test Total Cost", total_cost)
     writer.add_scalar("Test NLL", -logprob)
+    writer.flush()
+
+def write_test_phn_progress(writer, f_list, epoch):
+    plt.figure()
+    plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    # plt.scatter(
+    #     problem.sample_solutions[:, 0], problem.sample_solutions[:, 1], c="red")
+    writer.add_figure("Solutions", plt.gcf(), epoch)
     writer.flush()

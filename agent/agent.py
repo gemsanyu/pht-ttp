@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Dict, Tuple, Optional
 
 from torch.nn.functional import softmax
 import torch as T
@@ -24,6 +24,7 @@ Encoder input: last customers static features
 CPU_DEVICE = T.device("cpu")
 
 class Agent(T.jit.ScriptModule):
+# class Agent(nn.Module):
     def __init__(
             self,
             device: CPU_DEVICE,
@@ -67,6 +68,7 @@ class Agent(T.jit.ScriptModule):
         self.pointer = Pointer(pointer_num_neurons, pointer_num_layers, device=self.device, dropout=dropout, n_glimpses=n_glimpses)
         initial_input = T.randn(size=(1,1,static_encoder_size), dtype=T.float32, device=self.device)
         self.inital_input = nn.parameter.Parameter(initial_input)
+        self.softmax = nn.Softmax(dim=2)
         self.to(self.device)
 
     @T.jit.script_method   
@@ -76,7 +78,8 @@ class Agent(T.jit.ScriptModule):
                 static_embeddings: T.Tensor, 
                 dynamic_embeddings: T.Tensor,
                 eligibility_mask: T.Tensor,
-                previous_embeddings: T.Tensor) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
+                previous_embeddings: T.Tensor,
+                param_dict: Optional[Dict[str, T.Tensor]]=None) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
         '''
         ### get probs and selection
 
@@ -93,8 +96,8 @@ class Agent(T.jit.ScriptModule):
         features = T.cat((static_embeddings, dynamic_embeddings), dim=-1)
         # features = features.view(batch_size, num_vec*num_cust, 2*self.embedding_size)
 
-        logits, next_pointer_hidden_state = self.pointer(features, decoder_input, last_pointer_hidden_states, eligibility_mask)
-        probs = softmax(logits, dim=2)
+        logits, next_pointer_hidden_state = self.pointer(features, decoder_input, last_pointer_hidden_states, eligibility_mask, param_dict)
+        probs = self.softmax(logits)
         return next_pointer_hidden_state, logits, probs
 
     @T.jit.ignore
@@ -112,14 +115,14 @@ class Agent(T.jit.ScriptModule):
             dist = T.distributions.Categorical(probs)
             selected_idx = dist.sample()
             logprob = dist.log_prob(selected_idx)
-            entropy = dist.entropy()
+            # entropy = dist.entropy()
         else:
             prob, selected_idx = T.max(probs, dim=2)
             logprob = T.log(prob)
-            no_probs = probs == 0
-            probs[no_probs] = 1
-            entropy = (-probs*T.log(probs)).sum(dim=2)
+            # no_probs = probs == 0
+            # probs[no_probs] = 1
+            # entropy = (-probs*T.log(probs)).sum(dim=2)
         selected_idx = selected_idx.squeeze(1)
         logprob = logprob.squeeze(1)
-        entropy = entropy.squeeze(1)
-        return selected_idx, logprob, entropy
+        # entropy = entropy.squeeze(1)
+        return selected_idx, logprob #, entropy

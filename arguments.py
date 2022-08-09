@@ -75,5 +75,9 @@ def get_parser():
                         type=int,
                         default=1,
                         help="num of repetition for glimpse computation")
+    parser.add_argument('--ray-hidden-size',
+                        type=int,
+                        default=128,
+                        help="ray hidden size")
 
     return parser

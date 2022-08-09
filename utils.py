@@ -183,3 +183,13 @@ def write_test_phn_progress(writer, f_list, epoch):
     #     problem.sample_solutions[:, 0], problem.sample_solutions[:, 1], c="red")
     writer.add_figure("Solutions", plt.gcf(), epoch)
     writer.flush()
+
+
+def write_training_phn_progress(mean_total_profit, mean_tour_length, profit_loss, tour_length_loss, epo_loss, logprob, num_nodes, num_items, writer):
+    writer.add_scalar(f'Training PHN Mean Total Profit {num_nodes},{num_items}', mean_total_profit)
+    writer.add_scalar(f'Training PHN Mean Tour Length {num_nodes},{num_items}', mean_tour_length)
+    writer.add_scalar(f'Training PHN Profit Loss {num_nodes},{num_items}', profit_loss)
+    writer.add_scalar(f'Training PHN Tour Length Loss {num_nodes},{num_items}', tour_length_loss)
+    writer.add_scalar(f'Training PHN EPO Loss {num_nodes},{num_items}', epo_loss)
+    writer.add_scalar(f'Training PHN NLL {num_nodes},{num_items}', -logprob)
+    writer.flush()

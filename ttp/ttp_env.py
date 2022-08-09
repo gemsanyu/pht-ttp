@@ -179,7 +179,7 @@ class TTPEnv():
         tour_A = self.tour_list
         tour_B = np.roll(tour_A, shift=-1, axis=1)
         if normalized:
-            W, profits = self.norm_W, self.norm_profits
+            W, profits = self.norm_W/self.num_nodes, self.norm_profits
         else:
             W, profits = self.W, self.profits
 

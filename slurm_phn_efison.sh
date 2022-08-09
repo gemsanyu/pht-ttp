@@ -7,7 +7,7 @@
 #SBATCH --partition=gpu_ampere
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=10
-#SBATCH --mem=32GB
+#SBATCH --mem=64GB
 #SBATCH --time=12:00:00
 
 

@@ -13,4 +13,4 @@
 
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate torch
-python main_phn.py --title new_v1 --max-epoch 200 --device cuda --num-training-samples 5000
+python main_phn.py --title newv1 --max-epoch 200 --device cuda --num-training-samples 5000

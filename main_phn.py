@@ -33,10 +33,13 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
     critic_profits, critic_tour_lengths = None, None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="Training", position=1):
         # sample a ray preference
-        ray = torch.from_numpy(
-                np.random.dirichlet([alpha, alpha], 1).astype(np.float32).flatten()
-            ).to(agent.device)
-        ray = ray.unsqueeze(0)
+        # ray = torch.from_numpy(
+        #         np.random.dirichlet([alpha, alpha], 1).astype(np.float32).flatten()
+        #     ).to(agent.device)
+        a = random.random()
+        b = 1-a
+        ray = torch.tensor([[a,b]], dtype=torch.float32, device=agent.device)
+        # ray = ray.unsqueeze(0)
         # generate parameters
         param_dict = phn(ray)
 

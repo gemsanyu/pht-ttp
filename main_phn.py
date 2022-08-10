@@ -32,14 +32,15 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
     critic_profits, critic_tour_lengths = None, None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="Training", position=1):
+    # for batch_idx, batch in enumerate(train_dataloader): 
         # sample a ray preference
-        # ray = torch.from_numpy(
-        #         np.random.dirichlet([alpha, alpha], 1).astype(np.float32).flatten()
-        #     ).to(agent.device)
-        a = random.random()
-        b = 1-a
-        ray = torch.tensor([[a,b]], dtype=torch.float32, device=agent.device)
-        # ray = ray.unsqueeze(0)
+        ray = torch.from_numpy(
+                np.random.dirichlet([alpha, alpha], 1).astype(np.float32).flatten()
+            ).to(agent.device)
+        ray = ray.unsqueeze(0)
+        # a = random.random()
+        # b = 1-a
+        # ray = torch.tensor([[a,b]], dtype=torch.float32, device=agent.device)
         # generate parameters
         param_dict = phn(ray)
 
@@ -49,7 +50,9 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
         remaining_profits = 1.-total_profits
         profit_loss, tour_length_loss = compute_multi_loss(remaining_profits, tour_lengths, logprobs)
         loss = torch.stack([tour_length_loss, profit_loss])
-        epo_loss = solver(loss, ray.squeeze(0), list(phn.parameters()))
+        # print(ray.shape, loss.shape)
+        # epo_loss, a = solver(loss, ray.squeeze(0), list(phn.parameters()))
+        epo_loss = (ray.squeeze(0)*loss).sum()
         update_phn(phn, phn_opt, epo_loss)
         agent.zero_grad(set_to_none=True)
         write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), profit_loss.detach(), tour_length_loss.detach(), epo_loss.detach(), logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
@@ -92,9 +95,8 @@ def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=100):
 
 def run(args):
     agent, phn, phn_opt, solver, last_epoch, writer, checkpoint_path, test_env = setup_phn(args)
-    validation_size = int(0.1*args.num_training_samples)
-    training_size = args.num_training_samples - validation_size
-    num_nodes_list = [50, 100]
+    training_size = args.num_training_samples
+    num_nodes_list = [50,100]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
@@ -106,8 +108,7 @@ def run(args):
             random.shuffle(config_list)
         num_nodes, num_items_per_city = config_list[config_it]
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
-        train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
-        train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer)
+        train_one_epoch(agent, phn, phn_opt, solver, dataset, writer)
         # validation_cost = validation_one_epoch(agent, validation_dataset, writer)
         test_one_epoch(agent, phn, test_env, writer, epoch)
         save_phn(phn, phn_opt, epoch, checkpoint_path)

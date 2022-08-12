@@ -27,7 +27,7 @@ def prepare_args():
     return args
 
 def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_alpha=0.8, alpha=0.2):
-    agent.eval()
+    agent.train()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
     critic_profits, critic_tour_lengths = None, None
@@ -96,7 +96,7 @@ def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=100):
 def run(args):
     agent, phn, phn_opt, solver, last_epoch, writer, checkpoint_path, test_env = setup_phn(args)
     training_size = args.num_training_samples
-    num_nodes_list = [50,100]
+    num_nodes_list = [50]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)

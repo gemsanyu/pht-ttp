@@ -152,15 +152,25 @@ def save_phn(phn, phn_opt, epoch, checkpoint_path):
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
-def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, num_nodes, num_items, writer):
-    env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
-    writer.add_scalar("Training Tour Length"+env_title, tour_length)
-    writer.add_scalar("Training Total Profit"+env_title, total_profit)
-    writer.add_scalar("Training Total Cost"+env_title, total_cost)
-    writer.add_scalar("Training Agent Loss"+env_title, agent_loss)
-    writer.add_scalar("Training Entropy Loss"+env_title, entropy_loss)
-    writer.add_scalar("Training NLL"+env_title, -logprob)
-    writer.add_scalar("Training Critic Exp Moving Average"+env_title, critic_cost)
+def save_nes(policy, epoch, checkpoint_path):
+    checkpoint = {
+        "policy":policy,  
+        "epoch":epoch,
+    }
+    # save twice to prevent failed saving,,, damn
+    torch.save(checkpoint, checkpoint_path.absolute())
+    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
+    torch.save(checkpoint, checkpoint_backup_path.absolute())
+
+
+def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, writer):
+    writer.add_scalar("Training Tour Length", tour_length)
+    writer.add_scalar("Training Total Profit", total_profit)
+    writer.add_scalar("Training Total Cost", total_cost)
+    writer.add_scalar("Training Agent Loss", agent_loss)
+    writer.add_scalar("Training Entropy Loss", entropy_loss)
+    writer.add_scalar("Training NLL", -logprob)
+    writer.add_scalar("Training Critic Exp Moving Average", critic_cost)
     writer.flush()
 
 def write_validation_progress(tour_length, total_profit, total_cost, logprob, writer):

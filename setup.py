@@ -36,11 +36,11 @@ def setup_r1_nes(args):
     checkpoint_path = checkpoint_dir/(args.title+".pt")
     agent_checkpoint_path = checkpoint_dir/(args.title+"_agent.pt")
 
-    agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)
+    agent_checkpoint = torch.load(agent_checkpoint_path.absolute())
     agent.load_state_dict(agent_checkpoint["agent_state_dict"])
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):
-        checkpoint = torch.load(checkpoint_path.absolute(), map_location=args.device)
+        checkpoint = torch.load(checkpoint_path.absolute())
     else:
         print("CHECKPOINT NOT FOUND! new run?")
 

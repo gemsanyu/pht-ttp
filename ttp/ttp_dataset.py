@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 from ttp.ttp import TTP
+from ttp.ttp_env import TTPEnv
 
 # knapsack problem profit vs weight parameters
 # UNCORRELATED=0
@@ -56,6 +57,15 @@ class TTPDataset(Dataset):
         item_city_idx, item_city_mask = prob.item_city_idx, prob.item_city_mask
         return coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask
 
+def prob_to_env(prob):
+    coords, norm_coords, W, norm_W = prob.location_data.coords.unsqueeze(0), prob.location_data.norm_coords.unsqueeze(0), prob.location_data.W.unsqueeze(0), prob.location_data.norm_W.unsqueeze(0)
+    profits, norm_profits = prob.profit_data.profits.unsqueeze(0), prob.profit_data.norm_profits.unsqueeze(0)
+    weights, norm_weights = prob.weight_data.weights.unsqueeze(0), prob.weight_data.norm_weights.unsqueeze(0)
+    min_v, max_v, renting_rate = torch.tensor([prob.min_v]), torch.tensor([prob.max_v]),torch.tensor([prob.renting_rate])
+    max_cap = prob.max_cap.unsqueeze(0)
+    item_city_idx, item_city_mask = prob.item_city_idx.unsqueeze(0), prob.item_city_mask.unsqueeze(0)
+    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+    return env
 
 def read_prob(num_nodes, num_items_per_city, prob_idx):
     data_root = "data_full" 

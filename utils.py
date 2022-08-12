@@ -152,6 +152,17 @@ def save_phn(phn, phn_opt, epoch, checkpoint_path):
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
+def save_nes(policy, epoch, checkpoint_path):
+    checkpoint = {
+        "policy":policy,  
+        "epoch":epoch,
+    }
+    # save twice to prevent failed saving,,, damn
+    torch.save(checkpoint, checkpoint_path.absolute())
+    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
+    torch.save(checkpoint, checkpoint_backup_path.absolute())
+
+
 def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, writer):
     writer.add_scalar("Training Tour Length", tour_length)
     writer.add_scalar("Training Total Profit", total_profit)

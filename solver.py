@@ -97,7 +97,7 @@ class EPO:
         alpha = torch.from_numpy(alpha).to(losses.device)
 
         weighted_loss = torch.sum(losses * alpha)
-        return weighted_loss
+        return weighted_loss, alpha
 
 
 class ExactParetoLP(object):

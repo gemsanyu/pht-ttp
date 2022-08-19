@@ -105,8 +105,8 @@ def setup_phn(args):
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     test_batch = next(iter(test_dataloader))
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = test_batch
-    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
         
     return agent, phn, phn_opt, solver, last_epoch, writer, checkpoint_path, test_env
 

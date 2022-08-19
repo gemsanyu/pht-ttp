@@ -51,6 +51,20 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
         norm_total_profits = 1. - total_profits/env.best_profit_kp
         norm_tour_lengths = norm_tour_lengths.to(agent.device)
         norm_total_profits = norm_total_profits.to(agent.device)
+<<<<<<< HEAD
+=======
+        # print(tour_lengths, total_profits)
+        # print(env.best_route_length_tsp, env.best_profit_kp)
+        # print(norm_tour_lengths, norm_total_profits)
+        # with torch.no_grad():
+        #     agent.eval()
+        #     _, _, crit_tour_lengths, crit_total_profits, _, _, _ = solve(agent, env, param_dict, normalized=True)
+        # agent.train()
+        # tour_lengths_adv = (tour_lengths-crit_total_profits).to(agent.device).float()
+        # tour_length_loss = (logprobs*tour_lengths_adv).mean()
+        # profit_adv = (crit_total_profits-total_profits).to(agent.device).float()
+        # profit_loss = (profit_adv*logprobs).mean()
+>>>>>>> fix sop optim and loss
         tour_length_loss = (logprobs*norm_tour_lengths).mean()
         profit_loss = (logprobs*norm_total_profits).mean()
 
@@ -65,7 +79,11 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
         write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), profit_loss.detach(), tour_length_loss.detach(), epo_loss.detach(), logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
 
 @torch.no_grad()
+<<<<<<< HEAD
 def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n_solutions=100):
+=======
+def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=20):
+>>>>>>> fix sop optim and loss
     agent.eval()
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]

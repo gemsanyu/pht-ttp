@@ -64,7 +64,13 @@ def get_renting_rate(W, weights, profits, capacity):
     # solve the knapsack first
     optimal_profit = solve_knapsack(weights, profits, capacity)
     # solve the tsp
+<<<<<<< HEAD
     route_list, optimal_tour_length = solve_tsp(W)
+=======
+    route_list, _ = solve_tsp(W*100000)
+    route_A, route_B = route_list, route_list.roll(-1)
+    optimal_tour_length = (W[route_A, route_B]).sum().float().item()
+>>>>>>> fix sop optim and loss
     renting_rate = float(optimal_profit)/float(optimal_tour_length)
     return optimal_tour_length, optimal_profit, renting_rate
 
@@ -102,8 +108,13 @@ def solve_tsp(W):
 
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+<<<<<<< HEAD
     search_parameters.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.CHRISTOFIDES)
+=======
+    # search_parameters.first_solution_strategy = (
+    #     routing_enums_pb2.FirstSolutionStrategy.CHRISTOFIDES)
+>>>>>>> fix sop optim and loss
     search_parameters.local_search_metaheuristic = (
     routing_enums_pb2.LocalSearchMetaheuristic.GENERIC_TABU_SEARCH)
     search_parameters.time_limit.seconds = 3
@@ -161,6 +172,7 @@ def solve_tsp_memoization(W):
     best_route_length = solve_(0, mask)
     return best_route_length
 
+<<<<<<< HEAD
 def save_prob(problem, num_nodes, num_items_per_city, prob_idx):
     data_root = "data_full" 
     data_dir = pathlib.Path(".")/data_root/"training"/"sop"
@@ -171,6 +183,8 @@ def save_prob(problem, num_nodes, num_items_per_city, prob_idx):
     with open(dataset_path.absolute(), "wb") as handle:
         pickle.dump(problem, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+=======
+>>>>>>> fix sop optim and loss
 if __name__ == "__main__":
     num_nodes = 6
     coords = torch.randint(0,10, size=(num_nodes,2), dtype=torch.float32)

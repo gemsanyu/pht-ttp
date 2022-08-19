@@ -45,7 +45,7 @@ class TTPDataset(Dataset):
 
     def __getitem__(self, index):
         if self.prob is None:
-            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=index%1000)
+            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=index%100)
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W
@@ -54,10 +54,12 @@ class TTPDataset(Dataset):
         min_v, max_v, renting_rate = prob.min_v, prob.max_v, prob.renting_rate
         max_cap = prob.max_cap
         item_city_idx, item_city_mask = prob.item_city_idx, prob.item_city_mask
-        return coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask
+        best_profit_kp = prob.max_profit
+        best_route_length_tsp = prob.min_tour_length
+        return coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp
 
 
-def read_prob(num_nodes, num_items_per_city, prob_idx):
+def read_prob(num_nodes, num_items_per_city, prob_idx) -> TTP:
     data_root = "data_full" 
     data_dir = pathlib.Path(".")/data_root/"training"/"sop"
     data_dir.mkdir(parents=True, exist_ok=True)

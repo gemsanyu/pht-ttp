@@ -44,44 +44,39 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
         # generate parameters
         param_dict = phn(ray)
 
-        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
-        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env, param_dict, normalized=True)
-        remaining_profits = 1.-total_profits
-        profit_loss, tour_length_loss = compute_multi_loss(remaining_profits, tour_lengths, logprobs)
+        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
+        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env, param_dict, normalized=False)
+        norm_tour_lengths = tour_lengths/env.best_route_length_tsp - 1.
+        norm_total_profits = 1. - total_profits/env.best_profit_kp
+        norm_tour_lengths = norm_tour_lengths.to(agent.device)
+        norm_total_profits = norm_total_profits.to(agent.device)
+        # print(tour_lengths, total_profits)
+        # print(env.best_route_length_tsp, env.best_profit_kp)
+        # print(norm_tour_lengths, norm_total_profits)
+        # with torch.no_grad():
+        #     agent.eval()
+        #     _, _, crit_tour_lengths, crit_total_profits, _, _, _ = solve(agent, env, param_dict, normalized=True)
+        # agent.train()
+        # tour_lengths_adv = (tour_lengths-crit_total_profits).to(agent.device).float()
+        # tour_length_loss = (logprobs*tour_lengths_adv).mean()
+        # profit_adv = (crit_total_profits-total_profits).to(agent.device).float()
+        # profit_loss = (profit_adv*logprobs).mean()
+        tour_length_loss = (logprobs*norm_tour_lengths).mean()
+        profit_loss = (logprobs*norm_total_profits).mean()
+
+        # profit_loss, tour_length_loss = compute_multi_loss(remaining_profits, tour_lengths, logprobs)
         loss = torch.stack([tour_length_loss, profit_loss])
         # print(ray.shape, loss.shape)
         # epo_loss, a = solver(loss, ray.squeeze(0), list(phn.parameters()))
+        # print(a)
         epo_loss = (ray.squeeze(0)*loss).sum()
         update_phn(phn, phn_opt, epo_loss)
         agent.zero_grad(set_to_none=True)
         write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), profit_loss.detach(), tour_length_loss.detach(), epo_loss.detach(), logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
 
 @torch.no_grad()
-def validation_one_epoch(agent, validation_dataset, writer):
-    agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4)
-    tour_length_list = []
-    total_profit_list = []
-    total_cost_list = []
-    logprob_list = []
-    for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
-        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
-        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        tour_length_list += [tour_lengths]
-        total_profit_list += [total_profits]
-        total_cost_list += [total_costs]
-        logprob_list += [logprobs]
-    mean_tour_length = torch.cat(tour_length_list).mean()
-    mean_total_profit = torch.cat(total_profit_list).mean()
-    mean_total_cost = torch.cat(total_cost_list).mean()
-    mean_logprob = torch.cat(logprob_list).mean()
-    return mean_total_cost
-
-
-@torch.no_grad()
-def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=100):
+def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=20):
     agent.eval()
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]

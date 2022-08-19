@@ -18,7 +18,9 @@ class TTPEnv():
                  max_cap,
                  renting_rate, 
                  item_city_idx,
-                 item_city_mask):
+                 item_city_mask,
+                 best_profit_kp,
+                 best_route_length_tsp):
         self.batch_size, self.num_nodes, _ = coords.shape
         _, self.num_items = profits.shape
         self.coords = coords.numpy()
@@ -36,6 +38,8 @@ class TTPEnv():
         self.renting_rate = renting_rate.numpy()
         self.item_city_idx = item_city_idx.numpy()
         self.item_city_mask = item_city_mask.numpy()
+        self.best_profit_kp = best_profit_kp.numpy()
+        self.best_route_length_tsp = best_route_length_tsp.numpy()
         self.max_travel_time = 0
         
         # prepare features with dummy items padded
@@ -179,7 +183,7 @@ class TTPEnv():
         tour_A = self.tour_list
         tour_B = np.roll(tour_A, shift=-1, axis=1)
         if normalized:
-            W, profits = self.norm_W/self.num_nodes, self.norm_profits
+            W, profits = self.norm_W, self.norm_profits
         else:
             W, profits = self.W, self.profits
 

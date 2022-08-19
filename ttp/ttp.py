@@ -154,6 +154,7 @@ class TTP(object):
                                           device=self.device)
                 elif i == 4:
                     self.max_cap = float(strings[3])
+                    self.max_cap = torch.tensor(self.max_cap)
                 elif i == 5:
                     self.min_v = float(strings[2])
                 elif i == 6:
@@ -191,6 +192,11 @@ class TTP(object):
         # read sample solutions/points, if exist
         # this is especially for visualizing the progress
         # in training, otherwise unneeded
+        # self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
+        self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
+        self.min_tour_length = torch.tensor(self.min_tour_length, dtype=torch.float32)
+        self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
+
         solution_path = dataset_dir/"solutions"/(dataset_name+".txt")
         if os.path.isfile(solution_path.absolute()):
             solutions = []

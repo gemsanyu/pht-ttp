@@ -70,10 +70,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
         forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
-        selected_idx, logprob = agent.select(probs)
+        selected_idx, logprob, entropy = agent.select(probs)
         #save logprobs
         logprobs[active_idx] += logprob
-        # sum_entropies[active_idx] += entropy
+        sum_entropies[active_idx] += entropy
         dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
         dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
         eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)

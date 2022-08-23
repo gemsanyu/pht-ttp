@@ -25,7 +25,7 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
-def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.02):
+def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
     agent.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
     critic_costs = None
@@ -77,7 +77,7 @@ def run(args):
     agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
-    num_nodes_list = [50, 100]
+    num_nodes_list = [50]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
@@ -94,7 +94,6 @@ def run(args):
         save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
 
 if __name__ == '__main__':
-    torch.backends.cudnn.enabled = False
     args = prepare_args()
     torch.set_num_threads(os.cpu_count())
     torch.manual_seed(args.seed)

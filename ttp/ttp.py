@@ -193,13 +193,12 @@ class TTP(object):
         # this is especially for visualizing the progress
         # in training, otherwise unneeded
         # self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
-        self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
-        self.min_tour_length = torch.tensor(self.min_tour_length, dtype=torch.float32)
-        self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
-
+        self.min_tour_length = torch.tensor(0, dtype=torch.float32)
+        self.max_profit = torch.tensor(0, dtype=torch.float32)        
         solution_path = dataset_dir/"solutions"/(dataset_name+".txt")
         if os.path.isfile(solution_path.absolute()):
             solutions = []
+            print("yuhuu")
             with open(solution_path.absolute(), "r") as data_file:
                 lines = data_file.readlines()
                 for i, line in enumerate(lines):

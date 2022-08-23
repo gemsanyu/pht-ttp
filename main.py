@@ -94,6 +94,7 @@ def run(args):
         save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
 
 if __name__ == '__main__':
+    torch.backends.cudnn.enabled = False
     args = prepare_args()
     torch.set_num_threads(os.cpu_count())
     torch.manual_seed(args.seed)

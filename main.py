@@ -37,7 +37,8 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, e
             critic_costs = total_costs.mean()
         else:
             critic_costs = critic_alpha*critic_costs + (1-critic_alpha)*total_costs.mean()
-        agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, logprobs, sum_entropies)
+        # total_costs[total_profits<torch.from_numpy(env.best_profit_kp)/2] = -999999
+        agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, total_profits, torch.from_numpy(env.best_profit_kp), logprobs, sum_entropies)
         loss = agent_loss + entropy_loss_alpha*entropy_loss
         update(agent, agent_opt, loss)
         write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), entropy_loss.detach(), critic_costs, logprobs.detach().mean(), writer)

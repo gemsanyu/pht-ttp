@@ -51,17 +51,6 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
         norm_total_profits = 1. - total_profits/env.best_profit_kp
         norm_tour_lengths = norm_tour_lengths.to(agent.device)
         norm_total_profits = norm_total_profits.to(agent.device)
-        # print(tour_lengths, total_profits)
-        # print(env.best_route_length_tsp, env.best_profit_kp)
-        # print(norm_tour_lengths, norm_total_profits)
-        # with torch.no_grad():
-        #     agent.eval()
-        #     _, _, crit_tour_lengths, crit_total_profits, _, _, _ = solve(agent, env, param_dict, normalized=True)
-        # agent.train()
-        # tour_lengths_adv = (tour_lengths-crit_total_profits).to(agent.device).float()
-        # tour_length_loss = (logprobs*tour_lengths_adv).mean()
-        # profit_adv = (crit_total_profits-total_profits).to(agent.device).float()
-        # profit_loss = (profit_adv*logprobs).mean()
         tour_length_loss = (logprobs*norm_tour_lengths).mean()
         profit_loss = (logprobs*norm_total_profits).mean()
 
@@ -76,7 +65,7 @@ def train_one_epoch(agent, phn, phn_opt, solver, train_dataset, writer, critic_a
         write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), profit_loss.detach(), tour_length_loss.detach(), epo_loss.detach(), logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
 
 @torch.no_grad()
-def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=20):
+def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n_solutions=100):
     agent.eval()
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
@@ -86,10 +75,10 @@ def test_one_epoch(agent, phn, test_env, writer, epoch, n_solutions=20):
         tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env, param_dict, normalized=False)
         solution_list += [torch.stack([tour_length, total_profit], dim=1)]
     solution_list = torch.cat(solution_list)
-    write_test_phn_progress(writer, solution_list, epoch)
+    write_test_phn_progress(writer, solution_list, epoch, test_sample_solutions)
 
 def run(args):
-    agent, phn, phn_opt, solver, last_epoch, writer, checkpoint_path, test_env = setup_phn(args)
+    agent, phn, phn_opt, solver, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
     training_size = args.num_training_samples
     num_nodes_list = [50]
     num_items_per_city_list = [1,3,5]
@@ -104,12 +93,11 @@ def run(args):
         num_nodes, num_items_per_city = config_list[config_it]
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_one_epoch(agent, phn, phn_opt, solver, dataset, writer)
-        # validation_cost = validation_one_epoch(agent, validation_dataset, writer)
-        test_one_epoch(agent, phn, test_env, writer, epoch)
+        test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch)
         save_phn(phn, phn_opt, epoch, checkpoint_path)
 
 if __name__ == '__main__':
-    torch.backends.cudnn.enabled = False
+    # torch.backends.cudnn.enabled = False
     args = prepare_args()
     torch.set_num_threads(os.cpu_count())
     torch.manual_seed(args.seed)

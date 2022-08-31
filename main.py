@@ -43,28 +43,29 @@ def train_one_epoch(node_agent, item_agent, node_agent_opt, item_agent_opt, trai
         update(node_agent, item_agent, node_agent_opt, item_agent_opt, loss)
         write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), entropy_loss.detach(), critic_costs, logprobs.detach().mean(), writer)
 
-# @torch.no_grad()
-# def validation_one_epoch(agent, validation_dataset, writer):
-#     agent.eval()
-#     validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
-#     tour_length_list = []
-#     total_profit_list = []
-#     total_cost_list = []
-#     logprob_list = []
-#     for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
-#         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
-#         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-#         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-#         tour_length_list += [tour_lengths]
-#         total_profit_list += [total_profits]
-#         total_cost_list += [total_costs]
-#         logprob_list += [logprobs]
-#     mean_tour_length = torch.cat(tour_length_list).mean()
-#     mean_total_profit = torch.cat(total_profit_list).mean()
-#     mean_total_cost = torch.cat(total_cost_list).mean()
-#     mean_logprob = torch.cat(logprob_list).mean()
-#     write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
-#     return mean_total_cost
+@torch.no_grad()
+def validation_one_epoch(node_agent, item_agent, validation_dataset, writer):
+    node_agent.eval()
+    item_agent.eval()
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
+    tour_length_list = []
+    total_profit_list = []
+    total_cost_list = []
+    logprob_list = []
+    for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
+        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
+        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(node_agent, item_agent, env)
+        tour_length_list += [tour_lengths]
+        total_profit_list += [total_profits]
+        total_cost_list += [total_costs]
+        logprob_list += [logprobs]
+    mean_tour_length = torch.cat(tour_length_list).mean()
+    mean_total_profit = torch.cat(total_profit_list).mean()
+    mean_total_cost = torch.cat(total_cost_list).mean()
+    mean_logprob = torch.cat(logprob_list).mean()
+    write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
+    return mean_total_cost
 
 
 @torch.no_grad()
@@ -80,7 +81,7 @@ def run(args):
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
     num_nodes_list = [50]
-    num_items_per_city_list = [3]
+    num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     for epoch in range(last_epoch, args.max_epoch):
@@ -91,7 +92,7 @@ def run(args):
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
         train_one_epoch(node_agent, item_agent, node_agent_opt, item_agent_opt, train_dataset, writer)
-        # validation_cost = validation_one_epoch(agent, validation_dataset, writer)
+        validation_cost = validation_one_epoch(node_agent, item_agent, validation_dataset, writer)
         test_one_epoch(node_agent, item_agent, test_env, writer)
         # save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
 

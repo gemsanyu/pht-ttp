@@ -47,7 +47,8 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
 def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=node_agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=node_agent.device, dtype=torch.float32)
-    last_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
+    last_node_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
+    last_item_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
 
     env.reset()
     state = env.get_current_state()
@@ -81,8 +82,8 @@ def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, no
             previous_item_embeddings = item_static_embeddings[active_idx, prev_selected_item_idx, :]
             previous_item_embeddings = previous_item_embeddings.unsqueeze(1)
             previous_item_embeddings[is_first_selection] = item_agent.inital_input
-            forward_results = item_agent(last_pointer_hidden_states[:, active_idx, :], active_item_static_embeddings, dynamic_embeddings, eligibility_mask, previous_item_embeddings)
-            last_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+            forward_results = item_agent(last_item_pointer_hidden_states[:, active_idx, :], active_item_static_embeddings, dynamic_embeddings, eligibility_mask, previous_item_embeddings)
+            last_item_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
             selected_item_with_dummy_idx, logprob, entropy = item_agent.select(probs)
             logprobs[active_idx] += logprob
             sum_entropies[active_idx] += entropy
@@ -102,8 +103,8 @@ def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, no
         previous_node_embeddings = node_static_embeddings[active_idx, prev_selected_node_idx, :]
         previous_node_embeddings = previous_node_embeddings.unsqueeze(1)
         previous_node_embeddings[is_first_selection] = node_agent.inital_input
-        forward_results = node_agent(last_pointer_hidden_states[:, active_idx, :], node_static_embeddings[active_idx], dynamic_embeddings, eligibility_mask, previous_node_embeddings)
-        last_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+        forward_results = node_agent(last_node_pointer_hidden_states[:, active_idx, :], node_static_embeddings[active_idx], dynamic_embeddings, eligibility_mask, previous_node_embeddings)
+        last_node_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         selected_node_idx, logprob, entropy = node_agent.select(probs)
         logprobs[active_idx] += logprob
         sum_entropies[active_idx] += entropy

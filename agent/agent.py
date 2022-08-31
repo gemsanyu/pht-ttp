@@ -6,7 +6,6 @@ import torch.nn as nn
 
 from agent.embedding import Embedder
 from agent.pointer import Pointer
-from agent.attention_embedder import DecoderEmbedder
 
 """
 Vehicle Features:
@@ -37,7 +36,6 @@ class Agent(T.jit.ScriptModule):
             pointer_num_neurons: int = 64,
             dropout: float = 0.2,
             n_glimpses: int=1,
-            is_high: bool = False
         ) -> None:
         '''
         ### Agent of the architecture.
@@ -91,10 +89,7 @@ class Agent(T.jit.ScriptModule):
         batch_size, num_items, _ = static_embeddings.shape
         eligibility_mask = eligibility_mask.view(batch_size, 1, -1)
         decoder_input = self.decoder_input_encoder(previous_embeddings)
-        # dynamic_embeddings = dynamic_embeddings.unsqueeze(1)
-        # dynamic_embeddings = dynamic_embeddings.repeat_interleave(num_items, dim=1)
         features = T.cat((static_embeddings, dynamic_embeddings), dim=-1)
-        # features = features.view(batch_size, num_vec*num_cust, 2*self.embedding_size)
 
         logits, next_pointer_hidden_state = self.pointer(features, decoder_input, last_pointer_hidden_states, eligibility_mask, param_dict)
         probs = self.softmax(logits)

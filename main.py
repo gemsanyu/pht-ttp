@@ -25,61 +25,62 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
-def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
-    agent.train()
+def train_one_epoch(node_agent, item_agent, node_agent_opt, item_agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
+    node_agent.train()
+    item_agent.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
     critic_costs = None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(node_agent, item_agent, env)
         if critic_costs is None:
             critic_costs = total_costs.mean()
         else:
             critic_costs = critic_alpha*critic_costs + (1-critic_alpha)*total_costs.mean()
-        # total_costs[total_profits<torch.from_numpy(env.best_profit_kp)/2] = -999999
         agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, total_profits, torch.from_numpy(env.best_profit_kp), logprobs, sum_entropies)
         loss = agent_loss + entropy_loss_alpha*entropy_loss
-        update(agent, agent_opt, loss)
+        update(node_agent, item_agent, node_agent_opt, item_agent_opt, loss)
         write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), entropy_loss.detach(), critic_costs, logprobs.detach().mean(), writer)
 
-@torch.no_grad()
-def validation_one_epoch(agent, validation_dataset, writer):
-    agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
-    tour_length_list = []
-    total_profit_list = []
-    total_cost_list = []
-    logprob_list = []
-    for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
-        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
-        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        tour_length_list += [tour_lengths]
-        total_profit_list += [total_profits]
-        total_cost_list += [total_costs]
-        logprob_list += [logprobs]
-    mean_tour_length = torch.cat(tour_length_list).mean()
-    mean_total_profit = torch.cat(total_profit_list).mean()
-    mean_total_cost = torch.cat(total_cost_list).mean()
-    mean_logprob = torch.cat(logprob_list).mean()
-    write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
-    return mean_total_cost
+# @torch.no_grad()
+# def validation_one_epoch(agent, validation_dataset, writer):
+#     agent.eval()
+#     validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
+#     tour_length_list = []
+#     total_profit_list = []
+#     total_cost_list = []
+#     logprob_list = []
+#     for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
+#         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
+#         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+#         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
+#         tour_length_list += [tour_lengths]
+#         total_profit_list += [total_profits]
+#         total_cost_list += [total_costs]
+#         logprob_list += [logprobs]
+#     mean_tour_length = torch.cat(tour_length_list).mean()
+#     mean_total_profit = torch.cat(total_profit_list).mean()
+#     mean_total_cost = torch.cat(total_cost_list).mean()
+#     mean_logprob = torch.cat(logprob_list).mean()
+#     write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
+#     return mean_total_cost
 
 
 @torch.no_grad()
-def test_one_epoch(agent, test_env, writer):
-    agent.eval()
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
+def test_one_epoch(node_agent, item_agent, test_env, writer):
+    node_agent.eval()
+    item_agent.eval()
+    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(node_agent, item_agent, test_env)
     write_test_progress(tour_length, total_profit, total_cost, logprob, writer)    
         
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
+    node_agent, item_agent, node_agent_opt, item_agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
     num_nodes_list = [50]
-    num_items_per_city_list = [1,3,5]
+    num_items_per_city_list = [3]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     for epoch in range(last_epoch, args.max_epoch):
@@ -89,10 +90,10 @@ def run(args):
         num_nodes, num_items_per_city = config_list[config_it]
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
-        train_one_epoch(agent, agent_opt, train_dataset, writer)
-        validation_cost = validation_one_epoch(agent, validation_dataset, writer)
-        test_one_epoch(agent, test_env, writer)
-        save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
+        train_one_epoch(node_agent, item_agent, node_agent_opt, item_agent_opt, train_dataset, writer)
+        # validation_cost = validation_one_epoch(agent, validation_dataset, writer)
+        test_one_epoch(node_agent, item_agent, test_env, writer)
+        # save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
 
 if __name__ == '__main__':
     args = prepare_args()

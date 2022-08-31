@@ -1,7 +1,26 @@
-from typing import Optional, Tuple
-from matplotlib.pyplot import axis
+from platform import node
+from typing import Optional, Tuple, NamedTuple
 import torch
 import numpy as np
+
+
+class ItemState(NamedTuple):
+    active_idx: torch.Tensor
+    raw_static_features: torch.Tensor
+    raw_dynamic_features: torch.Tensor
+    eligibility_mask: torch.Tensor
+    prev_selected_idx: torch.Tensor    
+
+class NodeState(NamedTuple):
+    active_idx: torch.Tensor
+    raw_static_features: torch.Tensor
+    raw_dynamic_features: torch.Tensor
+    eligibility_mask: torch.Tensor
+    prev_selected_idx: torch.Tensor
+
+class State(NamedTuple):
+    item_state: Optional[ItemState]=None
+    node_state: Optional[NodeState]=None
 
 class TTPEnv():
     def __init__(self,
@@ -40,6 +59,7 @@ class TTPEnv():
         self.item_city_mask = item_city_mask.numpy()
         self.best_profit_kp = best_profit_kp.numpy()
         self.best_route_length_tsp = best_route_length_tsp.numpy()
+        self.num_items_per_city = int(np.sum(self.item_city_mask[0,1]))
         self.max_travel_time = 0
         
         # prepare features with dummy items padded
@@ -76,51 +96,97 @@ class TTPEnv():
         dummy_idx = torch.arange(self.num_nodes, dtype=torch.long)
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes).numpy()
         self.all_city_idx = np.concatenate((self.item_city_idx, dummy_idx),axis=1)
-        self.static_features = self.get_static_features()
-        
-    def begin(self):
-        self.reset()
-        dynamic_features = self.get_dynamic_features()
-        eligibility_mask = self.eligibility_mask
-        return self.static_features, dynamic_features, eligibility_mask
-        
-        # dist_to_origin, weight, profit, density  
-    def get_static_features(self) -> torch.Tensor:
-        num_static_features = 4
-        static_features = np.zeros((self.batch_size, self.num_items, num_static_features), dtype=np.float32)
+        self.is_selecting_item = np.zeros((self.batch_size,), dtype=bool)
+        self.raw_item_static_features = self.get_item_static_features()
+        self.raw_node_static_features = self.get_node_static_features()        
+        # idx == -1, then first selection, use learned initial embeddings    
+        self.prev_selected_node_idx = np.zeros((self.batch_size,), dtype=np.int64) - 1
+        self.prev_selected_item_idx = np.zeros((self.batch_size,), dtype=np.int64) - 1
+
+        # weight, profit, density
+    def get_item_static_features(self):
+        item_static_features = np.zeros((self.batch_size, self.num_items, 3), dtype=np.float32)
+        item_static_features[:, :, 0] = self.norm_weights
+        item_static_features[:, :, 1] = self.norm_profits
+        item_static_features[:, :, 2] = self.norm_profits/self.norm_weights
+        return item_static_features
+
+        # distance to origin, sum of items' density in that node
+    def get_node_static_features(self):
+        node_static_features = np.zeros((self.batch_size, self.num_nodes, 2), dtype=np.float32)
         origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
-        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
-        item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
-        static_features[:, :, 0] = item_dist_to_origin
-        static_features[:, :, 1] = self.norm_weights
-        static_features[:, :, 2] = self.norm_profits
-        static_features[:, :, 3] = self.norm_profits/self.norm_weights
+        dist_to_origin = np.linalg.norm(self.coords-origin_coords, axis=2)
+        node_static_features[:, :, 0] = dist_to_origin
+        density = self.norm_profits/self.norm_weights
+        node_density = self.item_city_mask * density[:, np.newaxis, :]
+        node_density = np.sum(node_density, axis=-1)
+        node_static_features[:, :, 1] = node_density
+        return node_static_features
 
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
-        dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
-        static_features = np.concatenate((static_features, dummy_static_features), axis=1)
-        return static_features
+    # current_cap, current_vel
+    def get_item_dynamic_features(self):
+        item_dynamic_features = np.zeros((self.batch_size, 2), dtype=np.float32)
+        current_cap = self.current_load/self.max_cap
+        item_dynamic_features[:, 0] = current_cap
+        current_vel = self.max_v - (current_cap)*(self.max_v-self.min_v)
+        current_vel = np.maximum(current_vel, self.min_v)  
+        item_dynamic_features[:, 1] = current_vel
+        # item_dynamic_features[:, 2] = np.sum(self.norm_profits*self.item_selection, axis=1)
+        item_dynamic_features = np.repeat(item_dynamic_features[:, np.newaxis, :], self.num_items_per_city, 1)
+        return item_dynamic_features
 
-        # dist_to_curr, current_weight, current_velocity
-    def get_dynamic_features(self) -> torch.Tensor:
-        num_dynamic_features = 3
-        # per item features = distance
+    # travel time to current, travel time to origin, current_cap, current_vel
+    def get_node_dynamic_features(self):
+        node_dynamic_features = np.zeros((self.batch_size, self.num_nodes, 4), dtype=np.float32)
+        origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
         current_coords = np.take_along_axis(self.norm_coords, self.current_location[:,np.newaxis,np.newaxis], 1)
-        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
-        item_dist_to_curr = np.linalg.norm(current_coords-item_coords, axis=2)
-        dummy_dist_to_curr = np.linalg.norm(self.norm_coords-current_coords, axis=2)
-        dist_to_curr = np.concatenate((item_dist_to_curr, dummy_dist_to_curr), axis=1)
-        dist_to_curr = dist_to_curr[:,:,np.newaxis]
-        # global features weigh and velocity
-        global_dynamic_features = np.zeros((self.batch_size, 2), dtype=np.float32)
-        global_dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
-        current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
-        current_vel = np.maximum(current_vel, self.min_v)
-        global_dynamic_features[:, 1] = current_vel
-        global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
-        global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
-        dynamic_features = np.concatenate([dist_to_curr, global_dynamic_features], axis=2)
-        return dynamic_features
+        current_cap = self.current_load/self.max_cap
+        current_vel = self.max_v - (current_cap)*(self.max_v-self.min_v)
+        current_vel = np.maximum(current_vel, self.min_v)  
+        # per node features
+        trav_time_to_current = np.linalg.norm(current_coords-self.norm_coords, axis=2)/current_vel[:, np.newaxis]
+        trav_time_to_origin = np.linalg.norm(origin_coords-self.norm_coords, axis=2)/current_vel[:, np.newaxis]
+        node_dynamic_features[:,:,0] = trav_time_to_current
+        node_dynamic_features[:,:,1] = trav_time_to_origin
+        # global features
+        # current_profits = np.sum(self.norm_profits*self.item_selection, axis=1)
+        node_dynamic_features[:,:,2] = current_cap[:, np.newaxis]
+        node_dynamic_features[:,:,3] = current_vel[:, np.newaxis]
+        # node_dynamic_features[:,:,4] = current_profits[:, np.newaxis]
+        return node_dynamic_features
+    
+    def get_current_state(self):
+        is_active = np.sum(self.eligibility_mask, axis=1, dtype=bool)
+        is_env_finished = np.any(is_active) is False
+        item_state = None
+        node_state = None
+        if is_env_finished:
+            return State(None, None)
+
+        active_taking_item = np.logical_and(is_active, self.is_selecting_item)
+        active_taking_item_idx = np.nonzero(active_taking_item)[0]
+        if len(active_taking_item_idx) > 0:
+            # index only the active idx
+            # get only the current location's items' features and masking
+            raw_item_static_features = self.raw_item_static_features[active_taking_item_idx]
+            raw_item_dynamic_features = self.get_item_dynamic_features()[active_taking_item_idx]
+            active_current_location = self.current_location[active_taking_item_idx]
+            active_current_item_city_mask = self.item_city_mask[active_taking_item_idx, active_current_location]
+            item_eligibility_mask = self.eligibility_mask[:, :self.num_items][active_taking_item_idx]
+            item_eligibility_mask = item_eligibility_mask[active_current_item_city_mask].reshape((len(active_taking_item_idx), self.num_items_per_city))
+            prev_selected_item_idx = self.prev_selected_item_idx[active_taking_item_idx]
+            item_state = ItemState(active_taking_item_idx, raw_item_static_features, raw_item_dynamic_features, item_eligibility_mask, prev_selected_item_idx)
+
+        active_visiting_node = np.logical_and(is_active, np.logical_not(self.is_selecting_item))
+        active_visiting_node_idx = np.nonzero(active_visiting_node)[0]
+        if len(active_visiting_node_idx)>0:
+            raw_node_static_features = self.raw_node_static_features[active_visiting_node_idx]
+            raw_node_dynamic_features = self.get_node_dynamic_features()[active_visiting_node_idx]
+            node_eligibility_mask = self.eligibility_mask[:, self.num_items:][active_visiting_node_idx]
+            prev_selected_node_idx = self.prev_selected_node_idx[active_visiting_node_idx]
+            node_state = NodeState(active_visiting_node_idx, raw_node_static_features, raw_node_dynamic_features, node_eligibility_mask, prev_selected_node_idx)
+
+        return State(item_state, node_state)
 
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
@@ -133,8 +199,37 @@ class TTPEnv():
         if np.any(is_visiting_node_only):
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
-        dynamic_features = self.get_dynamic_features()
-        return dynamic_features, self.eligibility_mask
+        # dynamic_features = self.get_dynamic_features()
+        # return dynamic_features, self.eligibility_mask
+
+
+    """
+        1. filter the taken items  
+        if dummy item is taken, then just set the batch flag
+        to is_taking_item = False
+        2. also convert the item index to original index
+        from [0, num_city_per_idx-1] to [0, num_items-1]
+    """
+    def take_item_with_dummy(self, active_idx, selected_item_with_dummy_idx):
+        selected_item_with_dummy_idx = selected_item_with_dummy_idx.cpu().numpy()
+        is_selecting_dummy = selected_item_with_dummy_idx == self.num_items_per_city
+        is_not_selecting_dummy = np.logical_not(is_selecting_dummy)
+        not_dummy_current_location = self.current_location[active_idx][is_not_selecting_dummy]
+        selected_item_idx = selected_item_with_dummy_idx[is_not_selecting_dummy]
+        real_selected_item_idx = not_dummy_current_location+selected_item_idx*(self.num_nodes-1)-1
+        active_idx_selecting_dummy = active_idx[is_selecting_dummy]
+        active_idx_not_selecting_dummy = active_idx[is_not_selecting_dummy]
+        # if select dummy then set flag to not selecting item anymore
+        # and mask all current locations' item to false
+        if len(active_idx_selecting_dummy) > 0:
+            self.is_selecting_item[active_idx_selecting_dummy] = False
+            # mask all current locations' item as ineligible before moving
+            current_locations_item_mask = self.all_city_idx[active_idx_selecting_dummy, :] == self.current_location[active_idx_selecting_dummy][:, np.newaxis]
+            self.eligibility_mask[active_idx_selecting_dummy,:] = np.logical_and(self.eligibility_mask[active_idx_selecting_dummy,:], ~current_locations_item_mask)
+        
+        #select items
+        if len(active_idx_not_selecting_dummy)>0:
+            self.take_item(active_idx_not_selecting_dummy, real_selected_item_idx)
 
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
@@ -157,6 +252,7 @@ class TTPEnv():
             self.visit_node(active_idx[is_diff_location], selected_item_location[is_diff_location])
 
     def visit_node(self, active_idx, selected_node):
+        selected_node = selected_node.cpu().numpy()
         # set is selected
         self.is_selected[active_idx, selected_node+self.num_items] = True
         # set dummy item for the selected location is infeasible
@@ -173,10 +269,16 @@ class TTPEnv():
         self.tour_list[active_idx, self.num_visited_nodes[active_idx]] = selected_node
         self.num_visited_nodes[active_idx] += 1
 
+        # after visiting node, must be selecting items
+        self.is_selecting_item[active_idx] = True
+
+        self.prev_selected_node_idx[active_idx] = selected_node
+
         #check if all nodes are visited, if yes then make the dummy item for first city feasibe
-        is_all_visited = self.num_visited_nodes == self.num_nodes+1
-        if np.any(is_all_visited):
-            self.eligibility_mask[is_all_visited, self.num_items] = True
+        # not needed in spn, keep the origin nod unvisitable
+        # is_all_visited = self.num_visited_nodes == self.num_nodes+1
+        # if np.any(is_all_visited):
+        #     self.eligibility_mask[is_all_visited, self.num_items] = True
 
     def finish(self, normalized=False):
         # computing tour lenghts or travel time

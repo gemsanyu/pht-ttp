@@ -7,7 +7,6 @@ from tqdm import tqdm
 from scipy.stats import ttest_rel
 
 from agent.agent import Agent
-from agent.critic import Critic
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -45,41 +44,73 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
-def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
-    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
-    static_features, dynamic_features, eligibility_mask = env.begin()
-    static_features =  torch.from_numpy(static_features).to(agent.device)
-    static_embeddings = agent.static_encoder(static_features)
-    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
-    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
-    prev_selected_idx = prev_selected_idx + env.num_nodes
-    # initially pakai initial input
-    previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
-    first_turn = True
-    while torch.any(eligibility_mask):
-        is_not_finished = torch.any(eligibility_mask, dim=1)
-        active_idx = is_not_finished.nonzero().long().squeeze(1)
-        if not first_turn:
-            previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :]
-            previous_embeddings = previous_embeddings.unsqueeze(1)
-        next_pointer_hidden_states = last_pointer_hidden_states
-        dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
-        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
-        next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
-        last_pointer_hidden_states = next_pointer_hidden_states
-        selected_idx, logprob, entropy = agent.select(probs)
-        #save logprobs
+def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
+    logprobs = torch.zeros((env.batch_size,), device=node_agent.device, dtype=torch.float32)
+    sum_entropies = torch.zeros((env.batch_size,), device=node_agent.device, dtype=torch.float32)
+    last_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
+
+    env.reset()
+    state = env.get_current_state()
+    # embed static features once
+    raw_item_static_features = torch.from_numpy(env.raw_item_static_features).to(item_agent.device)
+    raw_node_static_features = torch.from_numpy(env.raw_node_static_features).to(node_agent.device)
+    item_static_embeddings = item_agent.static_encoder(raw_item_static_features)
+    node_static_embeddings = node_agent.static_encoder(raw_node_static_features)
+    is_finished = False
+    while not is_finished:
+        # take item and continue
+        if state.item_state is not None:
+            item_state = state.item_state
+            active_idx = item_state.active_idx
+            raw_dynamic_features = torch.from_numpy(item_state.raw_dynamic_features).to(item_agent.device)
+            dynamic_embeddings = item_agent.dynamic_encoder(raw_dynamic_features)
+            eligibility_mask = torch.from_numpy(item_state.eligibility_mask).to(item_agent.device)
+            prev_selected_item_idx = torch.from_numpy(item_state.prev_selected_idx).to(item_agent.device)
+            # select active static embeddings
+            active_current_location = env.current_location[active_idx]
+            active_current_item_city_mask = torch.from_numpy(env.item_city_mask[active_idx, active_current_location])
+            active_item_static_embeddings = item_static_embeddings[active_idx][active_current_item_city_mask].reshape((len(active_idx), env.num_items_per_city, -1))
+            # add dummy item (aka stop symbol)
+            dummy_eligibility = torch.ones((len(active_idx), 1), dtype=torch.bool, device=item_agent.device)
+            dummy_embeddings = torch.zeros((len(active_idx), 1, item_agent.embedding_size), dtype=torch.float32, device=item_agent.device)
+            eligibility_mask = torch.cat((eligibility_mask, dummy_eligibility), dim=1)
+            dynamic_embeddings = torch.cat((dynamic_embeddings, dummy_embeddings), dim=1)
+            active_item_static_embeddings = torch.cat((active_item_static_embeddings, dummy_embeddings), dim=1)
+            # get previous items embeddings
+            is_first_selection = (prev_selected_item_idx == -1)
+            previous_item_embeddings = item_static_embeddings[active_idx, prev_selected_item_idx, :]
+            previous_item_embeddings = previous_item_embeddings.unsqueeze(1)
+            previous_item_embeddings[is_first_selection] = item_agent.inital_input
+            forward_results = item_agent(last_pointer_hidden_states[:, active_idx, :], active_item_static_embeddings, dynamic_embeddings, eligibility_mask, previous_item_embeddings)
+            last_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+            selected_item_with_dummy_idx, logprob, entropy = item_agent.select(probs)
+            logprobs[active_idx] += logprob
+            sum_entropies[active_idx] += entropy
+            env.take_item_with_dummy(active_idx, selected_item_with_dummy_idx)
+            state = env.get_current_state()
+            is_finished = (state.item_state is None) and (state.node_state is None) 
+            continue
+        # visit nodes
+        node_state = state.node_state
+        active_idx = node_state.active_idx
+        raw_dynamic_features = torch.from_numpy(node_state.raw_dynamic_features).to(node_agent.device)
+        dynamic_embeddings = node_agent.dynamic_encoder(raw_dynamic_features)
+        eligibility_mask = torch.from_numpy(node_state.eligibility_mask).to(node_agent.device)
+        prev_selected_node_idx = torch.from_numpy(node_state.prev_selected_idx).to(node_agent.device)
+        # idx == -1, then first selection, use learned initial embeddings  
+        is_first_selection = (prev_selected_node_idx == -1)
+        previous_node_embeddings = node_static_embeddings[active_idx, prev_selected_node_idx, :]
+        previous_node_embeddings = previous_node_embeddings.unsqueeze(1)
+        previous_node_embeddings[is_first_selection] = node_agent.inital_input
+        forward_results = node_agent(last_pointer_hidden_states[:, active_idx, :], node_static_embeddings[active_idx], dynamic_embeddings, eligibility_mask, previous_node_embeddings)
+        last_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+        selected_node_idx, logprob, entropy = node_agent.select(probs)
         logprobs[active_idx] += logprob
         sum_entropies[active_idx] += entropy
-        dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
-        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-        prev_selected_idx[active_idx] = selected_idx
-        first_turn = False
-    # # get total profits and tour lenghts
+        env.visit_node(active_idx, selected_node_idx)
+        state = env.get_current_state()
+        is_finished = (state.item_state is None) and (state.node_state is None)
+    
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
@@ -87,10 +118,7 @@ def compute_loss(total_costs, critic_costs, total_profits, best_profits, logprob
     cost_advantage = (total_costs - critic_costs).to(logprobs.device)
     cost_advantage = (cost_advantage-cost_advantage.mean())/(1e-8+cost_advantage.std())
     cost_loss = -((cost_advantage.detach())*logprobs).mean()
-    profit_advantage = (total_profits - best_profits).to(logprobs.device)
-    profit_advantage = (profit_advantage-profit_advantage.mean())/(1e-8+profit_advantage.std())
-    profit_loss = -((profit_advantage.detach())*logprobs).mean()
-    agent_loss = 0.5*cost_loss + 0.5*profit_loss
+    agent_loss = cost_loss
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss
 
@@ -101,11 +129,14 @@ def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
     tour_length_loss = (tour_lengths*logprobs).mean()
     return profit_loss, tour_length_loss
 
-def update(agent, agent_opt, loss):
-    agent_opt.zero_grad(set_to_none=True)
+def update(node_agent, item_agent, node_agent_opt, item_agent_opt, loss):
+    node_agent_opt.zero_grad(set_to_none=True)
+    item_agent_opt.zero_grad(set_to_none=True)
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
-    agent_opt.step()
+    torch.nn.utils.clip_grad_norm_(node_agent.parameters(), max_norm=1)
+    torch.nn.utils.clip_grad_norm_(item_agent.parameters(), max_norm=1)
+    node_agent_opt.step()
+    item_agent_opt.step()
 
 def update_phn(phn, phn_opt, loss):
     phn_opt.zero_grad(set_to_none=True)

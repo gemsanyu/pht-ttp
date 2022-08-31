@@ -198,7 +198,6 @@ class TTP(object):
         solution_path = dataset_dir/"solutions"/(dataset_name+".txt")
         if os.path.isfile(solution_path.absolute()):
             solutions = []
-            print("yuhuu")
             with open(solution_path.absolute(), "r") as data_file:
                 lines = data_file.readlines()
                 for i, line in enumerate(lines):

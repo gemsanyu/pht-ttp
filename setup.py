@@ -60,6 +60,8 @@ def setup_r1_nes(args):
 
 def setup_phn(args):
     agent = Agent(device=args.device,
+                  num_static_features=3,
+                  num_dynamic_features=4,
                   static_encoder_size=args.encoder_size,
                   dynamic_encoder_size=args.encoder_size,
                   decoder_encoder_size=args.encoder_size,
@@ -112,6 +114,8 @@ def setup_phn(args):
 
 def setup(args):
     agent = Agent(device=args.device,
+                  num_static_features=3,
+                  num_dynamic_features=4,
                   static_encoder_size=args.encoder_size,
                   dynamic_encoder_size=args.encoder_size,
                   decoder_encoder_size=args.encoder_size,

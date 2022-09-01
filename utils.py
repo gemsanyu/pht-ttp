@@ -83,14 +83,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def compute_loss(total_costs, critic_costs, total_profits, best_profits, logprobs, sum_entropies):
-    cost_advantage = (total_costs - critic_costs).to(logprobs.device)
-    cost_advantage = (cost_advantage-cost_advantage.mean())/(1e-8+cost_advantage.std())
-    cost_loss = -((cost_advantage.detach())*logprobs).mean()
-    profit_advantage = (total_profits - best_profits).to(logprobs.device)
-    profit_advantage = (profit_advantage-profit_advantage.mean())/(1e-8+profit_advantage.std())
-    profit_loss = -((profit_advantage.detach())*logprobs).mean()
-    agent_loss = 0.5*cost_loss + 0.5*profit_loss
+def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
+    advantage = (total_costs - critic_costs).to(logprobs.device)
+    advantage = (advantage-advantage.mean())/(1e-8+advantage.std())
+    agent_loss = -((advantage.detach())*logprobs).mean()
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss
 

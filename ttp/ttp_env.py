@@ -84,26 +84,23 @@ class TTPEnv():
         eligibility_mask = self.eligibility_mask
         return self.static_features, dynamic_features, eligibility_mask
         
-        # dist_to_origin, weight, profit, density  
+        # weight, profit, density  
     def get_static_features(self) -> torch.Tensor:
-        num_static_features = 4
+        num_static_features = 3
         static_features = np.zeros((self.batch_size, self.num_items, num_static_features), dtype=np.float32)
-        origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
-        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
-        item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
-        static_features[:, :, 0] = item_dist_to_origin
-        static_features[:, :, 1] = self.norm_weights
-        static_features[:, :, 2] = self.norm_profits
-        static_features[:, :, 3] = self.norm_profits/self.norm_weights
+        static_features[:, :, 0] = self.norm_weights
+        static_features[:, :, 1] = self.norm_profits
+        static_features[:, :, 2] = self.norm_profits/self.norm_weights
 
         dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
-        dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
+        # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
         static_features = np.concatenate((static_features, dummy_static_features), axis=1)
         return static_features
 
-        # dist_to_curr, current_weight, current_velocity
+        # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
     def get_dynamic_features(self) -> torch.Tensor:
-        num_dynamic_features = 3
+        current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
+        current_vel = np.maximum(current_vel, self.min_v)
         # per item features = distance
         current_coords = np.take_along_axis(self.norm_coords, self.current_location[:,np.newaxis,np.newaxis], 1)
         item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
@@ -111,15 +108,23 @@ class TTPEnv():
         dummy_dist_to_curr = np.linalg.norm(self.norm_coords-current_coords, axis=2)
         dist_to_curr = np.concatenate((item_dist_to_curr, dummy_dist_to_curr), axis=1)
         dist_to_curr = dist_to_curr[:,:,np.newaxis]
+        trav_time_to_curr = dist_to_curr/current_vel[:, np.newaxis, np.newaxis]
+        trav_time_to_curr = trav_time_to_curr.astype(np.float32)
+        origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
+        item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
+        dummy_dist_to_origin = np.linalg.norm(self.norm_coords-origin_coords, axis=2)
+        dist_to_origin = np.concatenate((item_dist_to_origin, dummy_dist_to_origin), axis=1)
+        dist_to_origin = dist_to_origin[:,:,np.newaxis]
+        trav_time_to_origin = dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
+        trav_time_to_origin = trav_time_to_origin.astype(np.float32)
+
         # global features weigh and velocity
         global_dynamic_features = np.zeros((self.batch_size, 2), dtype=np.float32)
         global_dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
-        current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
-        current_vel = np.maximum(current_vel, self.min_v)
         global_dynamic_features[:, 1] = current_vel
         global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
         global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
-        dynamic_features = np.concatenate([dist_to_curr, global_dynamic_features], axis=2)
+        dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
         return dynamic_features
 
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:

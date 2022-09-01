@@ -61,9 +61,7 @@ def get_renting_rate(W, weights, profits, capacity):
     # solve the knapsack first
     optimal_profit = solve_knapsack(weights, profits, capacity)
     # solve the tsp
-    route_list, _ = solve_tsp(W*100000)
-    route_A, route_B = route_list, route_list.roll(-1)
-    optimal_tour_length = (W[route_A, route_B]).sum().float().item()
+    route_list, optimal_tour_length = solve_tsp(W)
     renting_rate = float(optimal_profit)/float(optimal_tour_length)
     return optimal_tour_length, optimal_profit, renting_rate
 
@@ -101,8 +99,8 @@ def solve_tsp(W):
 
     # Setting first solution heuristic.
     search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-    # search_parameters.first_solution_strategy = (
-    #     routing_enums_pb2.FirstSolutionStrategy.CHRISTOFIDES)
+    search_parameters.first_solution_strategy = (
+        routing_enums_pb2.FirstSolutionStrategy.CHRISTOFIDES)
     search_parameters.local_search_metaheuristic = (
     routing_enums_pb2.LocalSearchMetaheuristic.GENERIC_TABU_SEARCH)
     search_parameters.time_limit.seconds = 3

@@ -109,7 +109,8 @@ class TTP(object):
         self.max_cap.to(self.device)
 
         norm_profits, profit_scale = normalize(profits)
-        norm_weights, weight_scale = normalize(weights)
+        # norm_weights, weight_scale = normalize(weights)
+        norm_weights, weight_scale = weights/self.max_cap, self.max_cap
         self.profit_data = ProfitData(profits, norm_profits, profit_scale)
         self.weight_data = WeightData(weights, norm_weights, weight_scale)
         self.item_city_idx = item_city_idx
@@ -286,7 +287,7 @@ def generate_graph(num_nodes, device=CPU_DEVICE):
         just random [0,1],
         no more clusters
     """
-    coords = torch.randint(low=-100, high=100, size=(num_nodes, 2), dtype=torch.float32, device=device)
+    coords = torch.randint(low=-1000, high=1000, size=(num_nodes, 2), dtype=torch.float32, device=device)
     W = torch.cdist(coords, coords, p=2)
     # ceiling
     W = torch.ceil(W)

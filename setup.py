@@ -1,4 +1,5 @@
-import os.path
+from itertools import chain
+import os
 import pathlib
 
 import torch
@@ -83,8 +84,8 @@ def setup(args):
                   pointer_num_neurons=args.encoder_size,
                   dropout=args.dropout,
                   n_glimpses=args.n_glimpses)
-    node_agent_opt = torch.optim.AdamW(node_agent.parameters(), lr=args.lr)
-    item_agent_opt = torch.optim.AdamW(item_agent.parameters(), lr=args.lr)
+    agent_opt = torch.optim.AdamW(chain(node_agent.parameters(), item_agent.parameters()), lr=args.lr)
+    # item_agent_opt = torch.optim.AdamW(item_agent.parameters(), lr=args.lr)
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
@@ -107,9 +108,8 @@ def setup(args):
     last_step = 0
     if checkpoint is not None:
         node_agent.load_state_dict(checkpoint["node_agent_state_dict"])
-        node_agent_opt.load_state_dict(checkpoint["node_agent_opt_state_dict"])
         item_agent.load_state_dict(checkpoint["item_agent_state_dict"])
-        item_agent_opt.load_state_dict(checkpoint["item_agent_opt_state_dict"])
+        agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
         last_epoch = checkpoint["epoch"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
@@ -117,4 +117,4 @@ def setup(args):
     test_batch = next(iter(test_dataloader))
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-    return node_agent, item_agent, node_agent_opt, item_agent_opt, last_epoch, writer, checkpoint_path, test_env
+    return node_agent, item_agent, agent_opt, last_epoch, writer, checkpoint_path, test_env

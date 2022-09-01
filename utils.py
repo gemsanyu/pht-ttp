@@ -47,8 +47,9 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
 def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=node_agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=node_agent.device, dtype=torch.float32)
-    last_node_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
-    last_item_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
+    # last_node_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
+    # last_item_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
+    last_pointer_hidden_states = torch.zeros((node_agent.pointer.num_layers, env.batch_size, node_agent.pointer.num_neurons), device=node_agent.device, dtype=torch.float32)
 
     env.reset()
     state = env.get_current_state()
@@ -82,8 +83,8 @@ def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, no
             previous_item_embeddings = item_static_embeddings[active_idx, prev_selected_item_idx, :]
             previous_item_embeddings = previous_item_embeddings.unsqueeze(1)
             previous_item_embeddings[is_first_selection] = item_agent.inital_input
-            forward_results = item_agent(last_item_pointer_hidden_states[:, active_idx, :], active_item_static_embeddings, dynamic_embeddings, eligibility_mask, previous_item_embeddings)
-            last_item_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+            forward_results = item_agent(last_pointer_hidden_states[:, active_idx, :], active_item_static_embeddings, dynamic_embeddings, eligibility_mask, previous_item_embeddings)
+            last_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
             selected_item_with_dummy_idx, logprob, entropy = item_agent.select(probs)
             logprobs[active_idx] += logprob
             sum_entropies[active_idx] += entropy
@@ -103,8 +104,8 @@ def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, no
         previous_node_embeddings = node_static_embeddings[active_idx, prev_selected_node_idx, :]
         previous_node_embeddings = previous_node_embeddings.unsqueeze(1)
         previous_node_embeddings[is_first_selection] = node_agent.inital_input
-        forward_results = node_agent(last_node_pointer_hidden_states[:, active_idx, :], node_static_embeddings[active_idx], dynamic_embeddings, eligibility_mask, previous_node_embeddings)
-        last_node_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+        forward_results = node_agent(last_pointer_hidden_states[:, active_idx, :], node_static_embeddings[active_idx], dynamic_embeddings, eligibility_mask, previous_node_embeddings)
+        last_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         selected_node_idx, logprob, entropy = node_agent.select(probs)
         logprobs[active_idx] += logprob
         sum_entropies[active_idx] += entropy
@@ -115,11 +116,17 @@ def solve(node_agent: Agent, item_agent: Agent, env: TTPEnv, param_dict=None, no
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def compute_loss(total_costs, critic_costs, total_profits, best_profits, logprobs, sum_entropies):
-    cost_advantage = (total_costs - critic_costs).to(logprobs.device)
-    cost_advantage = (cost_advantage-cost_advantage.mean())/(1e-8+cost_advantage.std())
-    cost_loss = -((cost_advantage.detach())*logprobs).mean()
-    agent_loss = cost_loss
+def compute_loss(tour_lengths, best_tour_lengths, total_profits, best_profits, logprobs, sum_entropies):
+    # cost_advantage = (total_costs - critic_costs).to(logprobs.device)
+    # cost_advantage = (cost_advantage-cost_advantage.mean())/(1e-8+cost_advantage.std())
+    tour_adv = (best_tour_lengths-tour_lengths).to(logprobs.device)
+    tour_adv = (tour_adv-tour_adv.mean())/(1e-8+tour_adv.std())
+    profit_adv = (total_profits-best_profits).to(logprobs.device)
+    profit_adv = (profit_adv-profit_adv.mean())/(1e-8+profit_adv.mean())
+
+    # cost_loss = -((cost_advantage.detach())*logprobs).mean()
+    # agent_loss = cost_loss
+    agent_loss = -((tour_adv*0.5+profit_adv*0.5)*logprobs).mean()
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss
 
@@ -130,14 +137,12 @@ def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
     tour_length_loss = (tour_lengths*logprobs).mean()
     return profit_loss, tour_length_loss
 
-def update(node_agent, item_agent, node_agent_opt, item_agent_opt, loss):
-    node_agent_opt.zero_grad(set_to_none=True)
-    item_agent_opt.zero_grad(set_to_none=True)
+def update(node_agent, item_agent, agent_opt, loss):
+    agent_opt.zero_grad(set_to_none=True)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(node_agent.parameters(), max_norm=1)
     torch.nn.utils.clip_grad_norm_(item_agent.parameters(), max_norm=1)
-    node_agent_opt.step()
-    item_agent_opt.step()
+    agent_opt.step()
 
 def update_phn(phn, phn_opt, loss):
     phn_opt.zero_grad(set_to_none=True)

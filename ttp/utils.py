@@ -1,3 +1,6 @@
+import pathlib
+import pickle
+
 import torch
 from ortools.algorithms import pywrapknapsack_solver
 from ortools.constraint_solver import routing_enums_pb2
@@ -157,6 +160,16 @@ def solve_tsp_memoization(W):
     mask[0] = 1
     best_route_length = solve_(0, mask)
     return best_route_length
+
+def save_prob(problem, num_nodes, num_items_per_city, prob_idx):
+    data_root = "data_full" 
+    data_dir = pathlib.Path(".")/data_root/"training"/"sop"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_"+str(prob_idx)
+    dataset_path = data_dir/(dataset_name+".pt")
+
+    with open(dataset_path.absolute(), "wb") as handle:
+        pickle.dump(problem, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
     num_nodes = 6

@@ -74,6 +74,11 @@ class TTP(object):
         self.num_items = None
         self.item_city_idx = None
         self.item_city_mask = None
+        # nondominated archives that save current nondom
+        # found in each iteration
+        # help improve accuracy of computing HV, or nondom ranking score
+        self.nondom_archive = None
+        self.reference_point = torch.zeros((1,2), dtype=torch.float32)
         
         if dataset_name is not None:
             dataset_dir = pathlib.Path(".")/"data_full"/"test"

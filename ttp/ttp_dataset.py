@@ -66,7 +66,9 @@ def prob_to_env(prob):
     min_v, max_v, renting_rate = torch.tensor([prob.min_v]), torch.tensor([prob.max_v]),torch.tensor([prob.renting_rate])
     max_cap = prob.max_cap.unsqueeze(0)
     item_city_idx, item_city_mask = prob.item_city_idx.unsqueeze(0), prob.item_city_mask.unsqueeze(0)
-    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+    best_profit_kp = prob.max_profit
+    best_route_length_tsp = prob.min_tour_length
+    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     return env
 
 def read_prob(num_nodes, num_items_per_city, prob_idx) -> TTP:

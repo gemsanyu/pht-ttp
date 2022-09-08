@@ -15,6 +15,8 @@ from ttp.ttp_env import TTPEnv
 
 def setup_r1_nes(args):
     agent = Agent(device=args.device,
+                  num_static_features=3,
+                  num_dynamic_features=4,
                   static_encoder_size=args.encoder_size,
                   dynamic_encoder_size=args.encoder_size,
                   decoder_encoder_size=args.encoder_size,
@@ -52,10 +54,10 @@ def setup_r1_nes(args):
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     test_batch = next(iter(test_dataloader))
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = test_batch
-    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
         
-    return agent, policy, last_epoch, writer, checkpoint_path, test_env
+    return agent, policy, last_epoch, writer, checkpoint_path, test_env, test_dataset.prob.sample_solutions
 
 
 def setup_phn(args):
@@ -92,6 +94,9 @@ def setup_phn(args):
 
     agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)
     agent.load_state_dict(agent_checkpoint["agent_state_dict"])
+    # copy the agent attention's params as policy's initial mu
+    policy.copy_to_mu(agent)
+
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):
         checkpoint = torch.load(checkpoint_path.absolute(), map_location=args.device)

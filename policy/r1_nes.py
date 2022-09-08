@@ -3,9 +3,10 @@ import math
 import torch
 import matplotlib.pyplot as plt
 
+from agent.agent import Agent
 from policy.policy import Policy, get_multi_importance_weight
-from policy.utils import get_hv_contributions, nondominated_sort, simcos, get_hypervolume
-from policy.utils import bc_node_order, bc_item_selection
+from policy.utils import get_hv_contributions, nondominated_sort, simcos, get_hypervolume, combine_with_nondom
+from policy.utils import get_score_hv_contributions, get_score_nsga2
 
 CPU_DEVICE = torch.device("cpu")
 # ES object
@@ -21,32 +22,71 @@ class R1_NES(Policy):
         self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*stdv-stdv
-        self.ld = torch.ones(size=(1,), dtype=torch.float32)
-            # torch.rand(
-            # size=(1,), dtype=torch.float32, device=self.device)*2
+        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 6
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
-        self.c = torch.rand(size=(1,), dtype=torch.float32)
-        self.z = torch.randn(size=(self.n_params,), dtype=torch.float32)
-        self.z = self.z/torch.norm(self.z)
-        self.v = torch.exp(self.c)*self.z
+        # self.c = torch.rand(size=(1,), dtype=torch.float32)
+        # self.z = torch.randn(size=(self.n_params,), dtype=torch.float32)
+        # self.z = self.z/torch.norm(self.z)
+        # self.v = torch.exp(self.c)*self.z
+        self.principal_vector = torch.randn(size=(self.n_params,), dtype=torch.float32)
+        self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = -0.1
+        self.negative_hv = -5e-4
         self.lr_mu = 1
-        self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
+        # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
+                
+        # choose the lr and batch size package?
+        # 1.
+        self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
+        self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))
+        # or 2.
+        # self.lr = 0.1
+        # self.batch_size = int(max(5,max(4*math.log2(self.n_params),0.2*self.n_params)))
+        self.ld_lr = self.lr
 
-        # note when ngrad_c_j is negative, why NaN???
-        self.ngrad_c_j_sign = 0
+    def copy_to_mu(self, agent: Agent):
+        glimpse = agent.pointer.glimpse
+        att = agent.pointer.attention_layer
+        glimpse_params = glimpse.named_parameters()
+        for name, param in glimpse_params:
+            if name == "v":
+                v0 = param.data.ravel()
+            if name == "features_embedder.layer.weight":
+                fe0_weight = param.data.ravel()
+            if name == "features_embedder.layer.bias":
+                fe0_bias = param.data.ravel()
+            if name == "query_embedder.layer.weight":
+                qe0_weight = param.data.ravel()
+            if name == "query_embedder.layer.bias":
+                qe0_bias = param.data.ravel()
+        att_params = att.named_parameters()
+        for name, param in att_params:
+            if name == "v":
+                v1 = param.data.ravel()
+            if name == "features_embedder.layer.weight":
+                fe1_weight = param.data.ravel()
+            if name == "features_embedder.layer.bias":
+                fe1_bias = param.data.ravel()
+            if name == "query_embedder.layer.weight":
+                qe1_weight = param.data.ravel()
+            if name == "query_embedder.layer.bias":
+                qe1_bias = param.data.ravel()
+        
+        self.mu = torch.cat([v0,v1,fe0_weight,fe1_weight,fe0_bias,fe1_bias,qe0_weight,qe1_weight,qe0_bias,qe1_bias])
+        self.mu = self.mu.unsqueeze(0)
+
+    def get_max_variance(self):
+        return torch.exp(self.ld*2/self.n_params)
 
     '''
     y ~ N(0,I)
     k ~ N(0,1)
     theta = mu + s*sigma
     return theta mapped with param names of the policy
-  '''
-
+    '''
     def generate_random_parameters(self, n_sample: int = 2, use_antithetic=True):
         if n_sample > 1:
             if use_antithetic:
@@ -62,7 +102,7 @@ class R1_NES(Policy):
             y_list = self.norm_dist.sample((1, self.n_params))
             k_list = self.norm_dist.sample((1, 1))
 
-        g = torch.exp(self.ld) * (y_list + k_list*self.v)
+        g = torch.exp(self.ld) * (y_list + k_list*self.principal_vector)
         random_params = self.mu + g
 
         param_dict_list = []
@@ -73,7 +113,7 @@ class R1_NES(Policy):
     '''
     theta = mu
     return theta mapped with param names of the policy
-  '''
+    '''
 
     def generate_on_mean(self):
         param_dict = self.create_param_dict(self.mu)
@@ -81,72 +121,75 @@ class R1_NES(Policy):
 
     # update given the values
     # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
-    def update(self, w_list, x_list, f_list, weight=None):
-        num_sample, M = f_list.shape
+    def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
+        # score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
+        score = get_score_nsga2(f_list, nondom_archive, reference_point)
+        # l2 regularization
+        # penalty = torch.norm(w_list+self.mu, dim=1)**2
+        # print(penalty, score.sum())
+        # print(torch.norm(self.mu))
+        # print(w_list.shape, self.mu.shape)
+        # exit()
         if weight is None:
             weight = 1
 
-        # count hypervolume, first nondom sort then count, assign penalty hv too
-        hv_contributions = torch.zeros(
-            (num_sample,), dtype=torch.float32)
-        is_nondom = nondominated_sort(f_list)
-        hv_contributions[is_nondom] = get_hv_contributions(f_list[is_nondom, :])
-        hv_contributions[~is_nondom] = self.negative_hv
-        # hv_contributions = (1-novelty_w)+hv_contributions + novelty_w*novelty_score
-
-        # generate
-        d = self.n_params
-        # prepare utility score
-        score = hv_contributions.unsqueeze(1)
-        # utility = get_utility(num_sample, device=self.device)
-        # rank = torch.argsort(f_list)
-        # score = utility[rank].unsqueeze(1)
-
+        # coba graph dulu yang nondom, pengen liat
+        if writer is not None:
+            all = torch.cat([f_list,nondom_archive])
+            plt.figure()
+            plt.scatter(all[:,0], all[:,1], c="blue")
+            plt.scatter(nondom_archive[:,0], nondom_archive[:,1], c="red", marker="P")
+            plt.scatter(f_list[:,0], f_list[:,1], c="yellow", marker="^")
+                
+            writer.add_figure("Train Nondom Solutions", plt.gcf(), step)
+            writer.flush()
         # prepare natural gradients
-        # x_list = self.mu + torch.exp(self.ld)*w_list
-        r = torch.norm(self.v)
-        r = r.clamp(min=1e-6)
-        u = self.v/r
+        d = self.n_params
+        r = torch.norm(self.principal_vector)
+        u = self.principal_vector/r
         wtw = torch.sum(w_list*w_list, dim=1, keepdim=True)
         wtu = torch.sum(w_list*u, dim=1, keepdim=True)
+        wtu2 = wtu**2
 
         ngrad_mu_l = x_list
-        ngrad_ld_l = 1/(2*(d-1)) * ((wtw-d) - ((wtu)**2-1))
-        ngrad_v_l = ((r**2-d+2)*(wtu)**2-(r**2+1)*wtw) * \
+        ngrad_ld_l = 1/(2*(d-1)) * ((wtw-d) - (wtu2-1))
+        ngrad_pv_l = ((r**2-d+2)*wtu2-(r**2+1)*wtw) * \
             u/(2*r*(d-1)) + (wtu*w_list)/r
-        nvtz = torch.sum(ngrad_v_l*u, dim=1, keepdim=True)
+        ngrad_pv_j = torch.sum(weight*score*ngrad_pv_l, dim=0, keepdim=True)
+        nvtz = torch.sum(ngrad_pv_l*u, dim=1, keepdim=True)
         ngrad_c_l = nvtz/r
-        ngrad_z_l = (ngrad_v_l - nvtz*u)/r
-
+        ngrad_z_l = (ngrad_pv_l - nvtz*u)/r
+        ngrad_c_j = torch.sum(weight*score*ngrad_c_l, dim=0)
+        ngrad_z_j = torch.sum(weight*score*ngrad_z_l, dim=0, keepdim=True)
+            
         # start updating
-        # print(weight.shape, score.shape, ngrad_mu_l.shape)
-        ngrad_mu_j = torch.mean(weight*score*ngrad_mu_l, dim=0)
-        ngrad_ld_j = torch.mean(weight*score*ngrad_ld_l, dim=0)
-        self.mu = self.mu + self.lr_mu*ngrad_mu_j
-        self.ld = self.ld + self.lr*ngrad_ld_j
-
-        ngrad_c_j = torch.mean(weight*score*ngrad_c_l, dim=0)
         # conditional update on c,z,v to prevent unstable (flipping and large) v update
+        epsilon = min(self.lr, 2 * math.sqrt(r ** 2 / torch.sum(ngrad_pv_j**2)))
         if ngrad_c_j < 0:
-            self.ngrad_c_j_sign = -1
-            self.c = self.c + self.lr*ngrad_c_j
-            ngrad_z_j = torch.mean(weight*score*ngrad_z_l, dim=0, keepdim=True)
-            z_ = self.z + self.lr*ngrad_z_j
-            self.z = z_/torch.norm(z_)
-            self.v = torch.exp(self.c)*self.z
+            # multiplicative update
+            c = torch.log(r)
+            c = c + epsilon*ngrad_c_j
+            z = u + epsilon*ngrad_z_j
+            z = z/torch.norm(z)
+            self.principal_vector = torch.exp(c)*z
         else:
-            self.ngrad_c_j_sign = 1
-            ngrad_v_j = torch.mean(weight*score*ngrad_v_l, dim=0, keepdim=True)
-            self.v = self.v + self.lr*ngrad_v_j
-            self.c = torch.log(torch.norm(self.v)).unsqueeze(0)
-            self.z = self.v/torch.norm(self.v)
+            # additive update
+            self.principal_vector = self.principal_vector + epsilon*ngrad_pv_j
 
+        ngrad_mu_j = torch.sum(weight*score*ngrad_mu_l, dim=0)
+        ngrad_ld_j = torch.sum(weight*score*ngrad_ld_l, dim=0)
+        self.mu = self.mu + self.lr_mu*ngrad_mu_j
+        self.ld = self.ld + epsilon*ngrad_ld_j
+
+    @property
+    def _getMaxVariance(self):
+        return math.exp(self.ld * 2 / self.n_params)
 
     def logprob(self, sample_list):
         x_list = sample_list
-        r = torch.norm(self.v)
+        r = torch.norm(self.principal_vector)
         xtx = torch.sum(x_list*x_list, dim=1)
-        xtv = torch.sum(x_list*self.v, dim=1)
+        xtv = torch.sum(x_list*self.principal_vector, dim=1)
 
         cc = self.n_params*math.log(2*math.pi)
         temp1 = -self.ld*self.n_params - \
@@ -156,7 +199,7 @@ class R1_NES(Policy):
         return logprob
 
     # update with experience replay
-    def update_with_er(self, er):
+    def update_with_er(self, er, reference_point, nondom_archive, writer, step):
         num_samples = er.num_sample*er.num_saved_policy
         w_list = er.w_list[:num_samples, :]
         x_list = er.x_list[:num_samples, :]
@@ -177,27 +220,14 @@ class R1_NES(Policy):
         # bc_item_final = torch.mean(var_bc_item, dim=1, keepdim=True)
         # bc = 1-(bc_node_final+bc_item_final)/2
         # f_list = torch.cat((f_list, bc), dim=1)
-        self.update(w_list, x_list, f_list, weight)
+        self.update(w_list, x_list, f_list, weight, reference_point=reference_point, nondom_archive=nondom_archive, writer=writer, step=step)
 
-    def write_progress_to_tb(self, writer, problem, f_list, normalized_f_list, epoch):
-        plt.figure()
-        plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
-        plt.scatter(
-            problem.sample_solutions[:, 0], problem.sample_solutions[:, 1], c="red")
-        writer.add_figure("Solutions", plt.gcf(), epoch)
-
-        # let's also note the hypervolume, we need it, boom
-        hv = get_hypervolume(normalized_f_list)
-        writer.add_scalar("Validation HV", hv, epoch)
-
+    def write_progress_to_tb(self, writer, step):
         # note the parameters
-        writer.add_scalar("Mu Norm", torch.norm(self.mu).cpu().item(), epoch)
-        writer.add_scalar("V Norm", torch.norm(self.v).cpu().item(), epoch)
-        condition_number = (torch.dot(self.v.ravel(), self.v.ravel()) + 1)
-        writer.add_scalar("Condition", condition_number.cpu().item(), epoch)    
-        writer.add_scalar("Lambda", self.ld.cpu().item(), epoch)
-        writer.add_scalar("C", self.c.cpu().item(), epoch)
-        writer.add_scalar("Z", torch.norm(self.z).cpu().item(), epoch)
+        writer.add_scalar("Mu Norm", torch.norm(self.mu).cpu().item(), step)
+        writer.add_scalar("V Norm", torch.norm(self.principal_vector).cpu().item(), step)
+        writer.add_scalar("Max Var", self._getMaxVariance, step)    
+        writer.add_scalar("Lambda", self.ld.item(), step)
         writer.flush()
 
 '''

@@ -45,6 +45,8 @@ def setup_r1_nes(args):
         checkpoint = torch.load(checkpoint_path.absolute())
     else:
         print("CHECKPOINT NOT FOUND! new run?")
+    policy.copy_to_mu(agent)
+
 
     last_epoch = 0
     if checkpoint is not None:
@@ -95,8 +97,7 @@ def setup_phn(args):
     agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)
     agent.load_state_dict(agent_checkpoint["agent_state_dict"])
     # copy the agent attention's params as policy's initial mu
-    policy.copy_to_mu(agent)
-
+    
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):
         checkpoint = torch.load(checkpoint_path.absolute(), map_location=args.device)

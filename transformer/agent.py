@@ -1,5 +1,6 @@
-from dis import dis
-from typing import Optional
+from typing import Dict, Optional
+
+import torch.nn.functional as F
 import torch
 
 from transformer.graph_encoder import GraphAttentionEncoder
@@ -55,11 +56,20 @@ class Agent(torch.jit.ScriptModule):
                 glimpse_K_static: torch.Tensor,
                 logit_K_static: torch.Tensor,
                 eligibility_mask: torch.Tensor,
+                param_dict: Optional[Dict[str, torch.Tensor]]=None
                 ):
         batch_size = item_embeddings.shape[0]
+        if param_dict is not None:
+            pcs_weight = param_dict["pcs_weight"]
+            pns_weight = param_dict["pns_weight"]
+            po_weight = param_dict["po_weight"]
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
-        projected_current_state = self.project_current_state(current_state)
-        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
+        if param_dict is not None:
+            projected_current_state = F.linear(current_state, pcs_weight)
+            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, pns_weight).chunk(3, dim=-1)
+        else:
+            projected_current_state = self.project_current_state(current_state)
+            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
         glimpse_V = glimpse_V_static + glimpse_V_dynamic
@@ -76,7 +86,10 @@ class Agent(torch.jit.ScriptModule):
         # supaya n_heads jadi dim nomor -2
         concated_heads = heads.permute(1,2,0,3).contiguous()
         concated_heads = concated_heads.view(batch_size, 1, self.embed_dim)
-        final_Q = self.project_out(concated_heads)
+        if param_dict is not None:
+            final_Q = F.linear(concated_heads, po_weight)
+        else:
+            final_Q = self.project_out(concated_heads)
         logits = final_Q@logit_K.permute(0,2,1) #batch_size, num_items, embed_dim
         logits = torch.tanh(logits) * self.tanh_clip
         logits = logits.squeeze(1) + eligibility_mask.float().log()

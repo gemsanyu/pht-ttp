@@ -80,9 +80,9 @@ class TTPEnv():
         
     def begin(self):
         self.reset()
-        dynamic_features = self.get_dynamic_features()
+        node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
         eligibility_mask = self.eligibility_mask
-        return self.static_features, dynamic_features, eligibility_mask
+        return self.static_features, node_dynamic_features, global_dynamic_features, eligibility_mask
         
         # weight, profit, density  
     def get_static_features(self) -> torch.Tensor:
@@ -117,15 +117,16 @@ class TTPEnv():
         dist_to_origin = dist_to_origin[:,:,np.newaxis]
         trav_time_to_origin = dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
         trav_time_to_origin = trav_time_to_origin.astype(np.float32)
+        node_dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr], axis=2)
 
         # global features weigh and velocity
         global_dynamic_features = np.zeros((self.batch_size, 2), dtype=np.float32)
         global_dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
         global_dynamic_features[:, 1] = current_vel
         global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
-        global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
-        dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
-        return dynamic_features
+        # global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
+        # dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
+        return node_dynamic_features, global_dynamic_features
 
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
@@ -138,8 +139,8 @@ class TTPEnv():
         if np.any(is_visiting_node_only):
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
-        dynamic_features = self.get_dynamic_features()
-        return dynamic_features, self.eligibility_mask
+        node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
+        return node_dynamic_features, global_dynamic_features, self.eligibility_mask
 
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection

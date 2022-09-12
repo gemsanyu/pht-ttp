@@ -19,7 +19,8 @@ class Agent(torch.jit.ScriptModule):
                  device=CPU_DEVICE):
         super(Agent, self).__init__()
         self.num_static_features = num_static_features
-        self.num_dynamic_features = num_dynamic_features
+        self.num_node_dynamic_features = num_dynamic_features-2
+        self.num_global_dynamic_features = 2
         self.n_heads = n_heads
         self.n_gae_layers = n_gae_layers
         self.embed_dim = embed_dim
@@ -36,8 +37,9 @@ class Agent(torch.jit.ScriptModule):
         # embedder for glimpse and logits
         self.project_embeddings = torch.nn.Linear(embed_dim, 3*embed_dim, bias=False)
         self.project_fixed_context = torch.nn.Linear(embed_dim, embed_dim, bias=False)
-        current_state_dim = embed_dim + self.num_dynamic_features
+        current_state_dim = embed_dim + self.num_global_dynamic_features
         self.project_current_state = torch.nn.Linear(current_state_dim, embed_dim, bias=False)
+        self.project_node_state = torch.nn.Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_out = torch.nn.Linear(embed_dim, embed_dim, bias=False)
         self.to(self.device)
 
@@ -47,16 +49,22 @@ class Agent(torch.jit.ScriptModule):
                 item_embeddings: torch.Tensor,
                 graph_embeddings: torch.Tensor,
                 prev_item_embeddings: torch.Tensor,
-                dynamic_features: torch.Tensor,
-                glimpse_V: torch.Tensor,
-                glimpse_K: torch.Tensor,
-                logit_K: torch.Tensor,
+                node_dynamic_features: torch.Tensor,
+                global_dynamic_features: torch.Tensor,
+                glimpse_V_static: torch.Tensor,
+                glimpse_K_static: torch.Tensor,
+                logit_K_static: torch.Tensor,
                 eligibility_mask: torch.Tensor,
                 ):
-
         batch_size = item_embeddings.shape[0]
-        current_state = torch.cat((prev_item_embeddings, dynamic_features), dim=-1)
+        current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
         projected_current_state = self.project_current_state(current_state)
+        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
+        glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
+        glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
+        glimpse_V = glimpse_V_static + glimpse_V_dynamic
+        glimpse_K = glimpse_K_static + glimpse_K_dynamic
+        logit_K = logit_K_static + logit_K_dynamic
         query = graph_embeddings + projected_current_state
         glimpse_Q = query.view(batch_size, self.n_heads, 1, self.key_size)
         glimpse_Q = glimpse_Q.permute(1,0,2,3)
@@ -77,6 +85,13 @@ class Agent(torch.jit.ScriptModule):
         probs = torch.softmax(logits, dim=-1)
         selected_idx, logp, entropy = self.select(probs)
         return selected_idx, logp, entropy
+
+    @torch.jit.script_method
+    def _make_heads(self, x: torch.Tensor)->torch.Tensor:
+        x = x.unsqueeze(2).view(x.size(0), x.size(1), self.n_heads, self.key_size)
+        x = x.permute(2,0,1,3)
+        return x
+    
 
     @torch.jit.ignore
     def select(self, probs):

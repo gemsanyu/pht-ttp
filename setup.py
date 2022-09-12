@@ -117,10 +117,8 @@ def setup_transformer(args):
                  num_static_features=3,
                  num_dynamic_features=4,
                  n_gae_layers=2,
-                #  embed_dim=128,
-                 embed_dim=64,
-                 gae_ff_hidden=64,
-                #  gae_ff_hidden=512,
+                 embed_dim=128,
+                 gae_ff_hidden=512,
                  tanh_clip=10,
                  device=args.device)    
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)

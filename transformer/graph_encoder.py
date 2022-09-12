@@ -207,6 +207,6 @@ class GraphAttentionEncoder(torch.jit.ScriptModule):
 
         return (
             h_,  # (1, num_nodes, embed_dim)
-            h_.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
+            h_.mean(dim=1, keepdim=True),  # average to get embedding of graph, (batch_size, embed_dim)
         )
         

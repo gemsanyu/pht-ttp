@@ -87,12 +87,13 @@ def get_hypervolume(solution_list, reference_point=None, device=CPU_DEVICE):
 
 def get_hv_contributions(solution_list, num_random_points=1000000, reference_point=None, device=CPU_DEVICE):
     num_solutions, M = solution_list.shape
-    random_points = torch.rand(
-        (num_random_points, M), dtype=torch.float32, device=device) * 1.1
+    # random_points = torch.rand(
+    #     (num_random_points, M), dtype=torch.float32, device=device) * 1.1
     if reference_point is not None:
         solution_list /= reference_point
-    total_hv = get_hypervolume_mc(
-        solution_list, random_points, reference_point=None, device=device)
+    # total_hv = get_hypervolume_mc(
+    #     solution_list, random_points, reference_point=None, device=device)
+    total_hv = get_hypervolume(solution_list)
     if num_solutions == 1:
         return total_hv
     hv_contributions = torch.zeros(
@@ -101,8 +102,9 @@ def get_hv_contributions(solution_list, num_random_points=1000000, reference_poi
         (num_solutions,), dtype=torch.bool, device=device)
     for i in range(num_solutions):
         solution_mask[i] = 0
-        hv_without_sol = get_hypervolume_mc(
-            solution_list[solution_mask, :], random_points, reference_point=None, device=device)
+        # hv_without_sol = get_hypervolume_mc(
+        #     solution_list[solution_mask, :], random_points, reference_point=None, device=device)
+        hv_without_sol = get_hypervolume(solution_list[solution_mask, :])
         hv_contributions[i] = total_hv-hv_without_sol
         solution_mask[i] = 1
     return hv_contributions

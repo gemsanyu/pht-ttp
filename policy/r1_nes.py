@@ -78,8 +78,6 @@ class R1_NES(Policy):
         self.mu = torch.cat([v0,v1,fe0_weight,fe1_weight,fe0_bias,fe1_bias,qe0_weight,qe1_weight,qe0_bias,qe1_bias])
         self.mu = self.mu.unsqueeze(0)
 
-    def get_max_variance(self):
-        return torch.exp(self.ld*2/self.n_params)
 
     '''
     y ~ N(0,I)
@@ -125,7 +123,10 @@ class R1_NES(Policy):
         # score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
         score = get_score_nsga2(f_list, nondom_archive, reference_point)
         # l2 regularization
-        # penalty = torch.norm(w_list+self.mu, dim=1)**2
+        ld_penalty = 1e-8
+        penalty = ld_penalty*torch.norm(w_list+self.mu, dim=1)**2
+        penalty = penalty.unsqueeze(1)
+        score -= penalty
         # print(penalty, score.sum())
         # print(torch.norm(self.mu))
         # print(w_list.shape, self.mu.shape)

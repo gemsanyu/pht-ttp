@@ -12,4 +12,4 @@
 
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate torch
-python main_transofer.py --title transformer_init --max-epoch 1000 --device cuda --num-training-samples 10000 --batch-size 256
+python main_transformer.py --title transformer_init --max-epoch 1000 --device cuda --num-training-samples 10000 --batch-size 256

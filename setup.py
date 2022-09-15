@@ -169,9 +169,9 @@ def setup_transformer(args):
     agent = AgentTrans(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
-                 n_gae_layers=2,
+                 n_gae_layers=3,
                  embed_dim=128,
-                 gae_ff_hidden=512,
+                 gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)    
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)

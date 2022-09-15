@@ -21,14 +21,14 @@ def generate(num_nodes, num_items_per_city, prob_idx):
         pickle.dump(problem, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def run(num_samples):
-    num_nodes = 100
+    num_nodes = 50
     num_items_per_city_list = [1,3,5]
 
     args = [(num_nodes, nic, idx) for nic in num_items_per_city_list for idx in range(num_samples)]
-    with Pool(processes=6) as pool:
+    with Pool(processes=16) as pool:
         L = pool.starmap(generate,args)
 
 if __name__ == "__main__":
-    run(100)
+    run(1000)
 
     

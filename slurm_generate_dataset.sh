@@ -8,7 +8,6 @@
 #SBATCH --mem=32GB
 #SBATCH --time=1:00:00
 
-
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate torch
 python generate_dataset.py

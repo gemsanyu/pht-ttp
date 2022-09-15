@@ -76,7 +76,7 @@ def setup(args):
                   pointer_num_neurons=args.encoder_size,
                   dropout=args.dropout,
                   n_glimpses=args.n_glimpses)   
-    agent_opt = torch.optim.AdamW(agent.parameters(), lr=1e-4)
+    agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
     model_summary_dir = summary_dir/args.title

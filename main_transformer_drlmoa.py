@@ -78,7 +78,7 @@ def run(args):
     agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup_drlmoa(args)
     a = (args.weight_idx-1.)/(args.total_weight-1.)
     b = 1-a
-    ray = torch.tensor([a,b])
+    ray = torch.tensor([a,b], device=args.device)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
     num_nodes_list = [50]

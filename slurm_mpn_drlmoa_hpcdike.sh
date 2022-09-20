@@ -9,7 +9,7 @@
 
 
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate torch
+conda activate ttp
 python main.py --title mpn_drlmoa --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 3e-4  --total-weight 100 --weight-idx 1
 python main.py --title mpn_drlmoa --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 3e-4  --total-weight 100 --weight-idx 2
 python main.py --title mpn_drlmoa --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 3e-4  --total-weight 100 --weight-idx 3

@@ -67,16 +67,15 @@ def setup_phn(args):
     return agent, phn, phn_opt, solver, last_epoch, writer, checkpoint_path, test_env, test_dataset.prob.sample_solutions
 
 def setup(args):
-    agent = Agent(device=args.device,
-                  num_static_features=3,
-                  num_dynamic_features=4,
-                  static_encoder_size=args.encoder_size,
-                  dynamic_encoder_size=args.encoder_size,
-                  decoder_encoder_size=args.encoder_size,
-                  pointer_num_layers=args.pointer_layers,
-                  pointer_num_neurons=args.encoder_size,
-                  dropout=args.dropout,
-                  n_glimpses=args.n_glimpses)   
+    # similar to Attention learn routing default
+    agent = AgentTrans(n_heads=8,
+                 num_static_features=3,
+                 num_dynamic_features=4,
+                 n_gae_layers=3,
+                 embed_dim=128,
+                 gae_ff_hidden=128,
+                 tanh_clip=10,
+                 device=args.device)    
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
@@ -111,7 +110,7 @@ def setup(args):
 
     return agent, agent_opt, last_epoch, writer, checkpoint_path, test_env
 
-def setup_transformer(args):
+def setup_drlmoa(args):
     # similar to Attention learn routing default
     agent = AgentTrans(n_heads=8,
                  num_static_features=3,
@@ -124,14 +123,24 @@ def setup_transformer(args):
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
+    agent_title = args.title + str(args.weight_idx) + "_" + str(args.total_weight)
+    last_agent_title = args.title + str(args.weight_idx-1) + "_" + str(args.total_weight)
     model_summary_dir = summary_dir/args.title
     model_summary_dir.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(log_dir=model_summary_dir.absolute())
 
     checkpoint_root = "checkpoints"
-    checkpoint_dir = pathlib.Path(".")/checkpoint_root/args.title
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/agent_title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir/(args.title+".pt")
+
+    # load previous weight idx agent as initial params, if > 1 
+    if args.weight_idx > 1:
+        last_checkpoint_dir = pathlib.Path(".")/checkpoint_root/last_agent_title
+        last_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        last_checkpoint_path = last_checkpoint_dir/(args.title+".pt")        
+        last_checkpoint = torch.load(last_checkpoint_path.absolute())
+        agent.load_state_dict(last_checkpoint["agent_state_dict"])
 
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):

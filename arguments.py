@@ -80,4 +80,14 @@ def get_parser():
                         default=128,
                         help="ray hidden size")
 
+    # drl moa
+    parser.add_argument('--weight-idx',
+                        type=int,
+                        default=1,
+                        help="drlmoa weight idx")
+    parser.add_argument('--total-weight',
+                        type=int,
+                        default=100,
+                        help="num of possible weight vectors in drlmoa")
+
     return parser

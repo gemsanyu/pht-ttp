@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 
 from arguments import get_parser
-from setup import setup
+from setup import setup_drlmoa
 from solver import EPOSolver
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
@@ -27,7 +27,7 @@ def prepare_args():
 
 def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
     agent.train()
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     critic_costs = None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
@@ -47,7 +47,7 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
 @torch.no_grad()
 def validation_one_epoch(agent, validation_dataset, writer):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     tour_length_list = []
     total_profit_list = []
     total_cost_list = []
@@ -76,7 +76,7 @@ def test_one_epoch(agent, test_env, writer):
         
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
+    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup_drlmoa(args)
     a = (args.weight_idx-1.)/(args.total_weight-1.)
     b = 1-a
     ray = torch.tensor([a,b])

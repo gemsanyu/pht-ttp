@@ -94,9 +94,9 @@ def run(args):
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
         train_one_epoch(agent, agent_opt, train_dataset, writer, ray)
-        validation_cost = validation_one_epoch(agent, validation_dataset, writer)
-        test_one_epoch(agent, test_env, writer)
-        save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
+        # validation_cost = validation_one_epoch(agent, validation_dataset, writer)
+        # test_one_epoch(agent, test_env, writer)
+        save(agent, agent_opt, 0, epoch, checkpoint_path)
 
 if __name__ == '__main__':
     args = prepare_args()

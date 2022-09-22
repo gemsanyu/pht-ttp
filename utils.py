@@ -69,7 +69,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
         dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
         forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
-        last_pointer_hidden_states = next_pointer_hidden_states
+        last_pointer_hidden_states = next_pointer_hidden_states.detach()
         selected_idx, logprob, entropy = agent.select(probs)
         #save logprobs
         logprobs[active_idx] += logprob

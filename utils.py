@@ -102,6 +102,7 @@ def update(agent, agent_opt, loss):
     loss.backward()
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
+    agent_opt.zero_grad(set_to_none=True)
 
 def update_phn(phn, phn_opt, loss):
     phn_opt.zero_grad(set_to_none=True)

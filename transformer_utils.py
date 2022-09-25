@@ -1,9 +1,11 @@
+from typing import Dict, Optional
 import torch
+import torch.nn.functional as F
 
 from transformer.agent import Agent
 from ttp.ttp_env import TTPEnv
 
-def solve(agent: Agent, env: TTPEnv):
+def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -14,7 +16,10 @@ def solve(agent: Agent, env: TTPEnv):
     # compute fixed static embeddings and graph embeddings once for reusage
     static_embeddings, graph_embeddings = agent.gae(static_features)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    if param_dict is not None:
+        glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
+    else:
+        glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
     glimpse_V_static = agent._make_heads(glimpse_V_static)
     # glimpse_K awalnya batch_size, num_items, embed_dim
@@ -35,7 +40,8 @@ def solve(agent: Agent, env: TTPEnv):
                                    glimpse_V_static[:, is_not_finished, :, :],
                                    glimpse_K_static[:, is_not_finished, :, :],
                                    logits_K_static[is_not_finished],
-                                   eligibility_mask[is_not_finished])
+                                   eligibility_mask[is_not_finished],
+                                   param_dict)
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy

@@ -9,6 +9,7 @@ class PHN(T.jit.ScriptModule):
             self,
             ray_hidden_size: int=128,
             num_neurons: int=64,
+            num_dynamic_features: int=4,
             device=CPU_DEVICE,
         ) -> None:
         '''
@@ -21,22 +22,19 @@ class PHN(T.jit.ScriptModule):
             hidden_layer_sizes: size for layers in hidden layer
         '''
         super(PHN, self).__init__()
+        self.num_node_dynamic_features = num_dynamic_features-2
+        self.num_global_dynamic_features = 2
+        self.current_state_dim = num_neurons + self.num_global_dynamic_features
         self.ray_layer = nn.Sequential(
                                         nn.Linear(2, ray_hidden_size),
                                         nn.ReLU(inplace=True),
                                         nn.Linear(ray_hidden_size, ray_hidden_size),
                                         nn.ReLU(inplace=True),
                                         nn.Linear(ray_hidden_size, ray_hidden_size))
-        self.v0_layer = nn.Linear(ray_hidden_size, num_neurons)
-        self.v1_layer = nn.Linear(ray_hidden_size, num_neurons)
-        self.fe0_layer = nn.Linear(ray_hidden_size, 2*num_neurons*num_neurons)
-        self.fe1_layer = nn.Linear(ray_hidden_size, 2*num_neurons*num_neurons)
-        self.fe0_bias = nn.Linear(ray_hidden_size, num_neurons)
-        self.fe1_bias = nn.Linear(ray_hidden_size, num_neurons)
-        self.qe0_layer = nn.Linear(ray_hidden_size, num_neurons*num_neurons)
-        self.qe1_layer = nn.Linear(ray_hidden_size, num_neurons*num_neurons)
-        self.qe0_bias = nn.Linear(ray_hidden_size, num_neurons)
-        self.qe1_bias = nn.Linear(ray_hidden_size, num_neurons)
+        self.pe_layer = nn.Linear(ray_hidden_size, num_neurons*3*num_neurons)
+        self.pcs_layer = nn.Linear(ray_hidden_size, self.current_state_dim*num_neurons)
+        self.pns_layer = nn.Linear(ray_hidden_size, self.num_node_dynamic_features*3*num_neurons)
+        self.po_layer = nn.Linear(ray_hidden_size, num_neurons*num_neurons)
         self.ray_hidden_size = ray_hidden_size
         self.num_neurons = num_neurons
         self.to(device)
@@ -53,26 +51,14 @@ class PHN(T.jit.ScriptModule):
         Return: appropriate weights
         '''
         ray_features = self.ray_layer(ray)
-        v0 = self.v0_layer(ray_features).view(1,1,self.num_neurons)
-        v1 = self.v1_layer(ray_features).view(1,1,self.num_neurons)
-        fe0_weight = self.fe0_layer(ray_features).view(self.num_neurons, 2*self.num_neurons)
-        fe1_weight = self.fe1_layer(ray_features).view(self.num_neurons, 2*self.num_neurons)
-        fe0_bias = self.fe0_bias(ray_features).view(self.num_neurons)
-        fe1_bias = self.fe1_bias(ray_features).view(self.num_neurons)
-        qe0_weight = self.qe0_layer(ray_features).view(self.num_neurons, self.num_neurons)
-        qe1_weight = self.qe1_layer(ray_features).view(self.num_neurons, self.num_neurons)
-        qe0_bias = self.qe0_bias(ray_features).view(self.num_neurons)
-        qe1_bias = self.qe1_bias(ray_features).view(self.num_neurons)
+        pe_weight = self.pe_layer(ray_features).view(3*self.num_neurons, self.num_neurons)
+        pcs_weight = self.pcs_layer(ray_features).view(self.num_neurons,self.current_state_dim)
+        pns_weight = self.pns_layer(ray_features).view(3*self.num_neurons, self.num_node_dynamic_features)
+        po_weight = self.po_layer(ray_features).view(self.num_neurons, self.num_neurons)
         param_dict = {
-                     "v0":v0,
-                     "v1":v1,
-                     "fe0_weight":fe0_weight,
-                     "fe1_weight":fe1_weight,
-                     "fe0_bias":fe0_bias,
-                     "fe1_bias":fe1_bias,
-                     "qe0_weight":qe0_weight,
-                     "qe1_weight":qe1_weight,
-                     "qe0_bias":qe0_bias,
-                     "qe1_bias":qe1_bias,
+                     "pe_weight":pe_weight,
+                     "pcs_weight":pcs_weight,
+                     "pns_weight":pns_weight,
+                     "po_weight":po_weight,
                      }
         return param_dict

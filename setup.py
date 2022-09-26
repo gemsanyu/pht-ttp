@@ -22,7 +22,7 @@ def setup_r1_nes(args):
                  gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)        
-    policy = SNES(args.encoder_size)
+    policy = SNES(num_neurons=128, num_dynamic_features=4)
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root

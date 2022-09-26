@@ -12,46 +12,30 @@ CPU_DEVICE = torch.device("cpu")
 
 
 class Policy(object):
-    def __init__(self, num_neurons):
+    def __init__(self, num_neurons, num_dynamic_features):
         self.num_neurons = num_neurons
-        # self.n_params = 2a+2(4a^2+2a) = 2a+6a^2+4a = 6a+6a^2
-        self.n_params = 6*(num_neurons+num_neurons**2)
+        self.num_node_dynamic_features = num_dynamic_features-2
+        self.current_state_dim = num_neurons + 2
+        # self.n_params = 3a^2+a*csd+3a*ndf+a^2 = 4a^2+a*(csd+3ndf)        
+        self.n_params = 4*self.num_neurons**2 + self.num_neurons*(self.current_state_dim+3*self.num_node_dynamic_features)
 
     def create_param_dict(self, param_vec):
         param_vec = param_vec.ravel()
         params_idx = 0
-        v0 = param_vec[:self.num_neurons].view(1,1,self.num_neurons)
-        params_idx += self.num_neurons
-        v1 = param_vec[params_idx:params_idx+self.num_neurons].view(1,1,self.num_neurons)
-        params_idx += self.num_neurons
-        fe0_weight = param_vec[params_idx:params_idx+2*(self.num_neurons**2)].view(self.num_neurons, 2*self.num_neurons)
-        params_idx += 2*(self.num_neurons**2)
-        fe1_weight = param_vec[params_idx:params_idx+2*(self.num_neurons**2)].view(self.num_neurons, 2*self.num_neurons)
-        params_idx += 2*(self.num_neurons**2)
-        fe0_bias = param_vec[params_idx:params_idx+self.num_neurons].view(self.num_neurons)
-        params_idx += self.num_neurons
-        fe1_bias = param_vec[params_idx:params_idx+self.num_neurons].view(self.num_neurons)
-        params_idx += self.num_neurons
-        qe0_weight = param_vec[params_idx:params_idx+(self.num_neurons**2)].view(self.num_neurons, self.num_neurons)
-        params_idx += (self.num_neurons**2)
-        qe1_weight = param_vec[params_idx:params_idx+(self.num_neurons**2)].view(self.num_neurons, self.num_neurons)
-        params_idx += (self.num_neurons**2)
-        qe0_bias = param_vec[params_idx:params_idx+self.num_neurons].view(self.num_neurons)
-        params_idx += self.num_neurons
-        qe1_bias = param_vec[params_idx:params_idx+self.num_neurons].view(self.num_neurons)
-        params_idx += self.num_neurons
-                
+        pe_weight = param_vec[:3*self.num_neurons*self.num_neurons].view(3*self.num_neurons, self.num_neurons)
+        params_idx += 3*self.num_neurons*self.num_neurons
+        pcs_weight = param_vec[params_idx:params_idx+self.num_neurons*self.current_state_dim].view(self.num_neurons,self.current_state_dim)
+        params_idx += self.num_neurons*self.current_state_dim
+        pns_weight = param_vec[params_idx:params_idx+3*self.num_neurons*self.num_node_dynamic_features].view(3*self.num_neurons, self.num_node_dynamic_features)
+        params_idx += 3*self.num_neurons*self.num_node_dynamic_features
+        po_weight = param_vec[params_idx:params_idx+self.num_neurons*self.num_neurons].view(self.num_neurons, self.num_neurons)
+        params_idx += self.num_neurons*self.num_neurons        
+
         param_dict = {
-                     "v0":v0,
-                     "v1":v1,
-                     "fe0_weight":fe0_weight,
-                     "fe1_weight":fe1_weight,
-                     "fe0_bias":fe0_bias,
-                     "fe1_bias":fe1_bias,
-                     "qe0_weight":qe0_weight,
-                     "qe1_weight":qe1_weight,
-                     "qe0_bias":qe0_bias,
-                     "qe1_bias":qe1_bias,
+                     "pe_weight":pe_weight,
+                     "pcs_weight":pcs_weight,
+                     "pns_weight":pns_weight,
+                     "po_weight":po_weight,
                      }      
         return param_dict
 

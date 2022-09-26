@@ -15,7 +15,8 @@ from ttp.ttp import TTP
 from ttp.utils import save_prob
 from policy.utils import update_nondom_archive
 from policy.snes import ExperienceReplay, SNES
-from utils import solve, write_test_phn_progress, save_nes
+from utils import write_test_phn_progress, save_nes
+from transformer_utils import solve
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -43,7 +44,7 @@ def train_one_epoch(agent, policy: SNES, train_prob: TTP, writer, step, pop_size
         node_order_list = torch.zeros((pop_size, train_env.num_nodes), dtype=torch.long)
         item_selection_list = torch.zeros((pop_size, train_env.num_items), dtype=torch.bool)
         for n, param_dict in enumerate(param_dict_list):
-            tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, train_env, param_dict, normalized=False)
+            tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, train_env, param_dict)
             node_order_list[n] = tour_list
             item_selection_list[n] = item_selection
             travel_time_list[n] = tour_lengths
@@ -67,12 +68,12 @@ def train_one_epoch(agent, policy: SNES, train_prob: TTP, writer, step, pop_size
     return step, train_prob
 
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, sample_solutions, writer, epoch, pop_size=100):
+def test_one_epoch(agent, policy, test_env, sample_solutions, writer, epoch, pop_size=50):
     agent.eval()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
     solution_list = []
     for n, param_dict in enumerate(param_dict_list):
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, test_env, param_dict, normalized=False)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, test_env, param_dict)
         solution_list += [torch.stack([tour_lengths, total_profits], dim=1)]
     solution_list = torch.cat(solution_list)
     write_test_phn_progress(writer, solution_list, epoch, sample_solutions)
@@ -101,7 +102,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(2)
+    torch.set_num_threads(4)
     # torch.set_num_threads()
     torch.manual_seed(args.seed)
     random.seed(args.seed)

@@ -16,49 +16,32 @@ CPU_DEVICE = torch.device("cpu")
 
 class SNES(Policy):
     def __init__(self,
-                 num_neurons):
-        super(SNES, self).__init__(num_neurons)
+                 num_neurons,
+                 num_dynamic_features):
+        super(SNES, self).__init__(num_neurons, num_dynamic_features)
 
         self.norm_dist = torch.distributions.Normal(0,1)
         self.mu = torch.randn(size=(1, self.n_params), dtype=torch.float32)
-        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-6), dtype=torch.float32)
+        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-4), dtype=torch.float32)
 
         # hyperparams
-        self.negative_hv = -5e-4
+        self.negative_hv = -1e-4
         self.lr_mu = 1
         self.lr_sigma = 0.6 * (3 + math.log(self.n_params)) / 3 / math.sqrt(self.n_params) #pybrain
         # self.lr_sigma = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
         self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))    
 
     def copy_to_mu(self, agent: Agent):
-        glimpse = agent.pointer.glimpse
-        att = agent.pointer.attention_layer
-        glimpse_params = glimpse.named_parameters()
-        for name, param in glimpse_params:
-            if name == "v":
-                v0 = param.data.ravel()
-            if name == "features_embedder.layer.weight":
-                fe0_weight = param.data.ravel()
-            if name == "features_embedder.layer.bias":
-                fe0_bias = param.data.ravel()
-            if name == "query_embedder.layer.weight":
-                qe0_weight = param.data.ravel()
-            if name == "query_embedder.layer.bias":
-                qe0_bias = param.data.ravel()
-        att_params = att.named_parameters()
-        for name, param in att_params:
-            if name == "v":
-                v1 = param.data.ravel()
-            if name == "features_embedder.layer.weight":
-                fe1_weight = param.data.ravel()
-            if name == "features_embedder.layer.bias":
-                fe1_bias = param.data.ravel()
-            if name == "query_embedder.layer.weight":
-                qe1_weight = param.data.ravel()
-            if name == "query_embedder.layer.bias":
-                qe1_bias = param.data.ravel()
-        
-        self.mu = torch.cat([v0,v1,fe0_weight,fe1_weight,fe0_bias,fe1_bias,qe0_weight,qe1_weight,qe0_bias,qe1_bias])
+        for name, param in agent.named_parameters():
+            if name == "project_embeddings.weight":
+                pe_weight = param.data.ravel()
+            if name == "project_current_state.weight":
+                pcs_weight = param.data.ravel()
+            if name == "project_node_state.weight":
+                pns_weight = param.data.ravel()
+            if name == "project_out.weight":
+                po_weight = param.data.ravel()
+        self.mu = torch.cat([pe_weight,pcs_weight,pns_weight,po_weight])
         self.mu = self.mu.unsqueeze(0)
 
     # def get_max_variance(self):

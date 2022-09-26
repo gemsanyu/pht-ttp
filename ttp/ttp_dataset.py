@@ -39,13 +39,18 @@ class TTPDataset(Dataset):
             self.prob = TTP(dataset_name=dataset_name)
             self.num_nodes = self.prob.num_nodes
             self.num_items_per_city = self.prob.num_items_per_city
-        
+        prob_list = []
+        for i in range(100):
+            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=i)
+            prob_list += [prob]
+        self.prob_list = prob_list
+
     def __len__(self):
         return self.num_samples
 
     def __getitem__(self, index):
         if self.prob is None:
-            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=index%100)
+            prob = self.prob_list[index%100]
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

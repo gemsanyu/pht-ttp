@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from agent.attention import Attention
 
 
-class Pointer(nn.Module):
+class Pointer(T.jit.ScriptModule):
     def __init__(
             self,
             num_neurons: int,
@@ -57,6 +57,7 @@ class Pointer(nn.Module):
 
         self.to(device)
 
+    @T.jit.script_method
     def forward(self,
                 features: T.Tensor,
                 decoder_input: T.Tensor,

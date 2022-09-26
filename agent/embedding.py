@@ -3,7 +3,7 @@ import torch.nn as nn
 
 CPU_DEVICE = T.device("cpu")
 
-class Embedder(nn.Module):
+class Embedder(T.jit.ScriptModule):
     def __init__(
             self,
             input_size: int,
@@ -29,6 +29,7 @@ class Embedder(nn.Module):
         #                     nn.ReLU())
         self.to(device)
 
+    @T.jit.script_method
     def forward(self, input: T.Tensor) -> T.Tensor:
         '''
         ### Calculate embedding.

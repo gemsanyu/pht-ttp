@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 from agent.embedding import Embedder
 
-class Attention(nn.Module):
+class Attention(T.jit.ScriptModule):
     def __init__(self, num_neurons: int, device: T.device, use_tanh:bool=False, tanh_clip:Optional[int]=10):
         """
         ### Calculates attention over the input nodes given the current state.
@@ -36,6 +36,7 @@ class Attention(nn.Module):
         self.use_tanh = use_tanh
         self.to(device)
 
+    @T.jit.script_method
     def forward(
             self,
             features: T.Tensor,

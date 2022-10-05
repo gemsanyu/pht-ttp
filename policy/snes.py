@@ -22,7 +22,7 @@ class SNES(Policy):
 
         self.norm_dist = torch.distributions.Normal(0,1)
         self.mu = torch.randn(size=(1, self.n_params), dtype=torch.float32)
-        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-4), dtype=torch.float32)
+        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-3), dtype=torch.float32)
 
         # hyperparams
         self.negative_hv = -1e-4

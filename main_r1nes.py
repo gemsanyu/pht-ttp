@@ -14,7 +14,8 @@ from ttp.ttp_dataset import read_prob, prob_to_env
 from ttp.ttp import TTP
 from ttp.utils import save_prob
 from policy.utils import update_nondom_archive
-from policy.snes import ExperienceReplay, SNES
+# from policy.snes import ExperienceReplay, SNES
+from policy.r1_nes import ExperienceReplay, R1_NES
 from utils import solve, write_test_phn_progress, save_nes
 
 CPU_DEVICE = torch.device("cpu")
@@ -29,7 +30,7 @@ def prepare_args():
 
 
 @torch.no_grad()
-def train_one_epoch(agent, policy: SNES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=20):
+def train_one_epoch(agent, policy: R1_NES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=20):
     agent.eval()
     if policy.batch_size is not None:
         pop_size = int(math.ceil(policy.batch_size/max_saved_policy))
@@ -61,7 +62,7 @@ def train_one_epoch(agent, policy: SNES, train_prob: TTP, writer, step, pop_size
         step += 1
         if er.num_saved_policy < er.max_saved_policy:
             continue
-        policy.update_with_er(er, train_prob.reference_point, train_prob.nondom_archive)
+        policy.update_with_er(er, train_prob.reference_point, train_prob.nondom_archive, writer, step)
         policy.write_progress_to_tb(writer, step)
 
     return step, train_prob
@@ -101,8 +102,8 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(2)
-    # torch.set_num_threads()
+    # torch.set_num_threads(2)
+    torch.set_num_threads(os.cpu_count())
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

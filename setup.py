@@ -7,7 +7,8 @@ from torch.utils.data import DataLoader
 
 from agent.agent import Agent
 from agent.phn import PHN
-from policy.snes import SNES
+# from policy.snes import SNES
+from policy.r1_nes import R1_NES
 from solver import EPOSolver
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
@@ -24,7 +25,8 @@ def setup_r1_nes(args):
                   pointer_num_neurons=args.encoder_size,
                   dropout=args.dropout,
                   n_glimpses=args.n_glimpses)   
-    policy = SNES(args.encoder_size)
+    # policy = SNES(args.encoder_size)
+    policy = R1_NES(args.encoder_size)
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root

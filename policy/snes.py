@@ -21,14 +21,14 @@ class SNES(Policy):
 
         self.norm_dist = torch.distributions.Normal(0,1)
         self.mu = torch.randn(size=(1, self.n_params), dtype=torch.float32)
-        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-6), dtype=torch.float32)
+        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-5), dtype=torch.float32)
 
         # hyperparams
         self.negative_hv = -5e-4
         self.lr_mu = 1
         self.lr_sigma = 0.6 * (3 + math.log(self.n_params)) / 3 / math.sqrt(self.n_params) #pybrain
         # self.lr_sigma = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
-        self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))    
+        self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))
 
     def copy_to_mu(self, agent: Agent):
         glimpse = agent.pointer.glimpse
@@ -102,7 +102,6 @@ class SNES(Policy):
         # score = get_score_nsga2(f_list, nondom_archive, reference_point)
         if weight is None:
             weight = 1
-    
         ngrad_mu_j = torch.sum(score*s_list, dim=0)
         ngrad_sigma_j = torch.sum(score*(s_list*s_list-1), dim=0)
 

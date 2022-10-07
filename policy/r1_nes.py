@@ -40,7 +40,9 @@ class R1_NES(Policy):
                 
         # choose the lr and batch size package?
         # 1.
+        # self.lr = 
         self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
+        self.lr /=100
         self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))
         # or 2.
         # self.lr = 0.1
@@ -120,8 +122,8 @@ class R1_NES(Policy):
     # update given the values
     # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
     def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
-        # score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
-        score = get_score_nsga2(f_list, nondom_archive, reference_point)
+        score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
+        # score = get_score_nsga2(f_list, nondom_archive, reference_point)
         # l2 regularization
         ld_penalty = 1e-8
         penalty = ld_penalty*torch.norm(w_list+self.mu, dim=1)**2
@@ -261,7 +263,7 @@ class ExperienceReplay(object):
         self.item_selection_list = None
 
 
-    def add(self, policy, sample_list, f_list, node_order_list, item_selection_list):
+    def add(self, policy, sample_list, f_list, node_order_list=None, item_selection_list=None):
         self.num_saved_policy = min(
             self.num_saved_policy+1, self.max_saved_policy)
 
@@ -280,14 +282,16 @@ class ExperienceReplay(object):
         self.f_list = self.f_list.roll(self.num_sample, dims=0)
         self.f_list[:self.num_sample] = f_list
 
-        if self.node_order_list is None:
-            num_sample, num_nodes = node_order_list.shape 
-            self.node_order_list = torch.zeros((self.max_saved_policy*self.num_sample, num_nodes), dtype=torch.long)
-        self.node_order_list = self.node_order_list.roll(self.num_sample, dims=0)
-        self.node_order_list[:self.num_sample, :] = node_order_list
+        if node_order_list is not None:
+            if self.node_order_list is None:
+                num_sample, num_nodes = node_order_list.shape 
+                self.node_order_list = torch.zeros((self.max_saved_policy*self.num_sample, num_nodes), dtype=torch.long)
+            self.node_order_list = self.node_order_list.roll(self.num_sample, dims=0)
+            self.node_order_list[:self.num_sample, :] = node_order_list
 
-        if self.item_selection_list is None:
-            num_sample, num_items = item_selection_list.shape 
-            self.item_selection_list = torch.zeros((self.max_saved_policy*self.num_sample, num_items), dtype=torch.bool)
-        self.item_selection_list = self.item_selection_list.roll(self.num_sample, dims=0)
-        self.item_selection_list[:self.num_sample, :] = item_selection_list
+        if item_selection_list is not None:
+            if self.item_selection_list is None:
+                num_sample, num_items = item_selection_list.shape 
+                self.item_selection_list = torch.zeros((self.max_saved_policy*self.num_sample, num_items), dtype=torch.bool)
+            self.item_selection_list = self.item_selection_list.roll(self.num_sample, dims=0)
+            self.item_selection_list[:self.num_sample, :] = item_selection_list

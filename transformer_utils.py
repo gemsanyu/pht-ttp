@@ -16,10 +16,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     # compute fixed static embeddings and graph embeddings once for reusage
     static_embeddings, graph_embeddings = agent.gae(static_features)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    if param_dict is not None:
-        glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
-    else:
-        glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    # if param_dict is not None:
+    # glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
+    # else:
+    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
     glimpse_V_static = agent._make_heads(glimpse_V_static)
     # glimpse_K awalnya batch_size, num_items, embed_dim

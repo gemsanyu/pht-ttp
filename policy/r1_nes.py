@@ -16,13 +16,14 @@ CPU_DEVICE = torch.device("cpu")
 
 class R1_NES(Policy):
     def __init__(self,
-                 num_neurons):
-        super(R1_NES, self).__init__(num_neurons)
+                 num_neurons,
+                 num_dynamic_features):
+        super(R1_NES, self).__init__(num_neurons, num_dynamic_features)
 
         self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*stdv-stdv
-        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 6
+        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 4
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -48,34 +49,16 @@ class R1_NES(Policy):
         self.ld_lr = self.lr
 
     def copy_to_mu(self, agent: Agent):
-        glimpse = agent.pointer.glimpse
-        att = agent.pointer.attention_layer
-        glimpse_params = glimpse.named_parameters()
-        for name, param in glimpse_params:
-            if name == "v":
-                v0 = param.data.ravel()
-            if name == "features_embedder.layer.weight":
-                fe0_weight = param.data.ravel()
-            if name == "features_embedder.layer.bias":
-                fe0_bias = param.data.ravel()
-            if name == "query_embedder.layer.weight":
-                qe0_weight = param.data.ravel()
-            if name == "query_embedder.layer.bias":
-                qe0_bias = param.data.ravel()
-        att_params = att.named_parameters()
-        for name, param in att_params:
-            if name == "v":
-                v1 = param.data.ravel()
-            if name == "features_embedder.layer.weight":
-                fe1_weight = param.data.ravel()
-            if name == "features_embedder.layer.bias":
-                fe1_bias = param.data.ravel()
-            if name == "query_embedder.layer.weight":
-                qe1_weight = param.data.ravel()
-            if name == "query_embedder.layer.bias":
-                qe1_bias = param.data.ravel()
-        
-        self.mu = torch.cat([v0,v1,fe0_weight,fe1_weight,fe0_bias,fe1_bias,qe0_weight,qe1_weight,qe0_bias,qe1_bias])
+        for name, param in agent.named_parameters():
+            # if name == "project_embeddings.weight":
+            #     pe_weight = param.data.ravel()
+            if name == "project_current_state.weight":
+                pcs_weight = param.data.ravel()
+            if name == "project_node_state.weight":
+                pns_weight = param.data.ravel()
+            if name == "project_out.weight":
+                po_weight = param.data.ravel()
+        self.mu = torch.cat([pcs_weight,pns_weight,po_weight])
         self.mu = self.mu.unsqueeze(0)
 
 
@@ -112,7 +95,6 @@ class R1_NES(Policy):
     theta = mu
     return theta mapped with param names of the policy
     '''
-
     def generate_on_mean(self):
         param_dict = self.create_param_dict(self.mu)
         return param_dict
@@ -120,13 +102,13 @@ class R1_NES(Policy):
     # update given the values
     # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
     def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
-        # score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
-        score = get_score_nsga2(f_list, nondom_archive, reference_point)
+        score = get_score_hv_contributions(f_list, self.negative_hv, None, reference_point)
+        # score = get_score_nsga2(f_list, nondom_archive, reference_point)
         # l2 regularization
-        ld_penalty = 1e-8
-        penalty = ld_penalty*torch.norm(w_list+self.mu, dim=1)**2
-        penalty = penalty.unsqueeze(1)
-        score -= penalty
+        # ld_penalty = 1e-8
+        # penalty = ld_penalty*torch.norm(w_list+self.mu, dim=1)**2
+        # penalty = penalty.unsqueeze(1)
+        # score -= penalty
         # print(penalty, score.sum())
         # print(torch.norm(self.mu))
         # print(w_list.shape, self.mu.shape)

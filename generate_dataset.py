@@ -29,6 +29,6 @@ def run(num_samples):
         L = pool.starmap(generate,args)
 
 if __name__ == "__main__":
-    run(1000)
+    run(100)
 
     

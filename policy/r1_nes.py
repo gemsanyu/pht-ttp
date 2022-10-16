@@ -23,7 +23,7 @@ class R1_NES(Policy):
         self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*stdv-stdv
-        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 4
+        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 5
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -102,7 +102,7 @@ class R1_NES(Policy):
     # update given the values
     # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
     def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
-        score = get_score_hv_contributions(f_list, self.negative_hv, None, reference_point)
+        score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
         # score = get_score_nsga2(f_list, nondom_archive, reference_point)
         # l2 regularization
         # ld_penalty = 1e-8

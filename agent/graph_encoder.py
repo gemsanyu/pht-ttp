@@ -15,7 +15,8 @@ class SkipConnection(nn.Module):
         return input + self.module(input)
 
 
-class MultiHeadAttention(torch.jit.ScriptModule):
+# class MultiHeadAttention(torch.jit.ScriptModule):
+class MultiHeadAttention(nn.Module):
     def __init__(
             self,
             n_heads,
@@ -54,7 +55,7 @@ class MultiHeadAttention(torch.jit.ScriptModule):
             param.data.uniform_(-stdv, stdv)
 
     
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def forward(self, q:torch.Tensor, h:Optional[torch.Tensor]=None, mask:Optional[torch.Tensor]=None) -> torch.Tensor:
         """
 
@@ -176,7 +177,8 @@ class MultiHeadAttentionLayer(nn.Sequential):
         )
 
 
-class GraphAttentionEncoder(torch.jit.ScriptModule):
+# class GraphAttentionEncoder(torch.jit.ScriptModule):
+class GraphAttentionEncoder(nn.Module):
     def __init__(
             self,
             n_heads,
@@ -195,7 +197,7 @@ class GraphAttentionEncoder(torch.jit.ScriptModule):
             for _ in range(n_layers)
         ))
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def forward(self, x:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
 
         # Batch multiply to get initial embeddings of nodes

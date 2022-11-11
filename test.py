@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import torch
+import torch.quantization
 
 from arguments import get_parser
 from setup import setup
@@ -42,6 +43,7 @@ def test_one_epoch(agent, test_env, x_file, y_file):
 def run(args):
     agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
     results_dir = summary_dir = pathlib.Path(".")/"results"
+    # agent = torch.quantization.quantize_dynamic(agent, {torch.nn.Linear}, dtype=torch.qint8)
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)
     x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")

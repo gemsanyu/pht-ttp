@@ -4,3 +4,4 @@ checkpoints/*
 data/*
 logs/*
 data_full/*
+.ipynb_checkpoints*

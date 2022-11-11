@@ -9,7 +9,8 @@ import torch.quantization
 
 from arguments import get_parser
 from setup import setup
-from utils import solve
+# from utils import solve
+from utils import solve_fast as solve
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -24,7 +25,7 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
+    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env, k=100)
     node_order_str = ""
     for i in tour_list[0]:
         node_order_str+= str(i.item()) + " "

@@ -35,7 +35,8 @@ def test_one_epoch(agent, test_env, x_file, y_file):
 
     tour_length = "{:.16f}".format(tour_length[0].item())
     total_profit = "{:.16f}".format(total_profit[0].item())
-    y_file.write(tour_length+" "+total_profit+"\n")    
+    y_file.write(tour_length+" "+total_profit+"\n")
+    print(tour_length+" "+total_profit+"\n")    
 
 
 def run(args):
@@ -52,6 +53,7 @@ def run(args):
 if __name__ == '__main__':
     args = prepare_args()
     torch.set_num_threads(os.cpu_count())
+    # torch.set_num_threads(3)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

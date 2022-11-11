@@ -179,7 +179,7 @@ class TTP(object):
                     item_city_idx[j] = int(strings[3]) - 1
 
         # calculate distance matrix
-        W = torch.cdist(coords, coords, p=2).to(self.device)
+        W = torch.cdist(coords.double(), coords.double(), p=2).to(self.device)
         W = torch.ceil(W).double()
 
         norm_coords, norm_W, distance_scale = normalize_coords(coords, W)

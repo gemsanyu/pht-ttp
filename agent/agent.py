@@ -8,8 +8,8 @@ from agent.graph_encoder import GraphAttentionEncoder
 
 CPU_DEVICE = torch.device("cpu")
 
-# class Agent(torch.jit.ScriptModule):
-class Agent(torch.nn.Module):
+class Agent(torch.jit.ScriptModule):
+# class Agent(torch.nn.Module):
     def __init__(self,
                  num_static_features: int,
                  num_dynamic_features: int,
@@ -46,7 +46,7 @@ class Agent(torch.nn.Module):
         self.to(self.device)
 
     # num_step = 1
-    # @torch.jit.script_method    
+    @torch.jit.script_method    
     def forward(self, 
                 item_embeddings: torch.Tensor,
                 graph_embeddings: torch.Tensor,
@@ -96,14 +96,14 @@ class Agent(torch.nn.Module):
         selected_idx, logp, entropy = self.select(probs)
         return selected_idx, logp, entropy
 
-    # @torch.jit.script_method
+    @torch.jit.script_method
     def _make_heads(self, x: torch.Tensor)->torch.Tensor:
         x = x.unsqueeze(2).view(x.size(0), x.size(1), self.n_heads, self.key_size)
         x = x.permute(2,0,1,3)
         return x
     
 
-    # @torch.jit.ignore
+    @torch.jit.ignore
     def select(self, probs):
         '''
         ### Select next to be executed.

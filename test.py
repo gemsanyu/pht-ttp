@@ -2,15 +2,15 @@ import os
 import pathlib
 import random
 import sys
+import time
 
 import numpy as np
 import torch
-import torch.quantization
 
 from arguments import get_parser
 from setup import setup
-# from utils import solve
-from utils import solve_fast as solve
+from utils import solve
+# from utils import solve_fast as solve
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -25,7 +25,7 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env, k=100)
+    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
     node_order_str = ""
     for i in tour_list[0]:
         node_order_str+= str(i.item()) + " "
@@ -42,9 +42,9 @@ def test_one_epoch(agent, test_env, x_file, y_file):
 
 
 def run(args):
+    start_time = time.time()
     agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
     results_dir = summary_dir = pathlib.Path(".")/"results"
-    # agent = torch.quantization.quantize_dynamic(agent, {torch.nn.Linear}, dtype=torch.qint8)
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)
     x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
@@ -52,11 +52,13 @@ def run(args):
     
     with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
         test_one_epoch(agent, test_env, x_file, y_file)
+    end_time = time.time()
+    print(end_time-start_time)
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(os.cpu_count())
-    # torch.set_num_threads(3)
+    # torch.set_num_threads(os.cpu_count())
+    torch.set_num_threads(16)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

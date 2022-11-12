@@ -63,7 +63,10 @@ def solve(agent: Agent, env: TTPEnv):
     
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
+    u = 1
     while torch.any(eligibility_mask):
+        print(u)
+        u += 1
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
@@ -111,7 +114,10 @@ def solve_fast(agent: Agent, env: TTPEnv, k=100):
     
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
+    u = 1
     while torch.any(eligibility_mask):
+        print(u)
+        u = u+1
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)

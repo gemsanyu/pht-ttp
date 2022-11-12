@@ -4,7 +4,6 @@ from typing import NamedTuple
 import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
-from scipy.stats import ttest_rel
 
 from agent.agent import Agent
 from agent.critic import Critic

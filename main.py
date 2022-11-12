@@ -5,11 +5,12 @@ import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, random_split
+from torch.profiler import ProfilerActivity
 from tqdm import tqdm
 
 
 from arguments import get_parser
-from setup import setup
+from setup import setup_drlmoa
 from solver import EPOSolver
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
@@ -25,27 +26,29 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
-def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
+def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
     agent.train()
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     critic_costs = None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        if critic_costs is None:
-            critic_costs = total_costs.mean()
-        else:
-            critic_costs = critic_alpha*critic_costs + (1-critic_alpha)*total_costs.mean()
-        agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, logprobs, sum_entropies)
-        loss = agent_loss + entropy_loss_alpha*entropy_loss
-        update(agent, agent_opt, loss)
-        write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), entropy_loss.detach(), critic_costs, logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
+        norm_tour_lengths = tour_lengths/env.best_route_length_tsp - 1.
+        norm_total_profits = 1. - total_profits/env.best_profit_kp
+        norm_tour_lengths = norm_tour_lengths.to(agent.device)
+        norm_total_profits = norm_total_profits.to(agent.device)
+        tour_length_loss = (logprobs*norm_tour_lengths).mean()
+        profit_loss = (logprobs*norm_total_profits).mean()
+        loss = torch.stack([tour_length_loss, profit_loss])
+        agent_loss = (ray*loss).sum()
+        update(agent, agent_opt, agent_loss)
+        write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), 0, 0, logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
 
 @torch.no_grad()
 def validation_one_epoch(agent, validation_dataset, writer):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     tour_length_list = []
     total_profit_list = []
     total_cost_list = []
@@ -74,7 +77,10 @@ def test_one_epoch(agent, test_env, writer):
         
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
+    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup_drlmoa(args)
+    a = (args.weight_idx-1.)/(args.total_weight-1.)
+    b = 1-a
+    ray = torch.tensor([a,b], dtype=torch.float32, device=args.device)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
     num_nodes_list = [50]
@@ -89,10 +95,10 @@ def run(args):
         print("EPOCH:", epoch, "NN:", num_nodes, "NIC:", num_items_per_city)
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
-        train_one_epoch(agent, agent_opt, train_dataset, writer)
-        validation_cost = validation_one_epoch(agent, validation_dataset, writer)
-        test_one_epoch(agent, test_env, writer)
-        save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
+        train_one_epoch(agent, agent_opt, train_dataset, writer, ray)
+        # validation_cost = validation_one_epoch(agent, validation_dataset, writer)
+        # test_one_epoch(agent, test_env, writer)
+        save(agent, agent_opt, 0, epoch, checkpoint_path)
 
 if __name__ == '__main__':
     args = prepare_args()

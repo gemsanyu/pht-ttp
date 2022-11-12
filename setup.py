@@ -39,12 +39,12 @@ def setup(args):
         last_checkpoint_dir = pathlib.Path(".")/checkpoint_root/last_agent_title
         last_checkpoint_dir.mkdir(parents=True, exist_ok=True)
         last_checkpoint_path = last_checkpoint_dir/(args.title+".pt")        
-        last_checkpoint = torch.load(last_checkpoint_path.absolute())
+        last_checkpoint = torch.load(last_checkpoint_path.absolute(), map_location=args.device)
         agent.load_state_dict(last_checkpoint["agent_state_dict"])
 
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):
-        checkpoint = torch.load(checkpoint_path.absolute())
+        checkpoint = torch.load(checkpoint_path.absolute(), map_location=args.device)
     else:
         print("CHECKPOINT NOT FOUND! new run?")
 

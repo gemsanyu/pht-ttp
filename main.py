@@ -9,15 +9,13 @@ from tqdm import tqdm
 
 
 from arguments import get_parser
-from setup import setup
-from solver import EPOSolver
+from setup import setup_transformer
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
-from utils import solve, compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
+from utils import compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
+from utils import solve
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
 def prepare_args():
     parser = get_parser()
@@ -27,7 +25,7 @@ def prepare_args():
 
 def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
     agent.train()
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     critic_costs = None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
@@ -45,7 +43,7 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, e
 @torch.no_grad()
 def validation_one_epoch(agent, validation_dataset, writer):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=2)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     tour_length_list = []
     total_profit_list = []
     total_cost_list = []
@@ -74,10 +72,10 @@ def test_one_epoch(agent, test_env, writer):
         
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
+    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup_transformer(args)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
-    num_nodes_list = [50, 100]
+    num_nodes_list = [50]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)

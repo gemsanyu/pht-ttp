@@ -194,8 +194,8 @@ class TTPEnv():
             W, profits = self.W, self.profits
 
         edge_lengths = W[self.batch_idx_W, tour_A, tour_B]
-        selected_weights = self.item_selection.astype(dtype=np.float32)*self.weights
-        selected_node_weights = np.zeros((self.batch_size, self.num_nodes), dtype=np.float32)
+        selected_weights = self.item_selection.astype(dtype=np.float64)*self.weights
+        selected_node_weights = np.zeros((self.batch_size, self.num_nodes), dtype=np.float64)
         np.put_along_axis(selected_node_weights, self.item_city_idx, selected_weights, axis=1)
         ordered_selected_weights = selected_node_weights[self.batch_idx_W, self.tour_list]
         final_weights = np.cumsum(ordered_selected_weights, axis=1)

@@ -14,11 +14,9 @@ from setup import setup_phn
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 from utils import update_phn, write_test_phn_progress, write_training_phn_progress, save_phn
-from transformer_utils import solve
+from utils import solve
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
 def prepare_args():
     parser = get_parser()

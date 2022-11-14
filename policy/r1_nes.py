@@ -23,7 +23,7 @@ class R1_NES(Policy):
         self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*stdv-stdv
-        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 5
+        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 4
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -42,6 +42,7 @@ class R1_NES(Policy):
         # choose the lr and batch size package?
         # 1.
         self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
+        # self.lr /= 10
         self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))
         # or 2.
         # self.lr = 0.1

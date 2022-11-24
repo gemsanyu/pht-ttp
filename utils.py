@@ -12,7 +12,6 @@ from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
 
-MASTER = 0
 
 class BatchProperty(NamedTuple):
     num_nodes: int

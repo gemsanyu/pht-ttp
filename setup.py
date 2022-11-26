@@ -51,7 +51,15 @@ def setup(args):
     last_step = 0
     if checkpoint is not None:
         agent.load_state_dict(checkpoint["agent_state_dict"])
-        agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
+        agent_opt_state_dict = checkpoint["agent_opt_state_dict"]
+        # for k, v in agent_opt_state_dict.items():
+        #     print(k,type(v))
+        #     if isinstance(v, torch.Tensor):
+        #         agent_opt_state_dict[k] = v.cpu()
+        #     else:
+        #         agent_opt_state_dict[k] = v
+        # exit()
+        agent_opt.load_state_dict(agent_opt_state_dict)
         last_epoch = checkpoint["epoch"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)

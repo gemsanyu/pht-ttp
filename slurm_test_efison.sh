@@ -7,6 +7,7 @@
 #SBATCH --error=logs/result-%j.err    # Output verbose program.
 #SBATCH --nodelist=epyc003
 
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate torch-cpu
 
 python test.py --title att_drlmoa_luna --dataset-name a280-n279 --weight-idx 1 --total-weight 50;

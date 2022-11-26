@@ -5,6 +5,7 @@
 #SBATCH --time=6:00:00          # Contoh menetapkan walltime maks 30 menit.
 #SBATCH --output=logs/result-%j.out   # Output terminal program.
 #SBATCH --error=logs/result-%j.err    # Output verbose program.
+#SBATCH --nodelist=epyc003
 
 python test.py --title att_drlmoa_luna --dataset-name a280-n279 --weight-idx 1 --total-weight 50;
 python test.py --title att_drlmoa_luna --dataset-name a280-n279 --weight-idx 2 --total-weight 50;

@@ -58,7 +58,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     # initially pakai initial input
     previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
     first_turn = True
+    # u=1
     while torch.any(eligibility_mask):
+        # print(u)
+        # u += 1
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         if not first_turn:

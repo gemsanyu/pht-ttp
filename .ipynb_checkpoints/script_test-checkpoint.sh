@@ -1,4 +1,14 @@
 #!/bin/bash
+#
+#SBATCH --job-name=testing-mpn-r1nes
+#SBATCH --output=logs/mpn-r1nes_%A.out
+#SBATCH --error=logs/mpn-r1nes_%A.err
+#
+#SBATCH --time=30-00:00:00
+#SBATCH --nodelist=komputasi09
+
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate ttp
 
 python test.py --title mpn_r1nes_final --device cuda --dataset-name a280-n279 --encoder-size 128 &
 python test.py --title mpn_r1nes_final --device cuda --dataset-name a280-n1395 --encoder-size 128 &

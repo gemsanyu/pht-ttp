@@ -27,7 +27,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=100):
+def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
     agent.eval()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False, device=agent.device)
     for n, param_dict in enumerate(param_dict_list):

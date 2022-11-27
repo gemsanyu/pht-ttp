@@ -210,7 +210,8 @@ class TTP(object):
                     sol = [float(strings[0]), float(strings[1])]
                     solutions += [sol]
             self.sample_solutions = torch.tensor(solutions, device=CPU_DEVICE)
-            
+        else:
+            self.sample_solutions = None
             
     def get_total_time(self, node_order, item_selection):    
         # get travelled distance list

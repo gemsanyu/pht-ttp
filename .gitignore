@@ -3,3 +3,5 @@ runs*
 data/*
 logs/*
 data_full/*
+.ipynb_checkpoints*
+*.ipynb_checkpoints*

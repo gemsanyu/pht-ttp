@@ -29,7 +29,7 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=100):
     agent.eval()
-    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
+    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False, device=agent.device)
     for n, param_dict in enumerate(param_dict_list):
         tour_list, item_selection, tour_length, total_profit, total_costs, logprobs, sum_entropies = solve(agent, test_env, param_dict, normalized=False)
         node_order_str = ""

@@ -10,8 +10,8 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate torch-cpu
 
-python test.py --title att-1nes --dataset-name a280-n279;
-python test.py --title att-1nes --dataset-name a280-n1395;
-python test.py --title att-1nes --dataset-name a280-n2790;
-python test.py --title att-1nes --dataset-name fnl4461-n4460;
-python test.py --title att-1nes --dataset-name fnl4461-n22300;
+python test.py --title att-r1nes --dataset-name a280-n279;
+python test.py --title att-r1nes --dataset-name a280-n1395;
+python test.py --title att-r1nes --dataset-name a280-n2790;
+python test.py --title att-r1nes --dataset-name fnl4461-n4460;
+python test.py --title att-r1nes --dataset-name fnl4461-n22300;

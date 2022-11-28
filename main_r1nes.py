@@ -15,8 +15,7 @@ from ttp.ttp import TTP
 from ttp.utils import save_prob
 from policy.utils import update_nondom_archive
 from policy.r1_nes import R1_NES, ExperienceReplay
-from utils import write_test_phn_progress, save_nes
-from transformer_utils import solve
+from utils import write_test_phn_progress, save_nes, solve
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0

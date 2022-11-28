@@ -3,12 +3,10 @@ from typing import NamedTuple
 
 import matplotlib.pyplot as plt
 import torch
-from tqdm import tqdm
-from scipy.stats import ttest_rel
 
 from agent.agent import Agent
-from agent.critic import Critic
 from ttp.ttp_env import TTPEnv
+
 
 CPU_DEVICE = torch.device('cpu')
 
@@ -45,43 +43,57 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
-def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
+
+def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
-    static_features, dynamic_features, eligibility_mask = env.begin()
-    static_features =  torch.from_numpy(static_features).to(agent.device)
-    static_embeddings = agent.static_encoder(static_features)
-    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
+    static_features = torch.from_numpy(static_features).to(agent.device)
+    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
+    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+    # compute fixed static embeddings and graph embeddings once for reusage
+    static_embeddings, graph_embeddings = agent.gae(static_features)
+    # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
+    # if param_dict is not None:
+    # glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
+    # else:
+    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    glimpse_K_static = agent._make_heads(glimpse_K_static)
+    glimpse_V_static = agent._make_heads(glimpse_V_static)
+    # glimpse_K awalnya batch_size, num_items, embed_dim
+    # ubah ke batch_size, num_items, n_heads, key_dim
+    # terus permute agar jadi n_heads, batch_size, num_items, key_dim
+    
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
-    # initially pakai initial input
-    previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
-    first_turn = True
     while torch.any(eligibility_mask):
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
-        if not first_turn:
-            previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :]
-            previous_embeddings = previous_embeddings.unsqueeze(1)
-        next_pointer_hidden_states = last_pointer_hidden_states
-        dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
-        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
-        next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
-        last_pointer_hidden_states = next_pointer_hidden_states
-        selected_idx, logprob, entropy = agent.select(probs)
+        previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
+        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
+                                   graph_embeddings[is_not_finished],
+                                   previous_embeddings,
+                                   node_dynamic_features[is_not_finished],
+                                   global_dynamic_features[is_not_finished],    
+                                   glimpse_V_static[:, is_not_finished, :, :],
+                                   glimpse_K_static[:, is_not_finished, :, :],
+                                   logits_K_static[is_not_finished],
+                                   eligibility_mask[is_not_finished],
+                                   param_dict)
         #save logprobs
-        logprobs[active_idx] += logprob
-        sum_entropies[active_idx] += entropy
-        dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+        logprobs[is_not_finished] += logp
+        sum_entropies[is_not_finished] += entropy
+        node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
+        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
+        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
         eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
         prev_selected_idx[active_idx] = selected_idx
-        first_turn = False
-    # # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
+
+    # get total profits and tour lenghts
+    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
+
 
 def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
     advantage = (total_costs - critic_costs).to(logprobs.device)
@@ -103,11 +115,6 @@ def update(agent, agent_opt, loss):
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
 
-def update_phn(phn, phn_opt, loss):
-    phn_opt.zero_grad(set_to_none=True)
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
-    phn_opt.step()
 
 def evaluate(agent, batch):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
@@ -141,16 +148,6 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
-def save_phn(phn, phn_opt, epoch, checkpoint_path):
-    checkpoint = {
-        "phn_state_dict":phn.state_dict(),
-        "phn_opt_state_dict":phn_opt.state_dict(),  
-        "epoch":epoch,
-    }
-    # save twice to prevent failed saving,,, damn
-    torch.save(checkpoint, checkpoint_path.absolute())
-    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
-    torch.save(checkpoint, checkpoint_backup_path.absolute())
 
 def save_nes(policy, epoch, checkpoint_path):
     checkpoint = {

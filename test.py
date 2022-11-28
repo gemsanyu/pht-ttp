@@ -1,3 +1,4 @@
+import os
 import pathlib
 import random
 import sys
@@ -6,7 +7,8 @@ import numpy as np
 import torch
 
 from arguments import get_parser
-
+from setup import setup_r1_nes
+from utils import solve
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -15,8 +17,6 @@ EVALUATOR = 1
 def prepare_args():
     parser = get_parser()
     args = parser.parse_args(sys.argv[1:])
-    args.policy_device = torch.device(args.policy_device)
-    args.actor_device = torch.device(args.actor_device)
     return args
 
 @torch.no_grad()
@@ -34,8 +34,8 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
             item_selection_str += (str(int(i.item()))) + " "
         x_file.write(item_selection_str+"\n")
 
-        tour_length = "{:.16f}".format(tour_length[0].item())
-        total_profit = "{:.16f}".format(total_profit[0].item())
+        tour_length = "{:.16f}".format(tour_lengths[0].item())
+        total_profit = "{:.16f}".format(total_profits[0].item())
         y_file.write(tour_length+" "+total_profit+"\n")
         print(tour_length+" "+total_profit+"\n")
 
@@ -51,12 +51,9 @@ def test(args):
         test_one_epoch(agent, policy, test_env, x_file, y_file)
 
 
-    
-
-
 if __name__=='__main__':
     args = prepare_args()
-    torch.set_num_threads(args.num_threads-4)
+    torch.set_num_threads(os.cpu_count()-4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

@@ -5,16 +5,14 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
-from transformer.agent import Agent as AgentTrans
-from agent.phn import PHN
+from agent.agent import Agent
 from policy.r1_nes import R1_NES
-from solver import EPOSolver
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 
 
 def setup_r1_nes(args):
-    agent = AgentTrans(n_heads=8,
+    agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
                  n_gae_layers=3,
@@ -62,7 +60,7 @@ def setup_r1_nes(args):
 
 def setup(args):
     # similar to Attention learn routing default
-    agent = AgentTrans(n_heads=8,
+    agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
                  n_gae_layers=3,

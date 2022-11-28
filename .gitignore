@@ -1,4 +1,5 @@
 runs*
+*.ipynb_checkpoints*
 checkpoints/*
 *__pycache__*
 data/*

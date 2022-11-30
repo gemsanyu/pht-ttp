@@ -42,18 +42,25 @@ def test_one_epoch(agent, test_env, x_file, y_file):
 
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
-    results_dir = summary_dir = pathlib.Path(".")/"results"
-    model_result_dir = results_dir/args.title
-    model_result_dir.mkdir(parents=True, exist_ok=True)
-    x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
-    y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
-    
-    start_time = time.time()
-    with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
-        test_one_epoch(agent, test_env, x_file, y_file)
-    end_time = time.time()
-    print(end_time-start_time)
+    agent, _, _, _, checkpoint_path, _ = setup(args)
+    quantized_path = checkpoint_path.parent / (checkpoint_path.name + "quantized")
+    quantized_agent = torch.quantization.quantize_dynamic(
+        agent, qconfig_spec={torch.nn.Linear, torch.nn.InstanceNorm1d}, dtype=torch.qint8
+    )
+    qa_sd = quantized_agent.state_dict()
+    gae_query_key_list = []
+    for i in range(3):  
+        gae_query_key_list += ["gae.layers."+str(i)+".0.module.W_query"]
+        gae_query_key_list += ["gae.layers."+str(i)+".0.module.W_key"]
+        gae_query_key_list += ["gae.layers."+str(i)+".0.module.W_val"]
+        gae_query_key_list += ["gae.layers."+str(i)+".0.module.W_out"]
+
+    for k, v in qa_sd.items():
+        print(k, v.dtype)
+
+    for k in gae_query_key_list:    
+        qa_sd[k] = torch.quantize_per_tensor(qa_sd[k], 1e-4, 2, torch.qint8)
+        print(k, qa_sd[k].dtype)
 
 if __name__ == '__main__':
     args = prepare_args()

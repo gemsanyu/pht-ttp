@@ -6,6 +6,7 @@ import time
 
 import numpy as np
 import torch
+import intel_extension_for_pytorch as ipex
 
 from arguments import get_parser
 from setup import setup
@@ -25,6 +26,7 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
+    # with torch.cpu.amp.autocast(dtype=torch.bfloat16):
     tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
     node_order_str = ""
     for i in tour_list[0]:
@@ -48,10 +50,7 @@ def run(args):
     model_result_dir.mkdir(parents=True, exist_ok=True)
     x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
-    
-    quantized_agent = torch.quantization.quantize_dynamic(
-        agent, qconfig_spec={torch.nn.Linear, torch.nn.InstanceNorm1d}, dtype=torch.qint8
-    )
+    agent = ipex.optimize(agent, dtype=torch.float32)
     start_time = time.time()
     with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
         test_one_epoch(agent, test_env, x_file, y_file)

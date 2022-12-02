@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 
 from arguments import get_parser
-from setup import setup_transformer
+from setup import setup
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 from utils import compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
@@ -72,7 +72,7 @@ def test_one_epoch(agent, test_env, writer):
         
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup_transformer(args)
+    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
     num_nodes_list = [50]

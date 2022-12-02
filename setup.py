@@ -5,13 +5,13 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
-from transformer.agent import Agent as AgentTrans
+from agent.agent import Agent
 from agent.phn import PHN
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 
 def setup_phn(args):
-    agent = AgentTrans(n_heads=8,
+    agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
                  n_gae_layers=3,
@@ -68,9 +68,9 @@ def setup_phn(args):
         
     return agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_dataset.prob.sample_solutions
 
-def setup_transformer(args):
+def setup(args):
     # similar to Attention learn routing default
-    agent = AgentTrans(n_heads=8,
+    agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
                  n_gae_layers=3,

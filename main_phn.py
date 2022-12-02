@@ -25,7 +25,7 @@ def prepare_args():
     return args
 
 def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, critic_alpha=0.8, alpha=0.2):
-    agent.train()
+    agent.eval()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
     critic_profits, critic_tour_lengths = None, None

@@ -4,11 +4,8 @@ from typing import NamedTuple
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
-from scipy.stats import ttest_rel
 
 from agent.agent import Agent
-from agent.critic import Critic
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')

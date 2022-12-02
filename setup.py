@@ -51,6 +51,12 @@ def setup_phn(args):
     last_epoch = 0
     if checkpoint is not None:
         phn.load_state_dict(checkpoint["phn_state_dict"])
+        opt_state_dict = checkpoint["phn_opt_state_dict"]
+        state = opt_state_dict["state"]
+        for k,v in state.items():
+            state[k]["step"] = state[k]["step"].cpu()
+        # in some pytorch version, cpu state of optimizer is loaded to gpu
+        # and it causes errors
         phn_opt.load_state_dict(checkpoint["phn_opt_state_dict"])
         last_epoch = checkpoint["epoch"]
 

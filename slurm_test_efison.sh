@@ -1,11 +1,11 @@
 #!/bin/bash                      
 
-#SBATCH --ntasks=64         # Contoh menggunakan 32 core CPU.
+#SBATCH --ntasks=32         # Contoh menggunakan 32 core CPU.
 #SBATCH --mem=64GB               # Contoh menggunakan RAM 16GB.
 #SBATCH --time=12:00:00          # Contoh menetapkan walltime maks 30 menit.
 #SBATCH --output=logs/result-%j.out   # Output terminal program.
 #SBATCH --error=logs/result-%j.err    # Output verbose program.
-#SBATCH --nodelist=epyc003
+#SBATCH --partition=gpu_ampere
 
 module load Anaconda3
 conda activate torch-cpu

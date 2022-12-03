@@ -9,8 +9,8 @@
 
 module load Anaconda3
 
-#python test.py --title att-r1nes --dataset-name a280-n279;
-#python test.py --title att-r1nes --dataset-name a280-n1395;
-#python test.py --title att-r1nes --dataset-name a280-n2790;
-#python test.py --title att-r1nes --dataset-name fnl4461-n4460;
-python test.py --title att-r1nes --dataset-name fnl4461-n22300;
+python test.py --title att-r1nesv2 --dataset-name a280-n279;
+python test.py --title att-r1nesv2 --dataset-name a280-n1395;
+python test.py --title att-r1nesv2 --dataset-name a280-n2790;
+python test.py --title att-r1nesv2 --dataset-name fnl4461-n4460;
+python test.py --title att-r1nesv2 --dataset-name fnl4461-n22300;

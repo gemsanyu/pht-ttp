@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from arguments import get_parser
 from setup import setup_phn
-from utils import solve
+from utils import solve_cpu_encoder
 
 CPU_DEVICE = torch.device("cpu")
 
@@ -26,7 +26,7 @@ def test(agent, phn, test_env, x_file, y_file, n_solutions=200):
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
     for ray in tqdm(ray_list, desc="Testing"):
         param_dict = phn(ray.to(agent.device))
-        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env, param_dict)
+        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_cpu_encoder(agent, test_env, param_dict)
         node_order_str = ""
         for i in tour_list[0]:
             node_order_str+= str(i.item()) + " "
@@ -43,6 +43,7 @@ def test(agent, phn, test_env, x_file, y_file, n_solutions=200):
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
+    agent.gae = agent.gae.cpu()
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)

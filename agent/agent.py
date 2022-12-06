@@ -111,19 +111,19 @@ class Agent(T.jit.ScriptModule):
 
         Return: index of operations, log of probabilities
         '''
-        if self.training:
-            dist = T.distributions.Categorical(probs)
-            selected_idx = dist.sample()
-            logprob = dist.log_prob(selected_idx)
-            entropy = dist.entropy()
-            entropy = entropy.squeeze(1)        
-        else:
-            prob, selected_idx = T.max(probs, dim=2)
-            logprob = T.log(prob)
+        # if self.training:
+        #     dist = T.distributions.Categorical(probs)
+        #     selected_idx = dist.sample()
+        #     logprob = dist.log_prob(selected_idx)
+        #     entropy = dist.entropy()
+        #     entropy = entropy.squeeze(1)        
+        # else:
+        prob, selected_idx = T.max(probs, dim=2)
+        logprob = T.log(prob)
             # no_probs = probs == 0
             # probs[no_probs] = 1
-            # entropy = (-probs*T.log(probs)).sum(dim=2)
-            entropy = 0
+        # entropy = (-probs*T.log(probs)).sum(dim=2)
+        entropy = 0
         selected_idx = selected_idx.squeeze(1)
         logprob = logprob.squeeze(1)
         return selected_idx, logprob, entropy

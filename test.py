@@ -8,7 +8,7 @@ import torch
 
 from arguments import get_parser
 from setup import setup_r1_nes
-from utils import solve
+from utils import solve_decode_only
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -22,9 +22,17 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
     agent.eval()
+    # reuse the static embeddings
+    #get static embeddings first, it can be widely reused
+    static_features, _, _, _ = test_env.begin()
+    static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
+    static_embeddings, graph_embeddings = agent.gae(static_features)
+    static_embeddings = static_embeddings.to(agent.device)
+    graph_embeddings = graph_embeddings.to(agent.device)
+
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
     for n, param_dict in enumerate(param_dict_list):
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, test_env, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings, param_dict)
         node_order_str = ""
         for i in tour_list[0]:
             node_order_str+= str(i.item()) + " "
@@ -41,6 +49,7 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
 
 def test(args):
     agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args)
+    agent.gae = agent.gae.cpu()
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)

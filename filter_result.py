@@ -67,6 +67,6 @@ if __name__ == "__main__":
             total_profit = "{:.16f}".format(-nondom_solution_list[i,1].item())
             nondom_y_file.write(tour_length+" "+total_profit+"\n")
 
-    plt.scatter(unique_solution_list[:, 0], unique_solution_list[:, 1], c='b')
-    plt.scatter(nondom_solution_list[:, 0], nondom_solution_list[:, 1], c='r', marker="v")
-    plt.show()
+    # plt.scatter(unique_solution_list[:, 0], unique_solution_list[:, 1], c='b')
+    # plt.scatter(nondom_solution_list[:, 0], nondom_solution_list[:, 1], c='r', marker="v")
+    # plt.show()

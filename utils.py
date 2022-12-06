@@ -91,7 +91,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def solve_cpu_encoder(agent: Agent, env: TTPEnv, param_dict=None):
+def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, graph_embeddings, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -99,11 +99,7 @@ def solve_cpu_encoder(agent: Agent, env: TTPEnv, param_dict=None):
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
-    static_embeddings = static_embeddings.to(agent.device, dtype=torch.float32)
-    graph_embeddings = graph_embeddings.to(agent.device, dtype=torch.float32)
-    # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
+    
     if param_dict is not None:
         glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
     else:

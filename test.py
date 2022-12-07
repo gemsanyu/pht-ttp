@@ -9,7 +9,7 @@ import torch
 
 from arguments import get_parser
 from setup import setup
-from utils import solve
+from utils import solve_decode_only
 # from utils import solve_fast as solve
 
 CPU_DEVICE = torch.device("cpu")
@@ -25,7 +25,12 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
+    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = test_env.begin()
+    static_features = torch.from_numpy(static_features).to(agent.device)
+    static_embeddings, graph_embeddings = agent.gae(static_features)
+    static_embeddings = static_embeddings.to(agent.device)
+    graph_embeddings = graph_embeddings.to(agent.device) 
+    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings)
     node_order_str = ""
     for i in tour_list[0]:
         node_order_str+= str(i.item()) + " "
@@ -43,6 +48,7 @@ def test_one_epoch(agent, test_env, x_file, y_file):
 
 def run(args):
     agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
+    agent.gae = agent.gae.cpu()
     results_dir = summary_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)

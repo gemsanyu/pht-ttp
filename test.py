@@ -3,8 +3,10 @@ import pathlib
 import random
 import sys
 
+
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from arguments import get_parser
 from setup import setup_r1_nes
@@ -31,7 +33,8 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
     graph_embeddings = graph_embeddings.to(agent.device)
 
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
-    for n, param_dict in enumerate(param_dict_list):
+    
+    for param_dict in tqdm(param_dict_list):
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings, param_dict)
         node_order_str = ""
         for i in tour_list[0]:

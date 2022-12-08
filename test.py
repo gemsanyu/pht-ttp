@@ -35,6 +35,8 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
     
     for param_dict in tqdm(param_dict_list):
+        for k in param_dict.keys():
+            param_dict[k] = param_dict[k].to(agent.device)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings, param_dict)
         node_order_str = ""
         for i in tour_list[0]:

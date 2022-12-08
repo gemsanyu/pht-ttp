@@ -103,7 +103,6 @@ def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, graph_embeddin
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    
     # if param_dict is not None:
     #     glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
     # else:

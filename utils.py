@@ -99,8 +99,6 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, graph_embedd
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
     glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)

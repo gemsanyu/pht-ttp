@@ -13,8 +13,6 @@ from utils import solve_decode_only
 # from utils import solve_fast as solve
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
 def prepare_args():
     parser = get_parser()
@@ -26,7 +24,7 @@ def prepare_args():
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = test_env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
+    static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
     static_embeddings, graph_embeddings = agent.gae(static_features)
     static_embeddings = static_embeddings.to(agent.device)
     graph_embeddings = graph_embeddings.to(agent.device) 

@@ -24,18 +24,19 @@ def prepare_args():
     return args
 
 def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
-    agent.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+        agent.train()
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        norm_tour_lengths = tour_lengths/env.best_route_length_tsp - 1.
-        norm_total_profits = 1. - total_profits/env.best_profit_kp
-        norm_tour_lengths = norm_tour_lengths.to(agent.device)
-        norm_total_profits = norm_total_profits.to(agent.device)
-        tour_length_loss = (logprobs*norm_tour_lengths).mean()
-        profit_loss = (logprobs*norm_total_profits).mean()
+        with torch.no_grad():
+            agent.eval()
+            _, _, greedy_tour_lengths, greedy_total_profits, _, _, _ = solve(agent, env)
+        tour_length_adv = tour_lengths-greedy_tour_lengths #minimize adv
+        total_profits_adv = greedy_total_profits-total_profits #minimize adv
+        tour_length_loss = (logprobs*tour_length_adv).mean()
+        profit_loss = (logprobs*total_profits_adv).mean()
         loss = torch.stack([tour_length_loss, profit_loss])
         agent_loss = (ray*loss).sum()
         update(agent, agent_opt, agent_loss)

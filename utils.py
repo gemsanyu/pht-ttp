@@ -42,7 +42,7 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
-def solve(agent: Agent, env: TTPEnv):
+def solve(agent: Agent, env: TTPEnv, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -88,7 +88,7 @@ def solve(agent: Agent, env: TTPEnv):
         prev_selected_idx[active_idx] = selected_idx
 
     # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
+    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized)
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
 def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, graph_embeddings):

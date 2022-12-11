@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-#SBATCH --job-name=phn-ttp
+#SBATCH --job-name=att-single
 #SBATCH --output=logs/%A.out
 #SBATCH --error=logs/%A.err
 #
-#SBATCH --partition=gpu_ampere
+#SBATCH --partition=ampere
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks=16
 #SBATCH --mem=64GB

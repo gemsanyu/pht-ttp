@@ -1,8 +1,7 @@
 import pathlib
 import pickle
-import random
 from typing import List
-import torch
+
 from torch.utils.data import Dataset, DataLoader
 
 from ttp.ttp import TTP
@@ -33,24 +32,19 @@ class TTPDataset(Dataset):
             self.num_items_idx = 0
             self.prob = None
             self.config_iterator = 0
-            prob_list = []
-            for i in range(100):
-                prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=i)
-                prob_list += [prob]
-            self.prob_list = prob_list
         else:
             self.num_samples = 2
             self.dataset_path = dataset_name
             self.prob = TTP(dataset_name=dataset_name)
             self.num_nodes = self.prob.num_nodes
             self.num_items_per_city = self.prob.num_items_per_city
-
+        
     def __len__(self):
         return self.num_samples
 
     def __getitem__(self, index):
         if self.prob is None:
-            prob = self.prob_list[index%1000] #1000
+            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=index%1000)
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

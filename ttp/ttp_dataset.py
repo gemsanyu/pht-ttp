@@ -50,7 +50,7 @@ class TTPDataset(Dataset):
 
     def __getitem__(self, index):
         if self.prob is None:
-            prob = self.prob_list[index%100]
+            prob = self.prob_list[index%100] #1000
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

@@ -5,16 +5,14 @@ import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, random_split
-from torch.profiler import ProfilerActivity
 from tqdm import tqdm
 
 
 from arguments import get_parser
-from setup import setup_drlmoa
-from solver import EPOSolver
+from setup import setup
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
-from utils import solve, compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
+from utils import solve, update, write_training_progress, write_validation_progress, write_test_progress, save
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -77,7 +75,7 @@ def test_one_epoch(agent, test_env, writer):
         
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup_drlmoa(args)
+    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
     a = (args.weight_idx-1.)/(args.total_weight-1.)
     b = 1-a
     ray = torch.tensor([a,b], dtype=torch.float32, device=args.device)

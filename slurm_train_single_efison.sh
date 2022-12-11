@@ -11,4 +11,4 @@
 #SBATCH --time=24:00:00
 
 module load Anaconda3/2022.05
-python main.py --title new_single_agent --max-epoch 1000 --device cuda --num-training-samples 10000
+python main.py --title new_single_agent --max-epoch 1000 --batch-size 256 --device cuda --num-training-samples 10000

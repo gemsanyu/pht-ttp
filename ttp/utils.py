@@ -143,4 +143,4 @@ def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,Wei
     profit_data = ProfitData(profits, norm_profits, profit_scale)
     weight_data = WeightData(weights, norm_weights, weight_scale)                
     item_city_idx = item_city_idx
-    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v
+    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v, max_cap

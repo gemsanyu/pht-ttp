@@ -1,277 +1,146 @@
-import os
-from typing import NamedTuple
+from typing import NamedTuple, Union
 
-import matplotlib.pyplot as plt
 import torch
-from tqdm import tqdm
 
-from agent.agent import Agent
-from ttp.ttp_env import TTPEnv
+from ttp.solver import solve_tsp, solve_knapsack
 
-CPU_DEVICE = torch.device('cpu')
-
-MASTER = 0
-class BatchProperty(NamedTuple):
-    num_nodes: int
-    num_items_per_city: int
-    num_clusters: int
-    item_correlation: int
-    capacity_factor: int
+CPU_DEVICE = torch.device("cpu")
 
 
-def get_batch_properties(num_nodes_list, num_items_per_city_list):
+class LocationData(NamedTuple):
+    coords: torch.Tensor 
+    W: torch.Tensor 
+    norm_coords: torch.Tensor 
+    norm_W: torch.Tensor 
+    distance_scale: torch.Tensor
+
+class ProfitData(NamedTuple):
+    profits: torch.Tensor 
+    norm_profits: torch.Tensor 
+    profit_scale: torch.Tensor 
+
+class WeightData(NamedTuple):
+    weights: torch.Tensor 
+    norm_weights: torch.Tensor 
+    weight_scale: torch.Tensor 
+
+
+def normalize(values):
+    total = torch.sum(values, dim=0)
+    norm_values = values/total
+    return norm_values, total
+
+def normalize_coords(coords, W=None):
     """
-        training dataset information for each batch
-        1 batch will represent 1 possible problem configuration
-        including num of node clusters, capacity factor, item correlation
-        num_nodes, num_items_per_city_list
+        normalizing coordinates so that in every benchmark dataset
+        the range of the coordinates stays the same, while also maintaining
+        their relative distances
+        normalize to range [0,1]
+        by shifting to center, then divide by scale like standard normal dist
     """
-    batch_properties = []
-    capacity_factor_list = [i+1 for i in range(10)]
-    num_clusters_list = [1]
-    item_correlation_list = [i for i in range(3)]
+    num_nodes, _ = coords.shape
 
-    for num_nodes in num_nodes_list:
-        for num_items_per_city in num_items_per_city_list:
-            for capacity_factor in capacity_factor_list:
-                for num_clusters in num_clusters_list:
-                    for item_correlation in item_correlation_list:
-                        batch_property = BatchProperty(num_nodes, num_items_per_city,
-                                                       num_clusters, item_correlation,
-                                                       capacity_factor)
-                        batch_properties += [batch_property]
-    return batch_properties
+    # get mid and scale, then broadcast
+    max_x, _ = torch.max(coords[:, 0], dim=0)
+    min_x, _ = torch.min(coords[:, 0], dim=0)
+    mid_x = (max_x + min_x)/2.
+    mid_x = mid_x.expand(num_nodes)
 
-def solve(agent: Agent, env: TTPEnv, normalized=False):
-    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
-    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
-    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
-    # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
-    glimpse_K_static = agent._make_heads(glimpse_K_static)
-    glimpse_V_static = agent._make_heads(glimpse_V_static)
-    # glimpse_K awalnya batch_size, num_items, embed_dim
-    # ubah ke batch_size, num_items, n_heads, key_dim
-    # terus permute agar jadi n_heads, batch_size, num_items, key_dim
-    
-    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
-    prev_selected_idx = prev_selected_idx + env.num_nodes
-    # u = 1
-    while torch.any(eligibility_mask):
-        # print(u)
-        # u += 1
-        is_not_finished = torch.any(eligibility_mask, dim=1)
-        active_idx = is_not_finished.nonzero().long().squeeze(1)
-        previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
-                                   graph_embeddings[is_not_finished],
-                                   previous_embeddings,
-                                   node_dynamic_features[is_not_finished],
-                                   global_dynamic_features[is_not_finished],    
-                                   glimpse_V_static[:, is_not_finished, :, :],
-                                   glimpse_K_static[:, is_not_finished, :, :],
-                                   logits_K_static[is_not_finished],
-                                   eligibility_mask[is_not_finished])
-        #save logprobs
-        logprobs[is_not_finished] += logp
-        sum_entropies[is_not_finished] += entropy
-        node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
-        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-        prev_selected_idx[active_idx] = selected_idx
+    max_y, _ = torch.max(coords[:, 1], dim=0)
+    min_y, _ = torch.min(coords[:, 1], dim=0)
+    mid_y = (max_y + min_y)/2.
+    mid_y = mid_y.expand(num_nodes)
 
-    # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized)
-    return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
+    scale_x = max_x - min_x
+    scale_y = max_y - min_y
+    scale = max(scale_x, scale_y)
 
-def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, graph_embeddings):
-    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
-    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
-    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
-    glimpse_K_static = agent._make_heads(glimpse_K_static)
-    glimpse_V_static = agent._make_heads(glimpse_V_static)
-    # glimpse_K awalnya batch_size, num_items, embed_dim
-    # ubah ke batch_size, num_items, n_heads, key_dim
-    # terus permute agar jadi n_heads, batch_size, num_items, key_dim
-    
-    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
-    prev_selected_idx = prev_selected_idx + env.num_nodes
-    # u = 1
-    while torch.any(eligibility_mask):
-        # print(u)
-        # u += 1
-        is_not_finished = torch.any(eligibility_mask, dim=1)
-        active_idx = is_not_finished.nonzero().long().squeeze(1)
-        previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
-                                   graph_embeddings[is_not_finished],
-                                   previous_embeddings,
-                                   node_dynamic_features[is_not_finished],
-                                   global_dynamic_features[is_not_finished],    
-                                   glimpse_V_static[:, is_not_finished, :, :],
-                                   glimpse_K_static[:, is_not_finished, :, :],
-                                   logits_K_static[is_not_finished],
-                                   eligibility_mask[is_not_finished])
-        #save logprobs
-        logprobs[is_not_finished] += logp
-        sum_entropies[is_not_finished] += entropy
-        node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
-        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-        prev_selected_idx[active_idx] = selected_idx
+    norm_coords = coords.detach().clone()
+    norm_coords[:, 0] -= mid_x
+    norm_coords[:, 1] -= mid_y
+    norm_coords /= scale
+    norm_coords += 0.5  # to scale from 0 to 1, else it will scale [-0.5, 0.5]
 
-    # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
-    return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
+    if W is None:
+        return norm_coords, scale
 
-# this is assuming batch = 1
-# only for inference/test
-def solve_fast(agent: Agent, env: TTPEnv, k=100):
-    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
-    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
-    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
-    # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
-    glimpse_K_static = agent._make_heads(glimpse_K_static)
-    glimpse_V_static = agent._make_heads(glimpse_V_static)
-    # glimpse_K awalnya batch_size, num_items, embed_dim
-    # ubah ke batch_size, num_items, n_heads, key_dim
-    # terus permute agar jadi n_heads, batch_size, num_items, key_dim
-    
-    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
-    prev_selected_idx = prev_selected_idx + env.num_nodes
-    # u = 1
-    while torch.any(eligibility_mask):
-        # print(u)
-        # u = u+1
-        is_not_finished = torch.any(eligibility_mask, dim=1)
-        active_idx = is_not_finished.nonzero().long().squeeze(1)
-        previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        dist_to_curr = node_dynamic_features[:, :, 1]
-        k_closest_idx = topk_idx_masked(dist_to_curr, eligibility_mask, k)
-        selected_idx_v, logp, entropy = agent(static_embeddings[is_not_finished][:, k_closest_idx],
-                                   graph_embeddings[is_not_finished],
-                                   previous_embeddings,
-                                   node_dynamic_features[is_not_finished][:, k_closest_idx],
-                                   global_dynamic_features[is_not_finished],    
-                                   glimpse_V_static[:, is_not_finished, :, :][:,:,k_closest_idx,:],
-                                   glimpse_K_static[:, is_not_finished, :, :][:,:,k_closest_idx,:],
-                                   logits_K_static[is_not_finished][:, k_closest_idx],
-                                   eligibility_mask[is_not_finished][:, k_closest_idx])
-        #save logprobs
-        selected_idx = k_closest_idx[selected_idx_v[0]].unsqueeze(0)
-        logprobs[is_not_finished] += logp
-        sum_entropies[is_not_finished] += entropy
-        node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
-        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-        prev_selected_idx[active_idx] = selected_idx
+    # if we also normalized the distance
+    # , then just divide them by the scale
+    norm_W = W.detach().clone() / scale
 
-    # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
-    return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
+    return norm_coords, norm_W, scale
 
 
-def topk_idx_masked(value_list, mask, k=100):
-    masked_value_list = (3e+38)*(~mask).float() + value_list
-    k_closest_val, k_closest_idx = torch.topk(masked_value_list, k, largest=False)
-    is_inf = k_closest_val >= (3e+38)
-    k_closest_idx = k_closest_idx[~is_inf]
-    return k_closest_idx
+# get renting rate by solving both knapsack and TSP
+def get_renting_rate(W, weights, profits, capacity):
+    # solve the knapsack first
+    optimal_profit = solve_knapsack(weights, profits, capacity)
+    # solve the tsp
+    route_list, optimal_tour_length = solve_tsp(W)
+    renting_rate = float(optimal_profit)/float(optimal_tour_length)
+    return optimal_tour_length, optimal_profit, renting_rate
 
-def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
-    advantage = (total_costs - critic_costs).to(logprobs.device)
-    advantage = (advantage-advantage.mean())/(1e-8+advantage.std())
-    agent_loss = -((advantage.detach())*logprobs).mean()
-    entropy_loss = -sum_entropies.mean()
-    return agent_loss, entropy_loss
+def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,WeightData,int,int,float,float,float]:
+    coords = None
+    weights = None
+    profits = None
+    item_city_idx = None
+    num_nodes, num_items = None, None
+    renting_rate = None
+    min_v, max_v = None, None
+    max_cap = None
+    with open(data_path.absolute(), "r") as data_file:
+        lines = data_file.readlines()
+        for i, line in enumerate(lines):
+            strings = line.split()
+            if i < 2:
+                continue
+            elif i == 2:
+                num_nodes = int(strings[1])
+                coords = torch.zeros((num_nodes, 2), 
+                                        dtype=torch.float32,
+                                        device=device)
+            elif i == 3:
+                num_items = int(strings[3])
+                weights = torch.zeros(size=(num_items,),
+                                        dtype=torch.float32,
+                                        device=device)
+                profits = torch.zeros(size=(num_items,),
+                                        dtype=torch.float32,
+                                        device=device)
+                item_city_idx = torch.zeros(size=(num_items,),
+                                        dtype=torch.long,
+                                        device=device)
+            elif i == 4:
+                max_cap = float(strings[3])
+                max_cap = torch.tensor(max_cap)
+            elif i == 5:
+                min_v = float(strings[2])
+            elif i == 6:
+                max_v = float(strings[2])
+            elif i == 7:
+                renting_rate = float(strings[2])
+            elif i < 10:
+                continue
+            elif i < num_nodes + 10:
+                j = i-10
+                coords[j, 0] = float(strings[1])
+                coords[j, 1] = float(strings[2])
+            elif i > num_nodes + 10:
+                j = i-num_nodes-11
+                profits[j] = float(strings[1])
+                weights[j] = float(strings[2])
+                item_city_idx[j] = int(strings[3]) - 1
 
-def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
-    remaining_profits = remaining_profits.to(logprobs.device)
-    tour_lengths = tour_lengths.to(logprobs.device)
-    profit_loss = ((remaining_profits.float())*logprobs).mean() # maximize hence the -
-    tour_length_loss = (tour_lengths*logprobs).mean()
-    return profit_loss, tour_length_loss
+    # calculate distance matrix
+    W = torch.cdist(coords.double(), coords.double(), p=2).to(device)
+    W = torch.ceil(W).double()
 
-def update(agent, agent_opt, loss):
-    agent_opt.zero_grad(set_to_none=True)
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
-    agent_opt.step()
-
-def evaluate(agent, batch):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
-    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
-    agent.eval()
-    with torch.no_grad():
-        tour_list, item_selection, tour_length, total_profit, total_cost, _, _ = solve(agent, env)
-
-    return tour_list, item_selection, tour_length.item(), total_profit.item(), total_cost.item()
-
-def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, checkpoint_path):
-    checkpoint = {
-        "agent_state_dict":agent.state_dict(),
-        "agent_opt_state_dict":agent_opt.state_dict(),  
-        "validation_cost":validation_cost,
-        "epoch":epoch,
-    }
-    # save twice to prevent failed saving,,, damn
-    torch.save(checkpoint, checkpoint_path.absolute())
-    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
-    torch.save(checkpoint, checkpoint_backup_path.absolute())
-
-    # saving best checkpoint
-    best_checkpoint_path = checkpoint_path.parent /(checkpoint_path.name + "_best")
-    if not os.path.isfile(best_checkpoint_path.absolute()):
-        torch.save(checkpoint, best_checkpoint_path)
-    else:
-        best_checkpoint =  torch.load(best_checkpoint_path.absolute())
-        best_validation_cost = best_checkpoint["validation_cost"]
-        if best_validation_cost < validation_cost:
-            torch.save(checkpoint, best_checkpoint_path.absolute())
-
-def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, num_nodes, num_items, writer):
-    env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
-    writer.add_scalar("Training Tour Length"+env_title, tour_length)
-    writer.add_scalar("Training Total Profit"+env_title, total_profit)
-    writer.add_scalar("Training Total Cost"+env_title, total_cost)
-    writer.add_scalar("Training Agent Loss"+env_title, agent_loss)
-    writer.add_scalar("Training Entropy Loss"+env_title, entropy_loss)
-    writer.add_scalar("Training NLL"+env_title, -logprob)
-    writer.add_scalar("Training Critic Exp Moving Average"+env_title, critic_cost)
-    writer.flush()
-
-def write_validation_progress(tour_length, total_profit, total_cost, logprob, writer):
-    writer.add_scalar("Validation Tour Length", tour_length)
-    writer.add_scalar("Validation Total Profit", total_profit)
-    writer.add_scalar("Validation Total Cost", total_cost)
-    writer.add_scalar("Validation NLL", -logprob)
-    writer.flush()
-
-def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
-    writer.add_scalar("Test Tour Length", tour_length)
-    writer.add_scalar("Test Total Profit", total_profit)
-    writer.add_scalar("Test Total Cost", total_cost)
-    writer.add_scalar("Test NLL", -logprob)
-    writer.flush()
+    norm_coords, norm_W, distance_scale = normalize_coords(coords, W)
+    norm_profits, profit_scale = normalize(profits)
+    norm_weights, weight_scale = normalize(weights)
+    location_data = LocationData(coords, W, norm_coords, norm_W, distance_scale)
+    profit_data = ProfitData(profits, norm_profits, profit_scale)
+    weight_data = WeightData(weights, norm_weights, weight_scale)                
+    item_city_idx = item_city_idx
+    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v

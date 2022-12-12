@@ -80,7 +80,7 @@ def get_renting_rate(W, weights, profits, capacity):
     renting_rate = float(optimal_profit)/float(optimal_tour_length)
     return optimal_tour_length, optimal_profit, renting_rate
 
-def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,WeightData,int,int,float,float,float]:
+def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,WeightData,int,int,float,float,torch.Tensor]:
     coords = None
     weights = None
     profits = None
@@ -143,4 +143,4 @@ def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,Wei
     profit_data = ProfitData(profits, norm_profits, profit_scale)
     weight_data = WeightData(weights, norm_weights, weight_scale)                
     item_city_idx = item_city_idx
-    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v
+    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v, max_cap

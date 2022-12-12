@@ -113,7 +113,7 @@ class TTP(object):
 
     def init_dataset_from_file(self, dataset_name):
         data_path = self.dataset_dir/(dataset_name+".txt")
-        self.location_data, self.profit_data, self.weight_data, self.item_city_idx, self.num_nodes, self.num_items, self.renting_rate, self.min_v, self.max_v = read_data(data_path)
+        self.location_data, self.profit_data, self.weight_data, self.item_city_idx, self.num_nodes, self.num_items, self.renting_rate, self.min_v, self.max_v, self.max_cap = read_data(data_path)
     
         self.item_city_mask = torch.arange(self.num_nodes, device=self.device).expand(self.num_items, self.num_nodes).transpose(1, 0)
         self.item_city_mask = self.item_city_mask == self.item_city_idx.unsqueeze(0)

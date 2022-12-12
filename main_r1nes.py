@@ -84,7 +84,6 @@ def run(args):
     config_list = [(num_nodes, num_items_per_city, idx) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for idx in range(5)]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     step=1
-    # process_pool = Pool(processes=6)
 
     for epoch in range(last_epoch, args.max_epoch):
         config_it = epoch%num_configs
@@ -101,8 +100,8 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(os.cpu_count())
-    # torch.set_num_threads()
+    # torch.set_num_threads(os.cpu_count())
+    torch.set_num_threads(16)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

@@ -48,7 +48,6 @@ def setup_r1_nes(args):
     if checkpoint is not None:
         policy = checkpoint["policy"]
         last_epoch = checkpoint["epoch"]
-
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     test_batch = next(iter(test_dataloader))

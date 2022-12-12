@@ -227,3 +227,12 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test Total Cost", total_cost)
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
+
+def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
+    plt.figure()
+    plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    if sample_solutions is not None:
+        plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
+    writer.add_figure("Solutions", plt.gcf(), epoch)
+    writer.flush()
+

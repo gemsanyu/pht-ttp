@@ -1,11 +1,12 @@
-import pathlib
-import os
 from copy import deepcopy
-from typing import NamedTuple
+import os
+import pathlib
+from typing import Optional
 
 import torch
 
-from .utils import get_renting_rate, normalize, normalize_coords
+from ttp.utils import get_renting_rate, normalize, normalize_coords, read_data
+from ttp.utils import LocationData, ProfitData, WeightData
 
 CPU_DEVICE = torch.device('cpu')
 
@@ -19,25 +20,6 @@ CORRELATED=2
 MAX_V = 1.
 MIN_V = 0.1
 CAPACITY_CONSTANT = 11.
-
-
-class LocationData(NamedTuple):
-    coords: torch.Tensor 
-    W: torch.Tensor 
-    norm_coords: torch.Tensor 
-    norm_W: torch.Tensor 
-    distance_scale: torch.Tensor
-
-class ProfitData(NamedTuple):
-    profits: torch.Tensor 
-    norm_profits: torch.Tensor 
-    profit_scale: torch.Tensor 
-
-class WeightData(NamedTuple):
-    weights: torch.Tensor 
-    norm_weights: torch.Tensor 
-    weight_scale: torch.Tensor 
-
 
 class TTP(object):
     """
@@ -55,6 +37,7 @@ class TTP(object):
                  max_v=MAX_V,
                  min_v=MIN_V,
                  device=CPU_DEVICE,
+                 dataseed=None,
                  dataset_name=None):
         
         super(TTP, self).__init__()
@@ -66,10 +49,11 @@ class TTP(object):
         self.max_v = torch.tensor(max_v, device=device).double().to(device)
         self.min_v = torch.tensor(min_v, device=device).double().to(device)
         self.dataset_name = dataset_name
+        self.dataseed = dataseed
 
-        self.location_data = None
-        self.profit_data = None
-        self.weight_data = None
+        self.location_data = Optional[LocationData]
+        self.profit_data = Optional[ProfitData]
+        self.weight_data = Optional[WeightData]
         self.max_cap = 0.
         self.num_items = None
         self.item_city_idx = None
@@ -79,28 +63,27 @@ class TTP(object):
         # help improve accuracy of computing HV, or nondom ranking score
         self.nondom_archive = None
         self.reference_point = torch.zeros((1,2), dtype=torch.float32)
-        
+        self.dataset_dir = pathlib.Path(".")/"data_full"/"test"
         if dataset_name is not None:
-            dataset_dir = pathlib.Path(".")/"data_full"/"test"
-            self.read_dataset_from_file(dataset_dir, dataset_name)
+            self.init_dataset_from_file(dataset_name)
         else:
-            self.generate_problem()
+            self.generate_problem(self.dataseed)
         self.density = self.profit_data.norm_profits/self.weight_data.norm_weights
         self.max_profit = torch.sum(self.profit_data.profits, dim=0)
         self.max_travel_time = get_max_travel_time(self.num_nodes, self.location_data.W, 
                                                     self.min_v, self.device)
-        
-        # self.raw_node_static_features = self.get_raw_node_static_features()
-        # self.raw_item_static_features = self.get_raw_item_static_features()
         self.max_travel_time=-1
         
-    def generate_problem(self):
+    def generate_problem(self, dataseed=None):
         """
         generate the graph then the items
         item_correlation : correlation between item weights and profits
         capacity_factor : the cap will be capacity_factor*sum(weights)
         """
-        coords, W = generate_graph(self.num_nodes, device=self.device)
+        dataseed_path = None
+        if dataseed is not None:
+            dataseed_path = self.dataset_dir/(dataseed+".txt")
+        coords, W = generate_graph(self.num_nodes, dataseed_path=dataseed_path, device=self.device)
         # norm_coords, norm_W, distance_scale = coords, W, 1 # no need to normalize
         norm_coords, norm_W, distance_scale = normalize_coords(coords, W)
         self.location_data = LocationData(coords, W, norm_coords, norm_W, distance_scale)
@@ -128,68 +111,10 @@ class TTP(object):
         self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
 
 
-    def read_dataset_from_file(self, dataset_dir, dataset_name):
-        data_path = dataset_dir/(dataset_name+".txt")
-        coords = None
-        weights = None
-        profits = None
-        item_city_idx = None
-        self.batch_size = 1
-        with open(data_path.absolute(), "r") as data_file:
-            lines = data_file.readlines()
-            for i, line in enumerate(lines):
-                strings = line.split()
-                if i < 2:
-                    continue
-                elif i == 2:
-                    self.num_nodes = int(strings[1])
-                    coords = torch.zeros((self.num_nodes, 2), 
-                                         dtype=torch.float32,
-                                         device=self.device)
-                elif i == 3:
-                    self.num_items = int(strings[3])
-                    weights = torch.zeros(size=(self.num_items,),
-                                          dtype=torch.float32,
-                                          device=self.device)
-                    profits = torch.zeros(size=(self.num_items,),
-                                          dtype=torch.float32,
-                                          device=self.device)
-                    item_city_idx = torch.zeros(size=(self.num_items,),
-                                          dtype=torch.long,
-                                          device=self.device)
-                elif i == 4:
-                    self.max_cap = float(strings[3])
-                    self.max_cap = torch.tensor(self.max_cap)
-                elif i == 5:
-                    self.min_v = float(strings[2])
-                elif i == 6:
-                    self.max_v = float(strings[2])
-                elif i == 7:
-                    self.renting_rate = float(strings[2])
-                elif i < 10:
-                    continue
-                elif i < self.num_nodes + 10:
-                    j = i-10
-                    coords[j, 0] = float(strings[1])
-                    coords[j, 1] = float(strings[2])
-                elif i > self.num_nodes + 10:
-                    j = i-self.num_nodes-11
-                    profits[j] = float(strings[1])
-                    weights[j] = float(strings[2])
-                    item_city_idx[j] = int(strings[3]) - 1
-
-        # calculate distance matrix
-        W = torch.cdist(coords, coords, p=2).to(self.device)
-        W = torch.ceil(W).double()
-
-        norm_coords, norm_W, distance_scale = normalize_coords(coords, W)
-        norm_profits, profit_scale = normalize(profits)
-        norm_weights, weight_scale = normalize(weights)
-        self.location_data = LocationData(coords, W, norm_coords, norm_W, distance_scale)
-        self.profit_data = ProfitData(profits, norm_profits, profit_scale)
-        self.weight_data = WeightData(weights, norm_weights, weight_scale)                
-        self.item_city_idx = item_city_idx
-        
+    def init_dataset_from_file(self, dataset_name):
+        data_path = self.dataset_dir/(dataset_name+".txt")
+        self.location_data, self.profit_data, self.weight_data, self.item_city_idx, self.num_nodes, self.num_items, self.renting_rate, self.min_v, self.max_v, self.max_cap = read_data(data_path)
+    
         self.item_city_mask = torch.arange(self.num_nodes, device=self.device).expand(self.num_items, self.num_nodes).transpose(1, 0)
         self.item_city_mask = self.item_city_mask == self.item_city_idx.unsqueeze(0)
         self.item_city_mask = self.item_city_mask.bool()
@@ -198,11 +123,9 @@ class TTP(object):
         # this is especially for visualizing the progress
         # in training, otherwise unneeded
         # self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
-        self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
-        self.min_tour_length = torch.tensor(self.min_tour_length, dtype=torch.float32)
-        self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
-
-        solution_path = dataset_dir/"solutions"/(dataset_name+".txt")
+        self.min_tour_length = torch.tensor(0, dtype=torch.float32)
+        self.max_profit = torch.tensor(0, dtype=torch.float32)        
+        solution_path = self.dataset_dir/"solutions"/(dataset_name+".txt")
         if os.path.isfile(solution_path.absolute()):
             solutions = []
             with open(solution_path.absolute(), "r") as data_file:
@@ -212,8 +135,6 @@ class TTP(object):
                     sol = [float(strings[0]), float(strings[1])]
                     solutions += [sol]
             self.sample_solutions = torch.tensor(solutions, device=CPU_DEVICE)
-        else:
-            self.sample_solutions = None
             
             
     def get_total_time(self, node_order, item_selection):    
@@ -290,15 +211,25 @@ class TTP(object):
 
         return travel_time
 
-def generate_graph(num_nodes, device=CPU_DEVICE):
+def generate_graph(num_nodes, dataseed_path=None, device=CPU_DEVICE):
     """
-        just random [0,1],
-        no more clusters
+        either generate random coords (uniform)
+        or
+        sample from given coords (from a dataset/dataseed just to differentiate)
     """
-    coords = torch.randint(low=-100, high=100, size=(num_nodes, 2), dtype=torch.float32, device=device)
-    W = torch.cdist(coords, coords, p=2)
-    # ceiling
-    W = torch.ceil(W)
+    if dataseed_path is None:
+        coords = torch.randint(low=-100, high=100, size=(num_nodes, 2), dtype=torch.float32, device=device)
+        W = torch.cdist(coords, coords, p=2)
+        # ceiling
+        W = torch.ceil(W)
+    else:
+        # sample the dataseed coords for num_nodes of coords
+        location_data, _, _, _, _, _, _, _, _, _ = read_data(dataseed_path)
+        coords_all, W_all = location_data.coords, location_data.W
+        rand_idx = torch.randint(0, len(coords_all), (num_nodes,))
+        coords = coords_all[rand_idx, :]
+        W = W_all[rand_idx, :][:, rand_idx]
+
     return coords, W
 
 def generate_items(num_nodes, num_items_per_city, item_correlation, device=CPU_DEVICE):

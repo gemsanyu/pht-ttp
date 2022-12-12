@@ -1,3 +1,5 @@
+import pathlib
+import pickle
 from typing import NamedTuple, Union
 
 import torch
@@ -144,3 +146,13 @@ def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,Wei
     weight_data = WeightData(weights, norm_weights, weight_scale)                
     item_city_idx = item_city_idx
     return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v, max_cap
+
+def save_prob(problem, num_nodes, num_items_per_city, prob_idx):
+    data_root = "data_full"
+    data_dir = pathlib.Path(".")/data_root/"training"/"sop"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_"+str(prob_idx)
+    dataset_path = data_dir/(dataset_name+".pt")
+
+    with open(dataset_path.absolute(), "wb") as handle:
+        pickle.dump(problem, handle, protocol=pickle.HIGHEST_PROTOCOL)

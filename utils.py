@@ -188,7 +188,7 @@ def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
     all = torch.cat([f_list, sample_solutions]).numpy()
     ideal_point = np.min(all, axis=0)
     nadir_point = np.max(all, axis=0)
-    _N = normalize(all)
+    _N = normalize(f_list.numpy(), ideal_point, nadir_point)
     _hv = Hypervolume(np.array([1,1])).calc(_N)
     writer.add_scalar('Test HV', _hv)
     writer.flush()

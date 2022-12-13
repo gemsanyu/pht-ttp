@@ -1,6 +1,6 @@
 import numpy as np
 
-from dominator import Dominator
+from policy.dominator import Dominator
 
 
 def fast_non_dominated_sort(F, **kwargs):

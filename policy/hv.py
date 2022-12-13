@@ -1,6 +1,6 @@
-from indicator import Indicator
-from non_dominated_sorting import fast_non_dominated_sort
-from normalization import normalize
+from policy.indicator import Indicator
+from policy.non_dominated_sorting import fast_non_dominated_sort
+from policy.normalization import normalize
 
 import numpy as np
 

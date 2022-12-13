@@ -2,12 +2,12 @@ import os
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
-from tqdm import tqdm
-from scipy.stats import ttest_rel
 
 from agent.agent import Agent
-from agent.critic import Critic
+from policy.hv import Hypervolume
+from policy.normalization import normalize
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -182,6 +182,15 @@ def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
     writer.add_figure("Solutions", plt.gcf(), epoch)
+    
+    # write the HV
+    # get nadir and ideal point first
+    all = torch.cat([f_list, sample_solutions]).numpy()
+    ideal_point = np.min(all, axis=0)
+    nadir_point = np.max(all, axis=0)
+    _N = normalize(all)
+    _hv = Hypervolume(np.array([1,1])).calc(_N)
+    writer.add_scalar('Test HV', _hv)
     writer.flush()
 
 

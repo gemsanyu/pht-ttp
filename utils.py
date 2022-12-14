@@ -243,6 +243,7 @@ def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
 
     # write the HV
     # get nadir and ideal point first
+    f_list[:,1] = -f_list[:,1]
     all = torch.cat([f_list, sample_solutions]).numpy()
     ideal_point = np.min(all, axis=0)
     nadir_point = np.max(all, axis=0)

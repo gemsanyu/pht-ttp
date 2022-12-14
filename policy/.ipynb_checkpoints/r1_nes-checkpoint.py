@@ -42,7 +42,7 @@ class R1_NES(Policy):
         # choose the lr and batch size package?
         # 1.
         self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
-        self.lr /= 100
+        # self.lr /= 10
         self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))
         # or 2.
         # self.lr = 0.1

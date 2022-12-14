@@ -2,10 +2,13 @@ import os
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn.functional as F
 
 from agent.agent import Agent
+from policy.normalization import normalize
+from policy.hv import Hypervolume
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -100,10 +103,10 @@ def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, graph_embeddin
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     
-    if param_dict is not None:
-        glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
-    else:
-        glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    # if param_dict is not None:
+    #     glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
+    # else:
+    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
     glimpse_V_static = agent._make_heads(glimpse_V_static)
     
@@ -238,6 +241,15 @@ def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
     writer.add_figure("Solutions", plt.gcf(), epoch)
     writer.flush()
 
+    # write the HV
+    # get nadir and ideal point first
+    all = torch.cat([f_list, sample_solutions]).numpy()
+    ideal_point = np.min(all, axis=0)
+    nadir_point = np.max(all, axis=0)
+    _N = normalize(f_list.numpy(), ideal_point, nadir_point)
+    _hv = Hypervolume(np.array([1,1])).calc(_N)
+    writer.add_scalar('Test HV', _hv)
+    writer.flush()
 
 def write_training_phn_progress(mean_total_profit, mean_tour_length, profit_loss, tour_length_loss, epo_loss, logprob, num_nodes, num_items, writer):
     writer.add_scalar(f'Training PHN Mean Total Profit {num_nodes},{num_items}', mean_total_profit)

@@ -4,7 +4,7 @@ from typing import NamedTuple
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn.functional as F
+from torch_geometric.data import Data, Batch
 
 from agent.agent import Agent
 from policy.normalization import normalize
@@ -44,6 +44,15 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
+def make_data_batch(static_features):
+    batch_size, num_elements, _ = static_features.shape
+    adj_mat = torch.ones((num_elements, num_elements), dtype=torch.bool)
+    edge_idx = adj_mat.to_sparse().indices().long().to(static_features.device)
+    data_list = [Data(static_features[i,:], edge_idx) for i in range(batch_size)]
+    batch = Batch.from_data_list(data_list)
+
+    return batch
+
 def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -52,8 +61,12 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+
+    batch = make_data_batch(static_features)
     # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
+    static_embeddings = agent.gae(batch.x, batch.edge_index)
+    static_embeddings = static_embeddings.view(env.batch_size, -1, agent.embed_dim)
+    graph_embeddings = static_embeddings.mean(dim=1, keepdim=True)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
     # if param_dict is not None:
     #     glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)

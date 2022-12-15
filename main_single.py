@@ -43,7 +43,7 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, e
 @torch.no_grad()
 def validation_one_epoch(agent, validation_dataset, writer):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=0)
     tour_length_list = []
     total_profit_list = []
     total_cost_list = []
@@ -76,7 +76,7 @@ def run(args):
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
     num_nodes_list = [50]
-    num_items_per_city_list = [1,3,5]
+    num_items_per_city_list = [1,3]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     for epoch in range(last_epoch, args.max_epoch):
@@ -94,7 +94,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(4)
+    torch.set_num_threads(2)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

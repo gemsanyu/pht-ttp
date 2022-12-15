@@ -4,12 +4,12 @@ from typing import Dict, Optional
 import torch.nn.functional as F
 import torch
 
-from agent.graph_encoder import GraphAttentionEncoder
+from agent.graph_encoder import GraphEncoder
 
 CPU_DEVICE = torch.device("cpu")
 
-class Agent(torch.jit.ScriptModule):
-# class Agent(torch.nn.Module):
+# class Agent(torch.jit.ScriptModule):
+class Agent(torch.nn.Module):
     def __init__(self,
                  num_static_features: int,
                  num_dynamic_features: int,
@@ -30,12 +30,10 @@ class Agent(torch.jit.ScriptModule):
         self.device = device
         self.key_size = self.val_size = self.embed_dim // self.n_heads
         # embedder
-        self.gae = GraphAttentionEncoder(n_heads=n_heads,
-                                         n_layers=n_gae_layers,
-                                         embed_dim=embed_dim,
-                                         node_dim=self.num_static_features,
-                                         feed_forward_hidden=gae_ff_hidden)
-        
+        self.gae = GraphEncoder(n_heads=n_heads,
+                                embed_dim=embed_dim,
+                                n_layers=n_gae_layers)
+
         # embedder for glimpse and logits
         self.project_embeddings = torch.nn.Linear(embed_dim, 3*embed_dim, bias=False)
         self.project_fixed_context = torch.nn.Linear(embed_dim, embed_dim, bias=False)
@@ -46,7 +44,7 @@ class Agent(torch.jit.ScriptModule):
         self.to(self.device)
 
     # num_step = 1
-    @torch.jit.script_method    
+    # @torch.jit.script_method    
     def forward(self, 
                 item_embeddings: torch.Tensor,
                 graph_embeddings: torch.Tensor,
@@ -96,14 +94,14 @@ class Agent(torch.jit.ScriptModule):
         selected_idx, logp, entropy = self.select(probs)
         return selected_idx, logp, entropy
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def _make_heads(self, x: torch.Tensor)->torch.Tensor:
         x = x.unsqueeze(2).view(x.size(0), x.size(1), self.n_heads, self.key_size)
         x = x.permute(2,0,1,3)
         return x
     
 
-    @torch.jit.ignore
+    # @torch.jit.ignore
     def select(self, probs):
         '''
         ### Select next to be executed.

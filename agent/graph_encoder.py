@@ -13,11 +13,11 @@ class GraphEncoder(torch.nn.Module):
         #     (GaeLayer(n_heads, embed_dim), 'x, edge_index -> x')
         #     for _ in range(n_layers)
         # ])
-        self.layer1 = GATConv(embed_dim, embed_dim//n_heads, n_heads)
+        self.layer1 = GATConv(embed_dim, embed_dim//n_heads, n_heads, add_self_loops=False)
         self.norm1 = BatchNorm(embed_dim)
-        self.layer2 = GATConv(embed_dim, embed_dim//n_heads, n_heads)
+        self.layer2 = GATConv(embed_dim, embed_dim//n_heads, n_heads, add_self_loops=False)
         self.norm2 = BatchNorm(embed_dim)
-        self.layer3 = GATConv(embed_dim, embed_dim//n_heads, n_heads)
+        self.layer3 = GATConv(embed_dim, embed_dim//n_heads, n_heads, add_self_loops=False)
         self.norm3 = BatchNorm(embed_dim)
 
     def forward(self, x, edge_index):

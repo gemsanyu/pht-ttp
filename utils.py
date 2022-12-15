@@ -47,6 +47,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     batch, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
+    batch.to(agent.device)
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)

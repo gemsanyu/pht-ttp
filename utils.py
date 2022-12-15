@@ -4,7 +4,6 @@ from typing import NamedTuple
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch_geometric.data import Data, Batch
 
 from agent.agent import Agent
 from policy.normalization import normalize
@@ -44,28 +43,18 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
-def make_data_batch(static_features):
-    batch_size, num_elements, _ = static_features.shape
-    adj_mat = torch.ones((num_elements, num_elements), dtype=torch.bool)
-    edge_idx = adj_mat.to_sparse().indices().long().to(static_features.device)
-    data_list = [Data(static_features[i,:], edge_idx) for i in range(batch_size)]
-    batch = Batch.from_data_list(data_list)
-
-    return batch
-
 def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
+    batch, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-
-    batch = make_data_batch(static_features)
     # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings = agent.gae(batch.x, batch.edge_index)
-    static_embeddings = static_embeddings.view(env.batch_size, -1, agent.embed_dim)
+    static_embeddings = agent.gae(batch.x_dict, batch.edge_index_dict)
+    item_static_embeddings = static_embeddings['item'].view(env.batch_size, -1, agent.embed_dim)
+    node_static_embeddings = static_embeddings['node'].view(env.batch_size, -1, agent.embed_dim)
+    static_embeddings = torch.cat([item_static_embeddings, node_static_embeddings], dim=1)
     graph_embeddings = static_embeddings.mean(dim=1, keepdim=True)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
     # if param_dict is not None:

@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 import torch.nn.functional as F
 import torch
+from torch_geometric.nn import to_hetero
 
 from agent.graph_encoder import GraphEncoder
 
@@ -16,7 +17,7 @@ class Agent(torch.nn.Module):
                  n_heads: int,
                  n_gae_layers: int,
                  embed_dim: int,
-                 gae_ff_hidden: int,
+                 dummy_data,
                  tanh_clip: float,
                  device=CPU_DEVICE):
         super(Agent, self).__init__()
@@ -30,9 +31,9 @@ class Agent(torch.nn.Module):
         self.device = device
         self.key_size = self.val_size = self.embed_dim // self.n_heads
         # embedder
-        self.gae = GraphEncoder(n_heads=n_heads,
-                                embed_dim=embed_dim,
-                                n_layers=n_gae_layers)
+        base_gae = GraphEncoder(n_heads=n_heads,
+                                embed_dim=embed_dim)
+        self.gae = to_hetero(base_gae, dummy_data.metadata(), aggr='sum')
 
         # embedder for glimpse and logits
         self.project_embeddings = torch.nn.Linear(embed_dim, 3*embed_dim, bias=False)

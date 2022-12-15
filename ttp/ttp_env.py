@@ -1,7 +1,9 @@
-from typing import Optional, Tuple
-from matplotlib.pyplot import axis
-import torch
+from typing import Tuple
+
 import numpy as np
+from torch_geometric.data import HeteroData, Batch
+
+import torch
 
 class TTPEnv():
     def __init__(self,
@@ -76,26 +78,24 @@ class TTPEnv():
         dummy_idx = torch.arange(self.num_nodes, dtype=torch.long)
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes).numpy()
         self.all_city_idx = np.concatenate((self.item_city_idx, dummy_idx),axis=1)
-        self.static_features = self.get_static_features()
+        self.item_static_features, self.node_static_features = self.get_static_features()
         
     def begin(self):
         self.reset()
         node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
         eligibility_mask = self.eligibility_mask
-        return self.static_features, node_dynamic_features, global_dynamic_features, eligibility_mask
+        return self.get_static_data_batch(), node_dynamic_features, global_dynamic_features, eligibility_mask
         
         # weight, profit, density  
-    def get_static_features(self) -> torch.Tensor:
+    def get_static_features(self) -> Tuple[torch.Tensor]:
         num_static_features = 3
-        static_features = np.zeros((self.batch_size, self.num_items, num_static_features), dtype=np.float32)
-        static_features[:, :, 0] = self.norm_weights
-        static_features[:, :, 1] = self.norm_profits
-        static_features[:, :, 2] = self.norm_profits/self.norm_weights
+        item_static_features = np.zeros((self.batch_size, self.num_items, num_static_features), dtype=np.float32)
+        item_static_features[:, :, 0] = self.norm_weights
+        item_static_features[:, :, 1] = self.norm_profits
+        item_static_features[:, :, 2] = self.norm_profits/self.norm_weights
 
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
-        # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
-        static_features = np.concatenate((static_features, dummy_static_features), axis=1)
-        return static_features
+        node_static_features = self.coords
+        return item_static_features, node_static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
     def get_dynamic_features(self) -> torch.Tensor:
@@ -209,3 +209,28 @@ class TTPEnv():
 
         total_cost = total_profits - tour_lengths*self.renting_rate
         return torch.from_numpy(self.tour_list), torch.from_numpy(self.item_selection), torch.from_numpy(tour_lengths), torch.from_numpy(total_profits), torch.from_numpy(total_cost)
+
+    
+# let's make hetero data batch
+    def get_static_data_batch(self):
+        item_static_features = torch.from_numpy(self.item_static_features)
+        node_static_features = torch.from_numpy(self.node_static_features)
+        item_city_mask = torch.from_numpy(self.item_city_mask)
+        batch_size, num_items, _ = item_static_features.shape
+        _, num_nodes, _ = node_static_features.shape
+        
+        adj_mat = torch.ones((num_nodes, num_nodes), dtype=torch.bool)
+        node_edge_idx = adj_mat.to_sparse().indices().long()    
+        node_item_idx = item_city_mask[0,:].to_sparse().indices().long()
+        data_list = []
+        for i in range(batch_size):
+            data = HeteroData()
+            data['item'].x = item_static_features[i,:]
+            data['node'].x = node_static_features[i,:]
+            data['node','has','item'].edge_index = node_item_idx
+            data['node','adj','node'].edge_index = node_edge_idx
+            data_list += [data]
+
+        batch = Batch.from_data_list(data_list)
+
+        return batch

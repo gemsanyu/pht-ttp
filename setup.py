@@ -69,15 +69,23 @@ def setup_phn(args):
     return agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_dataset.prob.sample_solutions
 
 def setup(args):
+    test_dataset = TTPDataset(dataset_name=args.dataset_name)
+    test_dataloader = DataLoader(test_dataset, batch_size=1)
+    test_batch = next(iter(test_dataloader))
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+    test_env.reset()
+    dummy_data = test_env.get_static_data_batch()
+
     # similar to Attention learn routing default
     agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
                  n_gae_layers=3,
                  embed_dim=128,
-                 gae_ff_hidden=128,
                  tanh_clip=10,
-                 device=args.device)    
+                 dummy_data=dummy_data,
+                 device=args.device)   
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
@@ -101,13 +109,6 @@ def setup(args):
     if checkpoint is not None:
         agent.load_state_dict(checkpoint["agent_state_dict"])
         agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
-        last_epoch = checkpoint["epoch"]
-
-    test_dataset = TTPDataset(dataset_name=args.dataset_name)
-    test_dataloader = DataLoader(test_dataset, batch_size=1)
-    test_batch = next(iter(test_dataloader))
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
-    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-        
+        last_epoch = checkpoint["epoch"]    
 
     return agent, agent_opt, last_epoch, writer, checkpoint_path, test_env

@@ -25,9 +25,9 @@ def prepare_args():
 
 def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
     agent.train()
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True, shuffle=True)
     critic_costs = None
-    for batch_idx, batch in (enumerate(train_dataloader), desc="step", position=1):
+    for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
     # for _, batch in enumerate(train_dataloader):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
@@ -44,7 +44,7 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, e
 @torch.no_grad()
 def validation_one_epoch(agent, validation_dataset, writer):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=0)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
     tour_length_list = []
     total_profit_list = []
     total_cost_list = []
@@ -95,7 +95,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(2)
+    torch.set_num_threads(12)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

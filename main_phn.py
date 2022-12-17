@@ -15,7 +15,7 @@ from solver.hv_maximization import HvMaximization
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 from utils import update_phn, write_test_phn_progress, write_training_phn_progress, save_phn
-from utils import solve
+from utils import solve_decode_only
 
 CPU_DEVICE = torch.device("cpu")
 
@@ -39,6 +39,12 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     profit_list = []
     length_list = []
     logprob_list = []
+    
+    # across rays, the static embeddings are the same, so reuse
+    static_features = env.get_static_features()
+    static_features = torch.from_numpy(static_features).to(agent.device)
+    static_embeddings, graph_embeddings = agent.gae(static_features)
+
     for i in range(num_ray):
         r = np.random.uniform(start + i*(end-start)/num_ray, start+ (i+1)*(end-start)/num_ray)
         ray = np.array([np.cos(r),np.sin(r)], dtype='float32')
@@ -47,7 +53,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
         ray = torch.from_numpy(ray).to(agent.device)
         param_dict = phn(ray)
 
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, env, static_embeddings, graph_embeddings, param_dict)
         profit_list.append(total_profits)
         length_list.append(tour_lengths)
         logprob_list.append(logprobs)
@@ -85,7 +91,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     agent.zero_grad(set_to_none=True)
     write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), 0, 0, total_loss.detach().cpu(), logprobs.detach().cpu().mean(), env.num_nodes, env.num_items, writer)
 
-def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=16, ):
+def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=16):
     agent.train()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True, shuffle=True)
@@ -99,9 +105,13 @@ def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
     solution_list = []
+    # across rays, the static embeddings are the same, so reuse
+    static_features = test_env.get_static_features()
+    static_features = torch.from_numpy(static_features).to(agent.device)
+    static_embeddings, graph_embeddings = agent.gae(static_features)
     for ray in tqdm(ray_list, desc="Testing"):
         param_dict = phn(ray.to(agent.device))
-        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env, param_dict)
+        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings, param_dict)
         solution_list += [torch.stack([tour_length, total_profit], dim=1)]
     solution_list = torch.cat(solution_list)
     write_test_phn_progress(writer, solution_list, epoch, test_sample_solutions)
@@ -113,12 +123,13 @@ def run(args):
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     for epoch in range(last_epoch, args.max_epoch):
-        print("EPOCH:", epoch)
-        print("---------------------------------------")
         config_it = epoch%num_configs
         if config_it == 0:
             random.shuffle(config_list)
         num_nodes, num_items_per_city = config_list[config_it]
+        print("EPOCH:", epoch)
+        print("CONFIG:",num_nodes,num_items_per_city)
+        print("---------------------------------------")
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_one_epoch(agent, phn, phn_opt, dataset, writer)
         test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch)

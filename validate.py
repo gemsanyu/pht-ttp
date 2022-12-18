@@ -47,7 +47,7 @@ def run(args):
 if __name__ == '__main__':
     # torch.backends.cudnn.enabled = False
     args = prepare_args()
-    torch.set_num_threads(4)
+    torch.set_num_threads(8)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

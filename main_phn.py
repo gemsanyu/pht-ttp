@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torch.nn.functional import cosine_similarity
+from tqdm import tqdm
 
 from arguments import get_parser
 from setup import setup_phn
@@ -91,17 +92,17 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     phn.zero_grad(set_to_none=True)
     write_training_phn_progress(writer,norm_objectives.cpu(),ray_list.cpu(),cos_penalty.detach().cpu())
 
-def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=4):
+def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
     agent.train()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True, shuffle=True)
-    # for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="Training", position=1):
-    for batch_idx, batch in enumerate(train_dataloader):
+    for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="Training", position=1):
+    # for batch_idx, batch in enumerate(train_dataloader):
         train_one_batch(batch, agent, phn, phn_opt, writer, num_ray)
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
-    num_nodes_list = [50]
+    num_nodes_list = [20, 30]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
@@ -125,7 +126,7 @@ def run(args):
 if __name__ == '__main__':
     # torch.backends.cudnn.enabled = False
     args = prepare_args()
-    torch.set_num_threads(4)
+    torch.set_num_threads(6)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

@@ -20,7 +20,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test(agent, phn, test_env, x_file, y_file, n_solutions=200):
+def test(agent, phn, test_env, x_file, y_file, n_solutions=100):
     agent.eval()
     phn.eval()
     

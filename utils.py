@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from agent.agent import Agent
 from policy.normalization import normalize
 from policy.hv import Hypervolume
+from policy.utils import get_hv_contributions
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -233,30 +234,68 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, ray_list, epoch, sample_solutions=None):
     plt.figure()
     plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
     writer.add_figure("Solutions", plt.gcf(), epoch)
-    writer.flush()
 
     # write the HV
     # get nadir and ideal point first
-    f_list[:,1] = -f_list[:,1]
     all = torch.cat([f_list, sample_solutions]).numpy()
     ideal_point = np.min(all, axis=0)
     nadir_point = np.max(all, axis=0)
     _N = normalize(f_list.numpy(), ideal_point, nadir_point)
     _hv = Hypervolume(np.array([1,1])).calc(_N)
     writer.add_scalar('Test HV', _hv)
+    _N = torch.from_numpy(_N)
+    # write hv contribution per ray
+    hv_contributions = get_hv_contributions(_N)
+    hv_contribution_dict = {}
+    for i,ray in enumerate(ray_list):
+        hv_contribution_dict["ray-"+str(i)]=hv_contributions[i]
+    writer.add_scalars("Test HV Contribution", hv_contribution_dict)
+
+    # write penalty total and per solutions
+    cos_penalty = F.cosine_similarity(_N, ray_list, dim=1)
+    cos_penalty_dict ={}
+    for i,ray in enumerate(ray_list):
+        cos_penalty_dict["ray-"+str(i)]=cos_penalty[i]
+    writer.add_scalars("Test Cos Penalty", cos_penalty_dict)
+    writer.add_scalar("Test Total Cos Penalty", cos_penalty.sum())
     writer.flush()
 
-def write_training_phn_progress(mean_total_profit, mean_tour_length, profit_loss, tour_length_loss, epo_loss, logprob, num_nodes, num_items, writer):
-    writer.add_scalar(f'Training PHN Mean Total Profit {num_nodes},{num_items}', mean_total_profit)
-    writer.add_scalar(f'Training PHN Mean Tour Length {num_nodes},{num_items}', mean_tour_length)
-    writer.add_scalar(f'Training PHN Profit Loss {num_nodes},{num_items}', profit_loss)
-    writer.add_scalar(f'Training PHN Tour Length Loss {num_nodes},{num_items}', tour_length_loss)
-    writer.add_scalar(f'Training PHN EPO Loss {num_nodes},{num_items}', epo_loss)
-    writer.add_scalar(f'Training PHN NLL {num_nodes},{num_items}', -logprob)
+def write_training_phn_progress(writer, f_list, ray_list, cos_penalty_list):
+    
+    num_sol, batch_size, _ = f_list.shape
+    # write the HV
+    _N = f_list.numpy()
+    mean_hv = 0
+    for i in range(batch_size):
+        _hv = Hypervolume(np.array([1,1])).calc(_N[:, i, :])
+        mean_hv += _hv
+    mean_hv /= batch_size
+    writer.add_scalar('Train HV', mean_hv)
+    # write hv contribution per ray
+    mean_hvc = None
+    for i in range(batch_size):
+        hv_contributions = get_hv_contributions(f_list[:, i, :])
+        if mean_hvc is None:
+            mean_hvc = hv_contributions
+        else:
+            mean_hvc += hv_contributions
+    mean_hvc/= batch_size
+    hv_contribution_dict = {}
+    for i,ray in enumerate(ray_list):
+        hv_contribution_dict["ray-"+str(i)]=mean_hvc[i]
+    writer.add_scalars("Train HV Contribution", hv_contribution_dict)
+
+    # write penalty total and per solutions
+    cos_penalty_ray = cos_penalty_list.sum(dim=1)
+    cos_penalty_dict ={}
+    for i,ray in enumerate(ray_list):
+        cos_penalty_dict["ray-"+str(i)]=cos_penalty_ray[i]
+    writer.add_scalars("Train Cos Penalty", cos_penalty_dict)
+    writer.add_scalar("Train  Total Cos Penalty", cos_penalty_list.sum())
     writer.flush()

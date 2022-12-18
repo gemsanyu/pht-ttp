@@ -85,10 +85,8 @@ def get_hypervolume(solution_list, reference_point=None, device=CPU_DEVICE):
     return hv
 
 
-def get_hv_contributions(solution_list, num_random_points=1000000, reference_point=None, device=CPU_DEVICE):
+def get_hv_contributions(solution_list, reference_point=None, device=CPU_DEVICE):
     num_solutions, M = solution_list.shape
-    # random_points = torch.rand(
-    #     (num_random_points, M), dtype=torch.float32, device=device) * 1.1
     if reference_point is not None:
         solution_list /= reference_point
     # total_hv = get_hypervolume_mc(

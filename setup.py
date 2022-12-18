@@ -54,7 +54,8 @@ def setup_phn(args):
         opt_state_dict = checkpoint["phn_opt_state_dict"]
         state = opt_state_dict["state"]
         for k,v in state.items():
-            state[k]["step"] = state[k]["step"].cpu()
+            if isinstance(state[k]["step"], torch.Tensor):
+                state[k]["step"] = state[k]["step"].cpu()
         # in some pytorch version, cpu state of optimizer is loaded to gpu
         # and it causes errors
         phn_opt.load_state_dict(checkpoint["phn_opt_state_dict"])

@@ -41,9 +41,12 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     logprob_list = []
     
     # across rays, the static embeddings are the same, so reuse
-    static_features = env.get_static_features()
-    static_features = torch.from_numpy(static_features).to(agent.device)
-    static_embeddings, graph_embeddings = agent.gae(static_features)
+    # and dont record grads of encodings, maybe...
+    with torch.no_grad():
+        static_features = env.get_static_features()
+        static_features = torch.from_numpy(static_features).to(agent.device)
+        static_embeddings, graph_embeddings = agent.gae(static_features)
+        
 
     for i in range(num_ray):
         r = np.random.uniform(start + i*(end-start)/num_ray, start+ (i+1)*(end-start)/num_ray)
@@ -72,7 +75,6 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     norm_length_list = norm_length_list
     norm_objectives = torch.cat([norm_profit_list.unsqueeze(2), norm_length_list.unsqueeze(2)], dim=2)
     hv_drv_list = [] 
-    import matplotlib.pyplot as plt
     for i in range(env.batch_size):
         obj_instance = norm_objectives[:, i, :].transpose(0,1).numpy()
         hv_drv_instance = mo_opt.compute_weights(obj_instance).transpose(0,1).unsqueeze(1)
@@ -82,22 +84,24 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     losses_per_obj = norm_objectives*hv_drv_list*logprob_list
     losses_per_instance = torch.sum(losses_per_obj, dim=2)
     losses_per_ray = torch.mean(losses_per_instance, dim=1)
-    total_loss = torch.sum(losses_per_ray)
+    total_loss = - torch.sum(losses_per_ray)
     
     # compute cosine similarity penalty
     cos_penalty = ld*cosine_similarity(norm_objectives, ray_list.unsqueeze(1), dim=2).sum()
-    total_loss -= cos_penalty
+    total_loss += cos_penalty
     update_phn(phn, phn_opt, total_loss)
     agent.zero_grad(set_to_none=True)
-    write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), 0, 0, total_loss.detach().cpu(), logprobs.detach().cpu().mean(), env.num_nodes, env.num_items, writer)
+    phn.zero_grad(set_to_none=True)
+    # write_training_phn_progress(total_profits.mean(), tour_lengths.mean(), 0, 0, total_loss.detach().cpu(), logprobs.detach().cpu().mean(), env.num_nodes, env.num_items, writer)
 
-def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=16):
+def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
     agent.train()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True, shuffle=True)
-    for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="Training", position=1):
-    # for batch_idx, batch in enumerate(train_dataloader):
+    # for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="Training", position=1):
+    for batch_idx, batch in enumerate(train_dataloader):
         train_one_batch(batch, agent, phn, phn_opt, writer, num_ray)
+        # print(torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated())
 
 @torch.no_grad()
 def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n_solutions=100):

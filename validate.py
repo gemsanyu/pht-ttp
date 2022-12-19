@@ -23,7 +23,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n_solutions=20):
+def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n_solutions=100):
     agent.eval()
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]

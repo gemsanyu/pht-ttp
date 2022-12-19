@@ -92,7 +92,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     phn.zero_grad(set_to_none=True)
     write_training_phn_progress(writer,norm_objectives.cpu(),ray_list.cpu(),cos_penalty.detach().cpu())
 
-def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
+def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=16):
     agent.train()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True, shuffle=True)
@@ -120,7 +120,15 @@ def run(args):
         save_phn(phn, phn_opt, epoch, checkpoint_path)
         if test_proc is not None:
             test_proc.wait()
-        test_proc_cmd = "python validate.py --title "+ args.title + " --dataset-name "+ args.dataset_name + " --device cpu"
+        # test_proc_cmd = "python validate.py --title "+ args.title + " --dataset-name "+ args.dataset_name + " --device cpu"
+        test_proc_cmd = ["python",
+                        "validate.py",
+                        "--title",
+                        args.title,
+                        "--dataset-name",
+                        args.dataset_name,
+                        "--device",
+                        "cpu"]
         test_proc = subprocess.Popen(test_proc_cmd)
 
 if __name__ == '__main__':

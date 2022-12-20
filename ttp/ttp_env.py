@@ -39,6 +39,7 @@ class TTPEnv():
         self.item_city_idx = item_city_idx.numpy()
         self.item_city_mask = item_city_mask.numpy()
         self.best_profit_kp = best_profit_kp.numpy()
+        self.num_items_per_city = int(self.num_items/(self.num_nodes-1))
         self.best_route_length_tsp = best_route_length_tsp.numpy()
         self.max_travel_time = 0
         

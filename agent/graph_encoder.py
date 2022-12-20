@@ -193,7 +193,9 @@ class GraphAttentionEncoder(torch.jit.ScriptModule):
 
         # To map input to embedding space
         self.init_embed = nn.Linear(node_dim, embed_dim) if node_dim is not None else None
-
+        stdv = 1. / math.sqrt(embed_dim)
+        stop_embed = torch.rand((1,1, embed_dim), dtype=torch.float32)*2*stdv-stdv
+        self.stop_embed = nn.Parameter(stop_embed)
         self.layers = nn.Sequential(*(
             MultiHeadAttentionLayer(n_heads, embed_dim, feed_forward_hidden)
             for _ in range(n_layers)
@@ -206,6 +208,8 @@ class GraphAttentionEncoder(torch.jit.ScriptModule):
         h = x
         if self.init_embed is not None:
             h = self.init_embed(x)
+        stop_embed = self.stop_embed.expand(x.shape[0],1,-1)
+        h = torch.cat([h,stop_embed],dim=1)
         # h = self.init_embed(x.view(-1, x.size(-1))).view(*x.size()[:2], -1) if self.init_embed is not None else x
         h_ = self.layers(h)
 

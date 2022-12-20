@@ -54,7 +54,12 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
+    static_embeddings, graph_embeddings = agent.gae(static_features[:, :env.num_items, :])
+    node_embeddings = static_embeddings[:,:env.num_items,:].unsqueeze(1).expand(env.batch_size, env.num_nodes, env.num_items, -1)
+    item_city_mask = torch.from_numpy(env.item_city_mask).to(agent.device)
+    item_city_mask = item_city_mask.unsqueeze(3).expand(env.batch_size, env.num_nodes, env.num_items, agent.embed_dim)
+    node_embeddings = (node_embeddings*item_city_mask.float()).sum(dim=2)
+    static_embeddings = torch.cat([static_embeddings, node_embeddings[:,1:,:]], dim=1)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
     # if param_dict is not None:
     #     glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)

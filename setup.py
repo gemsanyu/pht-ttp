@@ -20,10 +20,10 @@ def setup_phn(args):
                  tanh_clip=10,
                  device=args.device)      
     phn = PHN(ray_hidden_size=args.ray_hidden_size, 
-            num_neurons=128,
-            num_dynamic_features=4,
+            agent_template=agent,
             device=args.device)
-    phn_opt = torch.optim.AdamW(phn.parameters(), lr=args.lr)
+    params = list(phn.parameters()) + list(agent.gae.parameters())
+    phn_opt = torch.optim.Adam(params, lr=args.lr)
     n_params = 0
     for p in phn.parameters():
         n_params += p.numel()  
@@ -40,8 +40,8 @@ def setup_phn(args):
     checkpoint_path = checkpoint_dir/(args.title+".pt")
     agent_checkpoint_path = checkpoint_dir/(args.title+"_agent.pt")
 
-    agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)
-    agent.load_state_dict(agent_checkpoint["agent_state_dict"])
+    # agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)
+    # agent.load_state_dict(agent_checkpoint["agent_state_dict"])
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):
         checkpoint = torch.load(checkpoint_path.absolute(), map_location=args.device)
@@ -50,6 +50,8 @@ def setup_phn(args):
 
     last_epoch = 0
     if checkpoint is not None:
+        gae_state_dict = checkpoint["gae_state_dict"]
+        agent.gae.load_state_dict(gae_state_dict)
         phn.load_state_dict(checkpoint["phn_state_dict"])
         opt_state_dict = checkpoint["phn_opt_state_dict"]
         state = opt_state_dict["state"]

@@ -4,12 +4,12 @@ import torch.nn as nn
 
 CPU_DEVICE = T.device("cpu")
 
-class PHN(T.jit.ScriptModule):
+# class PHN(T.jit.ScriptModule):
+class PHN(T.nn.Module):
     def __init__(
             self,
+            agent_template,
             ray_hidden_size: int=128,
-            num_neurons: int=64,
-            num_dynamic_features: int=4,
             device=CPU_DEVICE,
         ) -> None:
         '''
@@ -22,9 +22,6 @@ class PHN(T.jit.ScriptModule):
             hidden_layer_sizes: size for layers in hidden layer
         '''
         super(PHN, self).__init__()
-        self.num_node_dynamic_features = num_dynamic_features-2
-        self.num_global_dynamic_features = 2
-        self.current_state_dim = num_neurons + self.num_global_dynamic_features
         self.ray_layer = nn.Sequential(
                                         nn.Linear(2, ray_hidden_size),
                                         nn.ReLU(inplace=True),
@@ -32,14 +29,20 @@ class PHN(T.jit.ScriptModule):
                                         nn.ReLU(inplace=True),
                                         nn.Linear(ray_hidden_size, ray_hidden_size))
         # self.pe_layer = nn.Linear(ray_hidden_size, num_neurons*3*num_neurons)
-        self.pcs_layer = nn.Linear(ray_hidden_size, self.current_state_dim*num_neurons)
-        self.pns_layer = nn.Linear(ray_hidden_size, self.num_node_dynamic_features*3*num_neurons)
-        self.po_layer = nn.Linear(ray_hidden_size, num_neurons*num_neurons)
-        self.ray_hidden_size = ray_hidden_size
-        self.num_neurons = num_neurons
+        layer_dict = {}
+        shape_dict = {}
+        for k,v in agent_template.named_parameters():
+            if "normalizer" in k:
+                continue
+            module_name = k.replace(".","_")
+            shape_dict[module_name] = v.shape
+            total_shape = v.shape.numel()
+            layer_dict[module_name] = nn.Linear(ray_hidden_size, total_shape)
+        self.shape_dict = shape_dict
+        self.layer_dict = T.nn.ModuleDict(layer_dict)
         self.to(device)
 
-    @T.jit.script_method
+    # @T.jit.script_method
     def forward(self, ray: T.Tensor) -> Dict[str, T.Tensor]:
         '''
         ### Calculate embedding.
@@ -51,14 +54,7 @@ class PHN(T.jit.ScriptModule):
         Return: appropriate weights
         '''
         ray_features = self.ray_layer(ray)
-        # pe_weight = self.pe_layer(ray_features).view(3*self.num_neurons, self.num_neurons)
-        pcs_weight = self.pcs_layer(ray_features).view(self.num_neurons,self.current_state_dim)
-        pns_weight = self.pns_layer(ray_features).view(3*self.num_neurons, self.num_node_dynamic_features)
-        po_weight = self.po_layer(ray_features).view(self.num_neurons, self.num_neurons)
-        param_dict = {
-                     # "pe_weight":pe_weight,
-                     "pcs_weight":pcs_weight,
-                     "pns_weight":pns_weight,
-                     "po_weight":po_weight,
-                     }
+        param_dict = {}
+        for k,v in self.layer_dict.items():
+            param_dict[k] = v(ray_features).view(self.shape_dict[k])
         return param_dict

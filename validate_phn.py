@@ -10,7 +10,7 @@ from tqdm import tqdm
 from arguments import get_parser
 from setup import setup_phn
 from utils import write_test_phn_progress
-from utils import solve_decode_only
+from utils import solve
 
 CPU_DEVICE = torch.device("cpu")
 
@@ -27,13 +27,9 @@ def test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, epoch, n
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
     solution_list = []
-    # across rays, the static embeddings are the same, so reuse
-    static_features = test_env.get_static_features()
-    static_features = torch.from_numpy(static_features).to(agent.device)
-    static_embeddings, graph_embeddings = agent.gae(static_features)
     for ray in tqdm(ray_list, desc="Testing"):
         param_dict = phn(ray.to(agent.device))
-        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings, param_dict)
+        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env, param_dict)
         solution_list += [torch.stack([tour_length, total_profit], dim=1)]
     solution_list = torch.cat(solution_list)
     ray_list = torch.cat(ray_list, dim=0)

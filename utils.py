@@ -56,10 +56,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     # compute fixed static embeddings and graph embeddings once for reusage
     static_embeddings, graph_embeddings = agent.gae(static_features)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    # if param_dict is not None:
-    #     glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
-    # else:
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    if param_dict is not None:
+        glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["project_embeddings_weight"]).chunk(3, dim=-1)
+    else:
+        glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
     glimpse_V_static = agent._make_heads(glimpse_V_static)
     # glimpse_K awalnya batch_size, num_items, embed_dim
@@ -160,10 +160,11 @@ def update(agent, agent_opt, loss):
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
 
-def update_phn(phn, phn_opt, loss):
+def update_phn(phn, agent, phn_opt, loss):
     phn_opt.zero_grad(set_to_none=True)
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
+    params = list(phn.parameters()) + list(agent.gae.parameters())
+    torch.nn.utils.clip_grad_norm_(params, max_norm=1)
     phn_opt.step()
 
 def evaluate(agent, batch):
@@ -198,8 +199,9 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
-def save_phn(phn, phn_opt, epoch, checkpoint_path):
+def save_phn(phn, agent, phn_opt, epoch, checkpoint_path):
     checkpoint = {
+        "gae_state_dict":agent.gae.state_dict(),
         "phn_state_dict":phn.state_dict(),
         "phn_opt_state_dict":phn_opt.state_dict(),  
         "epoch":epoch,

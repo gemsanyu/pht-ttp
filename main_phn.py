@@ -14,7 +14,7 @@ from solver.hv_maximization import HvMaximization
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 from utils import update_phn, write_training_phn_progress, save_phn
-from utils import solve_decode_only
+from utils import solve
 
 CPU_DEVICE = torch.device("cpu")
 
@@ -38,13 +38,6 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     length_list = []
     logprob_list = []
     
-    # across rays, the static embeddings are the same, so reuse
-    # and dont record grads of encodings, maybe...
-    with torch.no_grad():
-        static_features = env.get_static_features()
-        static_features = torch.from_numpy(static_features).to(agent.device)
-        static_embeddings, graph_embeddings = agent.gae(static_features)
-        
 
     for i in range(num_ray):
         r = np.random.uniform(start + i*(end-start)/num_ray, start+ (i+1)*(end-start)/num_ray)
@@ -54,7 +47,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
         ray = torch.from_numpy(ray).to(agent.device)
         param_dict = phn(ray)
 
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, env, static_embeddings, graph_embeddings, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env, param_dict)
         profit_list.append(total_profits)
         length_list.append(tour_lengths)
         logprob_list.append(logprobs)
@@ -87,7 +80,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     # compute cosine similarity penalty
     cos_penalty = cosine_similarity(norm_objectives, ray_list.unsqueeze(1), dim=2)
     total_loss += ld*cos_penalty.sum()
-    update_phn(phn, phn_opt, total_loss)
+    update_phn(phn, agent, phn_opt, total_loss)
     agent.zero_grad(set_to_none=True)
     phn.zero_grad(set_to_none=True)
     write_training_phn_progress(writer,norm_objectives.cpu(),ray_list.cpu(),cos_penalty.detach().cpu())
@@ -102,7 +95,7 @@ def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
-    num_nodes_list = [20, 30]
+    num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
@@ -117,7 +110,7 @@ def run(args):
         print("---------------------------------------")
         dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
         train_one_epoch(agent, phn, phn_opt, dataset, writer)
-        save_phn(phn, phn_opt, epoch, checkpoint_path)
+        save_phn(phn, agent, phn_opt, epoch, checkpoint_path)
         if test_proc is not None:
             test_proc.wait()
         # test_proc_cmd = "python validate.py --title "+ args.title + " --dataset-name "+ args.dataset_name + " --device cpu"

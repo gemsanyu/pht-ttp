@@ -1,8 +1,9 @@
-from typing import Optional, Tuple
-import torch
-import numpy as np
-from torch import nn
 import math
+from typing import Optional, Tuple, Dict
+
+import torch
+import torch.nn.functional as F
+from torch import nn
 
 
 # class SkipConnection(nn.Module):
@@ -191,7 +192,10 @@ class GraphAttentionEncoder(torch.jit.ScriptModule):
     ):
         super(GraphAttentionEncoder, self).__init__()
 
-        # To map input to embedding space
+        # To map input to embedding space 
+        self.n_layers = n_layers
+        self.n_heads = n_heads
+        self.embed_dim = embed_dim
         self.init_embed = nn.Linear(node_dim, embed_dim) if node_dim is not None else None
 
         self.layers = nn.Sequential(*(
@@ -200,17 +204,94 @@ class GraphAttentionEncoder(torch.jit.ScriptModule):
         ))
 
     @torch.jit.script_method
-    def forward(self, x:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x:torch.Tensor, param_dict:Optional[Dict[str, torch.Tensor]]=None)->Tuple[torch.Tensor, torch.Tensor]:
 
         # Batch multiply to get initial embeddings of nodes
         h = x
         if self.init_embed is not None:
-            h = self.init_embed(x)
-        # h = self.init_embed(x.view(-1, x.size(-1))).view(*x.size()[:2], -1) if self.init_embed is not None else x
-        h_ = self.layers(h)
+            if param_dict is None:
+                h = self.init_embed(x)
+            else:
+                # with PHN
+                weight =param_dict["gae_init_embed_weight"] 
+                bias = param_dict["gae_init_embed_bias"]
+                h = F.linear(x, weight=weight, bias=bias)
+        
+        if param_dict is None:
+            h_ = self.layers(h)
+            return (
+                h_,  # (1, num_nodes, embed_dim)
+                h_.mean(dim=1, keepdim=True),  # average to get embedding of graph, (batch_size, embed_dim)
+            )
+
+        # with PHN
+        for i, layer in enumerate(self.layers):
+            # MHA + skip
+            W_query = param_dict[f'gae_layers_{str(i)}_0_module_W_query']
+            W_key = param_dict[f'gae_layers_{str(i)}_0_module_W_key']
+            W_val = param_dict[f'gae_layers_{str(i)}_0_module_W_val']
+            W_out = param_dict[f'gae_layers_{str(i)}_0_module_W_out']
+            h = h + multi_head_attention(self.n_heads, h, None, W_query, W_key, W_val, W_out)
+            h = layer[1](h)
+            w0 = param_dict[f'gae_layers_{str(i)}_2_module_0_weight']
+            b0 = param_dict[f'gae_layers_{str(i)}_2_module_0_weight']
+            w2 = param_dict[f'gae_layers_{str(i)}_2_module_2_weight']
+            b2 = param_dict[f'gae_layers_{str(i)}_2_module_2_weight']
+            h = F.linear(h, w0, b0)
+            h = F.relu(h)
+            h = F.linear(h, w2, b2)
+            h = layer[3](h)
+        h_ = h
 
         return (
-            h_,  # (1, num_nodes, embed_dim)
-            h_.mean(dim=1, keepdim=True),  # average to get embedding of graph, (batch_size, embed_dim)
-        )
-        
+                h_,  # (1, num_nodes, embed_dim)
+                h_.mean(dim=1, keepdim=True),  # average to get embedding of graph, (batch_size, embed_dim)
+            )
+
+@torch.jit.script
+def multi_head_attention(n_heads:int, 
+        q:torch.Tensor, 
+        h:Optional[torch.Tensor], 
+        W_query:torch.Tensor, 
+        W_key:torch.Tensor, 
+        W_val:torch.Tensor, 
+        W_out:torch.Tensor):
+    if h is None:
+        h = q  # compute self-attention
+
+    # h should be (batch_size, graph_size, input_dim)
+    batch_size, graph_size, input_dim = h.size()
+    embed_dim = input_dim
+    val_dim = input_dim // n_heads
+    key_dim = val_dim
+    norm_factor = 1 / math.sqrt(key_dim)
+    n_query = q.size(1)
+    # assert q.size(0) == batch_size
+    # assert q.size(2) == input_dim
+    # assert input_dim == self.input_dim, "Wrong embedding dimension of input"
+
+    hflat = h.contiguous().view(-1, input_dim)
+    qflat = q.contiguous().view(-1, input_dim)
+
+    # last dimension can be different for keys and values
+    shp = (n_heads, batch_size, graph_size, -1)
+    shp_q = (n_heads, batch_size, n_query, -1)
+
+    # Calculate queries, (n_heads, n_query, graph_size, key/val_size)
+    Q = torch.matmul(qflat, W_query).view(shp_q)
+    # Calculate keys and values (n_heads, batch_size, graph_size, key/val_size)
+    K = torch.matmul(hflat, W_key).view(shp)
+    V = torch.matmul(hflat, W_val).view(shp)
+
+    # Calculate compatibility (n_heads, batch_size, n_query, graph_size)
+    compatibility = norm_factor * torch.matmul(Q, K.transpose(2, 3))
+    attn = torch.softmax(compatibility, dim=-1)
+    heads = torch.matmul(attn, V) #-> weighted average of V, 1 vektor
+
+    # combine the heads by concatenation, and then project the combined by linear layer
+    out = torch.mm(
+        heads.permute(1, 2, 0, 3).contiguous().view(-1, n_heads * val_dim),
+        W_out.view(-1, embed_dim)
+    ).view(batch_size, n_query, embed_dim)
+
+    return out

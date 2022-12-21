@@ -24,7 +24,7 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
-def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=8):
+def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
     env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
@@ -82,7 +82,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=8):
     losses_per_obj = norm_objectives*hv_drv_list*logprob_list
     losses_per_instance = torch.sum(losses_per_obj, dim=2)
     losses_per_ray = torch.mean(losses_per_instance, dim=1)
-    total_loss = - torch.sum(losses_per_ray)
+    total_loss = -torch.sum(losses_per_ray)
     
     # compute cosine similarity penalty
     cos_penalty = cosine_similarity(norm_objectives, ray_list.unsqueeze(1), dim=2)
@@ -92,7 +92,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=8):
     phn.zero_grad(set_to_none=True)
     write_training_phn_progress(writer,norm_objectives.cpu(),ray_list.cpu(),cos_penalty.detach().cpu())
 
-def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=16):
+def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
     agent.train()
     phn.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True, shuffle=True)

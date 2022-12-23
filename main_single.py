@@ -96,6 +96,7 @@ def run(args):
                         "--device",
                         "cpu"]
         test_proc = subprocess.Popen(test_proc_cmd)
+    test_proc.wait()
 
 if __name__ == '__main__':
     args = prepare_args()

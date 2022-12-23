@@ -13,7 +13,6 @@ from ttp.ttp_env import TTPEnv
 def setup_phn(args):
     agent = Agent(n_heads=8,
                  num_static_features=3,
-                 num_dynamic_features=4,
                  n_gae_layers=3,
                  embed_dim=128,
                  gae_ff_hidden=128,
@@ -21,7 +20,6 @@ def setup_phn(args):
                  device=args.device)      
     phn = PHN(ray_hidden_size=args.ray_hidden_size, 
             num_neurons=128,
-            num_dynamic_features=4,
             device=args.device)
     phn_opt = torch.optim.AdamW(phn.parameters(), lr=args.lr)
     n_params = 0
@@ -73,7 +71,6 @@ def setup(args):
     # similar to Attention learn routing default
     agent = Agent(n_heads=8,
                  num_static_features=3,
-                 num_dynamic_features=4,
                  n_gae_layers=3,
                  embed_dim=128,
                  gae_ff_hidden=128,

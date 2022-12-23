@@ -12,7 +12,6 @@ class Agent(torch.jit.ScriptModule):
 # class Agent(torch.nn.Module):
     def __init__(self,
                  num_static_features: int,
-                 num_dynamic_features: int,
                  n_heads: int,
                  n_gae_layers: int,
                  embed_dim: int,
@@ -21,8 +20,7 @@ class Agent(torch.jit.ScriptModule):
                  device=CPU_DEVICE):
         super(Agent, self).__init__()
         self.num_static_features = num_static_features
-        self.num_node_dynamic_features = num_dynamic_features-2
-        self.num_global_dynamic_features = 2
+        self.num_dynamic_features = 4
         self.n_heads = n_heads
         self.n_gae_layers = n_gae_layers
         self.embed_dim = embed_dim
@@ -33,15 +31,19 @@ class Agent(torch.jit.ScriptModule):
         self.gae = GraphAttentionEncoder(n_heads=n_heads,
                                          n_layers=n_gae_layers,
                                          embed_dim=embed_dim,
-                                         node_dim=self.num_static_features,
+                                         node_dim=None,
                                          feed_forward_hidden=gae_ff_hidden)
         
+        #initial embedder
+        self.item_init_embedder = torch.nn.Linear(5, embed_dim)
+        self.depot_init_embedder = torch.nn.Linear(2, embed_dim)
+        self.node_init_embedder =  torch.nn.Linear(2, embed_dim)
+
         # embedder for glimpse and logits
         self.project_embeddings = torch.nn.Linear(embed_dim, 3*embed_dim, bias=False)
         self.project_fixed_context = torch.nn.Linear(embed_dim, embed_dim, bias=False)
-        current_state_dim = embed_dim + self.num_global_dynamic_features
+        current_state_dim = embed_dim + self.num_dynamic_features
         self.project_current_state = torch.nn.Linear(current_state_dim, embed_dim, bias=False)
-        self.project_node_state = torch.nn.Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_out = torch.nn.Linear(embed_dim, embed_dim, bias=False)
         self.to(self.device)
 
@@ -49,10 +51,9 @@ class Agent(torch.jit.ScriptModule):
     @torch.jit.script_method    
     def forward(self, 
                 item_embeddings: torch.Tensor,
-                graph_embeddings: torch.Tensor,
+                fixed_context: torch.Tensor,
                 prev_item_embeddings: torch.Tensor,
-                node_dynamic_features: torch.Tensor,
-                global_dynamic_features: torch.Tensor,
+                dynamic_features: torch.Tensor,
                 glimpse_V_static: torch.Tensor,
                 glimpse_K_static: torch.Tensor,
                 logit_K_static: torch.Tensor,
@@ -60,19 +61,15 @@ class Agent(torch.jit.ScriptModule):
                 param_dict: Optional[Dict[str, torch.Tensor]]=None
                 ):
         batch_size = item_embeddings.shape[0]
-        current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
+        current_state = torch.cat((prev_item_embeddings, dynamic_features), dim=-1)
         if param_dict is not None:
             projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
-            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
         else:
             projected_current_state = self.project_current_state(current_state)
-            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
-        glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
-        glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
-        glimpse_V = glimpse_V_static + glimpse_V_dynamic
-        glimpse_K = glimpse_K_static + glimpse_K_dynamic
-        logit_K = logit_K_static + logit_K_dynamic
-        query = graph_embeddings + projected_current_state
+        glimpse_V = glimpse_V_static
+        glimpse_K = glimpse_K_static
+        logit_K = logit_K_static
+        query = fixed_context + projected_current_state
         glimpse_Q = query.view(batch_size, self.n_heads, 1, self.key_size)
         glimpse_Q = glimpse_Q.permute(1,0,2,3)
         compatibility = glimpse_Q@glimpse_K.permute(0,1,3,2) / math.sqrt(glimpse_Q.size(-1)) # glimpse_K => n_heads, batch_size, num_items, embed_dim

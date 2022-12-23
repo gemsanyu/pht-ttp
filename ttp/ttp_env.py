@@ -59,7 +59,8 @@ class TTPEnv():
         self.is_node_visited = None
         self.eligibility_mask = None
         self.all_city_idx = None
-        self.static_features = None
+        self.item_static_features = None
+        self.node_static_features = None
 
     def reset(self):
         self.current_location = np.zeros((self.batch_size,), dtype=np.int64)
@@ -76,26 +77,25 @@ class TTPEnv():
         dummy_idx = torch.arange(self.num_nodes, dtype=torch.long)
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes).numpy()
         self.all_city_idx = np.concatenate((self.item_city_idx, dummy_idx),axis=1)
-        self.static_features = self.get_static_features()
+        self.item_static_features, self.node_static_features = self.get_static_features()
         
     def begin(self):
         self.reset()
-        node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
+        dynamic_features = self.get_dynamic_features()
         eligibility_mask = self.eligibility_mask
-        return self.static_features, node_dynamic_features, global_dynamic_features, eligibility_mask
+        return self.item_static_features, self.node_static_features, dynamic_features, eligibility_mask
         
         # weight, profit, density  
-    def get_static_features(self) -> torch.Tensor:
-        num_static_features = 3
-        static_features = np.zeros((self.batch_size, self.num_items, num_static_features), dtype=np.float32)
-        static_features[:, :, 0] = self.norm_weights
-        static_features[:, :, 1] = self.norm_profits
-        static_features[:, :, 2] = self.norm_profits/self.norm_weights
-
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
-        # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
-        static_features = np.concatenate((static_features, dummy_static_features), axis=1)
-        return static_features
+    def get_static_features(self) -> Tuple[torch.Tensor,torch.Tensor]:
+        num_item_static_features = 5
+        item_static_features = np.zeros((self.batch_size, self.num_items, num_item_static_features), dtype=np.float32)
+        item_static_features[:, :, 0] = self.norm_weights
+        item_static_features[:, :, 1] = self.norm_profits
+        item_static_features[:, :, 2] = self.norm_profits/self.norm_weights
+        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
+        item_static_features[:, :, 3:5] = item_coords
+        node_static_features = self.norm_coords
+        return item_static_features, node_static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
     def get_dynamic_features(self) -> torch.Tensor:
@@ -103,30 +103,14 @@ class TTPEnv():
         current_vel = np.maximum(current_vel, self.min_v)
         # per item features = distance
         current_coords = np.take_along_axis(self.norm_coords, self.current_location[:,np.newaxis,np.newaxis], 1)
-        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
-        item_dist_to_curr = np.linalg.norm(current_coords-item_coords, axis=2)
-        dummy_dist_to_curr = np.linalg.norm(self.norm_coords-current_coords, axis=2)
-        dist_to_curr = np.concatenate((item_dist_to_curr, dummy_dist_to_curr), axis=1)
-        dist_to_curr = dist_to_curr[:,:,np.newaxis]
-        trav_time_to_curr = dist_to_curr/current_vel[:, np.newaxis, np.newaxis]
-        trav_time_to_curr = trav_time_to_curr.astype(np.float32)
-        origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
-        item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
-        dummy_dist_to_origin = np.linalg.norm(self.norm_coords-origin_coords, axis=2)
-        dist_to_origin = np.concatenate((item_dist_to_origin, dummy_dist_to_origin), axis=1)
-        dist_to_origin = dist_to_origin[:,:,np.newaxis]
-        trav_time_to_origin = dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
-        trav_time_to_origin = trav_time_to_origin.astype(np.float32)
-        node_dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr], axis=2)
 
-        # global features weigh and velocity
-        global_dynamic_features = np.zeros((self.batch_size, 2), dtype=np.float32)
-        global_dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
-        global_dynamic_features[:, 1] = current_vel
-        global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
-        # global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
-        # dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
-        return node_dynamic_features, global_dynamic_features
+        # global features weight and velocity, 
+        dynamic_features = np.zeros((self.batch_size, 4), dtype=np.float32)
+        dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
+        dynamic_features[:, 1] = current_vel
+        dynamic_features[:, 2:4] = current_coords[:,0,:]
+        dynamic_features = dynamic_features[:,np.newaxis,:]
+        return dynamic_features
 
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
@@ -139,8 +123,8 @@ class TTPEnv():
         if np.any(is_visiting_node_only):
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
-        node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
-        return node_dynamic_features, global_dynamic_features, self.eligibility_mask
+        dynamic_features = self.get_dynamic_features()
+        return dynamic_features, self.eligibility_mask
 
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection

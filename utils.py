@@ -48,17 +48,19 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
 def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
-    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
+    item_static_features, node_static_features, dynamic_features, eligibility_mask = env.begin()
+    item_static_features = torch.from_numpy(item_static_features).to(agent.device)
+    node_static_features = torch.from_numpy(node_static_features).to(agent.device)
+    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
+    item_init_embed = agent.item_init_embedder(item_static_features)
+    depot_init_embed = agent.depot_init_embedder(node_static_features[:,0,:].unsqueeze(1))
+    node_init_embed = agent.node_init_embedder(node_static_features[:,1:,:])
+    init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
+    static_embeddings, graph_embeddings = agent.gae(init_embed)
+    fixed_context = agent.project_fixed_context(graph_embeddings)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    # if param_dict is not None:
-    #     glimpse_K_static, glimpse_V_static, logits_K_static = F.linear(static_embeddings, param_dict["pe_weight"]).chunk(3, dim=-1)
-    # else:
     glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
     glimpse_V_static = agent._make_heads(glimpse_V_static)
@@ -73,10 +75,9 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
         selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
-                                   graph_embeddings[is_not_finished],
+                                   fixed_context[is_not_finished],
                                    previous_embeddings,
-                                   node_dynamic_features[is_not_finished],
-                                   global_dynamic_features[is_not_finished],    
+                                   dynamic_features[is_not_finished],    
                                    glimpse_V_static[:, is_not_finished, :, :],
                                    glimpse_K_static[:, is_not_finished, :, :],
                                    logits_K_static[is_not_finished],
@@ -85,9 +86,8 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy
-        node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
+        dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
+        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
         eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
         prev_selected_idx[active_idx] = selected_idx
 
@@ -98,10 +98,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
 def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, graph_embeddings, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
+    static_features, node_dynamic_features, dynamic_features, eligibility_mask = env.begin()
     static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
+    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     
     # if param_dict is not None:
@@ -121,7 +121,7 @@ def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, graph_embeddin
                                    graph_embeddings[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],
-                                   global_dynamic_features[is_not_finished],    
+                                   dynamic_features[is_not_finished],    
                                    glimpse_V_static[:, is_not_finished, :, :],
                                    glimpse_K_static[:, is_not_finished, :, :],
                                    logits_K_static[is_not_finished],
@@ -130,9 +130,9 @@ def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, graph_embeddin
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy
-        node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
+        node_dynamic_features, dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
         node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
-        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
+        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
         eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
         prev_selected_idx[active_idx] = selected_idx
 

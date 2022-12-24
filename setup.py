@@ -23,7 +23,7 @@ def setup_phn(args):
             num_neurons=128,
             num_dynamic_features=4,
             device=args.device)
-    phn_opt = torch.optim.AdamW(phn.parameters(), lr=args.lr)
+    phn_opt = torch.optim.Adam(phn.parameters(), lr=args.lr)
     n_params = 0
     for p in phn.parameters():
         n_params += p.numel()  
@@ -79,7 +79,7 @@ def setup(args):
                  gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)    
-    agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
+    agent_opt = torch.optim.Adam(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
     model_summary_dir = summary_dir/args.title

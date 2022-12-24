@@ -56,7 +56,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     # compute fixed static embeddings and graph embeddings once for reusage
     item_init_embed = agent.item_init_embedder(static_features[:, :env.num_items, :])
     depot_init_embed = agent.depot_init_embed.expand(size=(env.batch_size,1,-1))
-    node_init_embed = agent.node_init_embed.expand(size=(env.batch_size,env.num_nodes,-1))
+    node_init_embed = agent.node_init_embed.expand(size=(env.batch_size,env.num_nodes-1,-1))
     init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
     static_embeddings, graph_embeddings = agent.gae(init_embed)
     fixed_context = agent.project_fixed_context(graph_embeddings)

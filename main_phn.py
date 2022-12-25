@@ -106,7 +106,7 @@ def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
-    num_nodes_list = [50]
+    num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)

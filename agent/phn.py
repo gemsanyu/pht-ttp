@@ -31,7 +31,6 @@ class PHN(T.jit.ScriptModule):
                                         nn.Linear(ray_hidden_size, ray_hidden_size),
                                         nn.ReLU(inplace=True),
                                         nn.Linear(ray_hidden_size, ray_hidden_size))
-        # self.pe_layer = nn.Linear(ray_hidden_size, num_neurons*3*num_neurons)
         self.pcs_layer = nn.Linear(ray_hidden_size, self.current_state_dim*num_neurons)
         self.pns_layer = nn.Linear(ray_hidden_size, self.num_node_dynamic_features*3*num_neurons)
         self.po_layer = nn.Linear(ray_hidden_size, num_neurons*num_neurons)
@@ -51,12 +50,10 @@ class PHN(T.jit.ScriptModule):
         Return: appropriate weights
         '''
         ray_features = self.ray_layer(ray)
-        # pe_weight = self.pe_layer(ray_features).view(3*self.num_neurons, self.num_neurons)
         pcs_weight = self.pcs_layer(ray_features).view(self.num_neurons,self.current_state_dim)
         pns_weight = self.pns_layer(ray_features).view(3*self.num_neurons, self.num_node_dynamic_features)
         po_weight = self.po_layer(ray_features).view(self.num_neurons, self.num_neurons)
         param_dict = {
-                     # "pe_weight":pe_weight,
                      "pcs_weight":pcs_weight,
                      "pns_weight":pns_weight,
                      "po_weight":po_weight,

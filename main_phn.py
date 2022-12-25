@@ -43,8 +43,12 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
     with torch.no_grad():
         static_features = env.get_static_features()
         static_features = torch.from_numpy(static_features).to(agent.device)
-        static_embeddings, graph_embeddings = agent.gae(static_features)
-        
+        item_init_embed = agent.item_init_embedder(static_features[:, :env.num_items, :])
+        depot_init_embed = agent.depot_init_embed.expand(size=(env.batch_size,1,-1))
+        node_init_embed = agent.node_init_embed.expand(size=(env.batch_size,env.num_nodes-1,-1))
+        init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
+        static_embeddings, graph_embeddings = agent.gae(init_embed)
+        fixed_context = agent.project_fixed_context(graph_embeddings)
 
     for i in range(num_ray):
         r = np.random.uniform(start + i*(end-start)/num_ray, start+ (i+1)*(end-start)/num_ray)
@@ -54,7 +58,7 @@ def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
         ray = torch.from_numpy(ray).to(agent.device)
         param_dict = phn(ray)
 
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, env, static_embeddings, graph_embeddings, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, env, static_embeddings, fixed_context, param_dict)
         profit_list.append(total_profits)
         length_list.append(tour_lengths)
         logprob_list.append(logprobs)
@@ -102,7 +106,7 @@ def train_one_epoch(agent, phn, phn_opt, train_dataset, writer, num_ray=8):
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
-    num_nodes_list = [20, 30]
+    num_nodes_list = [50]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)

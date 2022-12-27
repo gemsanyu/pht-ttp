@@ -36,9 +36,13 @@ def test_one_epoch(agent, phn, env, test_sample_solutions, writer, epoch, n_solu
     init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
     static_embeddings, graph_embeddings = agent.gae(init_embed)
     fixed_context = agent.project_fixed_context(graph_embeddings)
+    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    glimpse_K_static = agent._make_heads(glimpse_K_static)
+    glimpse_V_static = agent._make_heads(glimpse_V_static)
     for ray in tqdm(ray_list, desc="Testing"):
         param_dict = phn(ray.to(agent.device))
-        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, env, static_embeddings, fixed_context, param_dict)
+        solve_output = solve_decode_only(agent, env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
+        tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_output
         solution_list += [torch.stack([tour_length, total_profit], dim=1)]
     solution_list = torch.cat(solution_list)
     ray_list = torch.cat(ray_list, dim=0)

@@ -97,7 +97,14 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, fixed_context, param_dict=None):
+def solve_decode_only(agent:Agent, 
+                    env:TTPEnv, 
+                    static_embeddings, 
+                    fixed_context,
+                    glimpse_K_static, 
+                    glimpse_V_static, 
+                    logits_K_static,
+                    param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -105,10 +112,6 @@ def solve_decode_only(agent:Agent, env:TTPEnv, static_embeddings, fixed_context,
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
-    glimpse_K_static = agent._make_heads(glimpse_K_static)
-    glimpse_V_static = agent._make_heads(glimpse_V_static)
     
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
@@ -248,6 +251,8 @@ def write_test_phn_progress(writer, f_list, ray_list, epoch, sample_solutions=No
     ideal_point = np.min(_all, axis=0)
     nadir_point = np.max(_all, axis=0)
     _N = normalize(f_list.numpy(), ideal_point, nadir_point)
+    _N[:,1] = 1-_N[:,1]
+    print(_N)
     _hv = Hypervolume(np.array([1,1])).calc(_N)
     writer.add_scalar('Test HV', _hv)
     _N = torch.from_numpy(_N)

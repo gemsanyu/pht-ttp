@@ -24,7 +24,7 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
-def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=4):
+def train_one_batch(batch, agent, phn, phn_opt, writer, num_ray=16, ld=0):
     
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
     env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)

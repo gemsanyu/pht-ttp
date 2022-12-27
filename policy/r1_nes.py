@@ -51,15 +51,20 @@ class R1_NES(Policy):
 
     def copy_to_mu(self, agent: Agent):
         for name, param in agent.named_parameters():
-            if name == "project_embeddings.weight":
-                pe_weight = param.data.ravel()
+            # if name == "project_embeddings.weight":
+            #     pe_weight = param.data.ravel()
             if name == "project_current_state.weight":
                 pcs_weight = param.data.ravel()
             if name == "project_node_state.weight":
                 pns_weight = param.data.ravel()
             if name == "project_out.weight":
                 po_weight = param.data.ravel()
-        self.mu = torch.cat([pe_weight,pcs_weight,pns_weight,po_weight])
+        mu_list = []
+        # mu_list += [pe_weight]
+        mu_list += [pcs_weight]
+        mu_list += [pns_weight]
+        mu_list += [po_weight]
+        self.mu = torch.cat(mu_list)
         self.mu = self.mu.unsqueeze(0)
 
 

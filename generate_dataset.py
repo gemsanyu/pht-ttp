@@ -13,7 +13,7 @@ def get_args():
     parser.add_argument('--dataseed',
                         type=str,
                         nargs="?",
-                        default="a280-n279",
+                        default="eil76-n75",
                         help="dataset's name for real testing")
 
     parser.add_argument('--num-dataset',
@@ -23,7 +23,7 @@ def get_args():
 
     parser.add_argument('--num-nodes',
                         type=int,
-                        default=50,
+                        default=30,
                         help="num of nodes in dataset")
 
     parser.add_argument('--num-items-per-city',
@@ -53,7 +53,7 @@ def generate(num_nodes, num_items_per_city, prob_idx, dataseed=None):
 
 def run(args):
     generate_args = [(args.num_nodes, nic, idx) for nic in args.num_items_per_city for idx in range(args.num_dataset)]
-    with Pool(processes=8) as pool:
+    with Pool(processes=12) as pool:
         L = pool.starmap(generate, generate_args)
 
 if __name__ == "__main__":

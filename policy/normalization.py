@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 def denormalize(x, x_min, x_max):
@@ -10,6 +11,21 @@ def normalize(x, x_min=None, x_max=None, return_bounds=False):
         x_min = np.min(x, axis=0)
     if x_max is None:
         x_max = np.max(x, axis=0)
+
+    denom = x_max - x_min
+    denom += 1e-30
+
+    res = (x - x_min) / denom
+    if not return_bounds:
+        return res
+    else:
+        return res, x_min, x_max
+
+def normalize_torch(x, x_min=None, x_max=None, return_bounds=False):
+    if x_min is None:
+        x_min = torch.min(x, dim=0)
+    if x_max is None:
+        x_max = torch.max(x, dim=0)
 
     denom = x_max - x_min
     denom += 1e-30

@@ -5,17 +5,19 @@ from torch import nn
 import math
 
 
-class SkipConnection(nn.Module):
-
+# class SkipConnection(nn.Module):
+class SkipConnection(torch.jit.ScriptModule):
     def __init__(self, module):
         super(SkipConnection, self).__init__()
         self.module = module
 
+    @torch.jit.script_method
     def forward(self, input:torch.Tensor):
         return input + self.module(input)
 
 
 class MultiHeadAttention(torch.jit.ScriptModule):
+# class MultiHeadAttention(nn.Module):
     def __init__(
             self,
             n_heads,
@@ -123,8 +125,8 @@ class MultiHeadAttention(torch.jit.ScriptModule):
         return out
 
 
-class Normalization(nn.Module):
-
+# class Normalization(nn.Module):
+class Normalization(torch.jit.ScriptModule):
     def __init__(self, embed_dim):
         super(Normalization, self).__init__()
         # self.normalizer = nn.BatchNorm1d(embed_dim, affine=True)
@@ -136,7 +138,8 @@ class Normalization(nn.Module):
         for name, param in self.named_parameters():
             stdv = 1. / math.sqrt(param.size(-1))
             param.data.uniform_(-stdv, stdv)
-
+            
+    @torch.jit.script_method
     def forward(self, input: torch.Tensor)->torch.Tensor:
         #input size = batch_size, num_items, dims
         # batch_size, num_items, feature_size = input.shape
@@ -177,6 +180,7 @@ class MultiHeadAttentionLayer(nn.Sequential):
 
 
 class GraphAttentionEncoder(torch.jit.ScriptModule):
+# class GraphAttentionEncoder(nn.Module):
     def __init__(
             self,
             n_heads,

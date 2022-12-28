@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 
 from agent.agent import Agent
 from policy.policy import Policy, get_multi_importance_weight
-from policy.utils import get_hv_contributions, nondominated_sort, simcos, get_hypervolume, combine_with_nondom
 from policy.utils import get_score_hv_contributions, get_score_nsga2
 
 CPU_DEVICE = torch.device("cpu")
@@ -35,7 +34,7 @@ class R1_NES(Policy):
         self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = -5e-4
+        self.negative_hv = -1e-2
         self.lr_mu = 1
         # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
                 
@@ -51,8 +50,6 @@ class R1_NES(Policy):
 
     def copy_to_mu(self, agent: Agent):
         for name, param in agent.named_parameters():
-            # if name == "project_embeddings.weight":
-            #     pe_weight = param.data.ravel()
             if name == "project_current_state.weight":
                 pcs_weight = param.data.ravel()
             if name == "project_node_state.weight":
@@ -60,7 +57,6 @@ class R1_NES(Policy):
             if name == "project_out.weight":
                 po_weight = param.data.ravel()
         mu_list = []
-        # mu_list += [pe_weight]
         mu_list += [pcs_weight]
         mu_list += [pns_weight]
         mu_list += [po_weight]
@@ -109,16 +105,7 @@ class R1_NES(Policy):
     # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
     def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
         score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
-        # score = get_score_nsga2(f_list, nondom_archive, reference_point)
-        # l2 regularization
-        # ld_penalty = 1e-8
-        # penalty = ld_penalty*torch.norm(w_list+self.mu, dim=1)**2
-        # penalty = penalty.unsqueeze(1)
-        # score -= penalty
-        # print(penalty, score.sum())
-        # print(torch.norm(self.mu))
-        # print(w_list.shape, self.mu.shape)
-        # exit()
+        
         if weight is None:
             weight = 1
 

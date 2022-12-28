@@ -1,4 +1,3 @@
-import functools
 from random import random
 import torch
 import math
@@ -32,9 +31,11 @@ def get_utility_hansen(n=10):
     return utility
 
 
-def get_hv_contributions(solution_list:np.array):
+def get_hv_contributions(solution_list:np.array, reference_point=None):
     num_solutions, M = solution_list.shape
-    hv_getter = Hypervolume(np.array([1,1]))
+    if reference_point is None:
+        reference_point = np.array([1.1,1.1])
+    hv_getter = Hypervolume(reference_point)
     total_hv = hv_getter.calc(solution_list)
     if num_solutions == 1:
         return total_hv
@@ -42,7 +43,7 @@ def get_hv_contributions(solution_list:np.array):
     solution_mask = np.full((num_solutions,), True)
     for i in range(num_solutions):
         solution_mask[i] = 0
-        hv_without_sol = hv_getter.calc(solution_list[solution_mask, :])
+        hv_without_sol = hv_getter.calc(solution_list[solution_mask])
         hv_contributions[i] = total_hv-hv_without_sol
         solution_mask[i] = 1
     return hv_contributions
@@ -51,9 +52,8 @@ def get_hv_contributions(solution_list:np.array):
 def update_nondom_archive(curr_nondom_archive, f_list):
     if curr_nondom_archive is not None:
         f_list = torch.cat([curr_nondom_archive, f_list])
-    is_nondom = fast_non_dominated_sort(f_list.numpy())[0]
-    is_nondom = torch.from_numpy(is_nondom)
-    return f_list[is_nondom]
+    nondom_idx = fast_non_dominated_sort(f_list.numpy())[0]
+    return f_list[nondom_idx]
 
 def combine_with_nondom(f_list, nondom_archive):
     exists_in_flist = torch.eq(nondom_archive.unsqueeze(1), f_list)
@@ -174,20 +174,18 @@ def get_score_hv_contributions(f_list, negative_hv, nondom_archive=None, referen
     if nondom_archive is not None:
         f_list = combine_with_nondom(f_list, nondom_archive)
     num_sample, _ = f_list.shape
-    
+    f_list = f_list.numpy()
     # count hypervolume, first nondom sort then count, assign penalty hv too
-    hv_contributions = torch.zeros(
-        (num_sample,), dtype=torch.float32)
-    is_nondom = nondominated_sort(f_list)
-    hv_contributions[is_nondom] = get_hv_contributions(f_list[is_nondom, :], reference_point=reference_point)
-    hv_contributions[~is_nondom] = negative_hv
+    hv_contributions = np.full(shape=(num_sample,),fill_value=negative_hv)
+    nondom_idx = fast_non_dominated_sort(f_list)[0]
+    norm_f_list = normalize(f_list)
+    hv_contributions[nondom_idx] = get_hv_contributions(norm_f_list[nondom_idx], reference_point=None)
+    hv_contributions = torch.from_numpy(hv_contributions).float()
     # hv_contributions = (1-novelty_w)+hv_contributions + novelty_w*novelty_score
 
     # prepare utility score
     score = hv_contributions.unsqueeze(1)
     score = score[:real_num_sample]
-    noted = torch.cat([score, 1.1-f_list/reference_point], dim=-1)
-    print(noted)
     return score
 
 def get_score_nsga2(f_list, nondom_archive=None, reference_point=None):

@@ -47,7 +47,7 @@ def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, 
     glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
     glimpse_V_static = agent._make_heads(glimpse_V_static)
-    
+    pop_size = policy.batch_size
     for it in tqdm(range(max_iter)):
         param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
         travel_time_list = torch.zeros((pop_size, 1), dtype=torch.float32)
@@ -65,16 +65,19 @@ def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, 
 
         inv_total_profit_list = -total_profit_list
         f_list = torch.cat((inv_total_profit_list, travel_time_list), dim=1)
-        max_curr_f1 = torch.max(travel_time_list).unsqueeze(0)
-        max_curr_f2 = torch.max(inv_total_profit_list).unsqueeze(0)
-        max_curr_f = torch.cat([max_curr_f1, max_curr_f2])
-        train_prob.reference_point = torch.maximum(train_prob.reference_point, max_curr_f)
-        train_prob.nondom_archive = update_nondom_archive(train_prob.nondom_archive, f_list)
-        er.add(policy, sample_list, f_list, node_order_list, item_selection_list)
+        # max_curr_f1 = torch.max(travel_time_list).unsqueeze(0)
+        # max_curr_f2 = torch.max(inv_total_profit_list).unsqueeze(0)
+        # max_curr_f = torch.cat([max_curr_f1, max_curr_f2])
+        # train_prob.reference_point = torch.maximum(train_prob.reference_point, max_curr_f)
+        # train_prob.nondom_archive = update_nondom_archive(train_prob.nondom_archive, f_list)
+        # er.add(policy, sample_list, f_list, node_order_list, item_selection_list)
         step += 1
-        if er.num_saved_policy < er.max_saved_policy:
-            continue
-        policy.update_with_er(er, train_prob.reference_point, train_prob.nondom_archive, writer, step)
+        x_list = sample_list - policy.mu
+        w_list = x_list/torch.exp(policy.ld)
+        policy.update(w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=writer, step=step)
+        # if er.num_saved_policy < er.max_saved_policy:
+        #     continue
+        # policy.update_with_er(er, train_prob.reference_point, train_prob.nondom_archive, writer, step)
         policy.write_progress_to_tb(writer, step)
 
     return step, train_prob
@@ -86,7 +89,7 @@ def run(args):
     config_list = [(num_nodes, num_items_per_city, idx) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for idx in range(5)]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     step=1
-
+    test_proc=None
     for epoch in range(last_epoch, args.max_epoch):
         config_it = epoch%num_configs
         if config_it == 0:  

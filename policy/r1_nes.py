@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from agent.agent import Agent
 from policy.policy import Policy, get_multi_importance_weight
 from policy.utils import get_score_hv_contributions, get_score_nsga2
+from policy.non_dominated_sorting import fast_non_dominated_sort
 
 CPU_DEVICE = torch.device("cpu")
 # ES object
@@ -22,7 +23,7 @@ class R1_NES(Policy):
         self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*stdv-stdv
-        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 4
+        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 2
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -34,15 +35,15 @@ class R1_NES(Policy):
         self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = -1e-2
+        self.negative_hv = -1e-5
         self.lr_mu = 1
         # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
                 
         # choose the lr and batch size package?
         # 1.
         self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
-        self.lr /= 100
-        self.batch_size = 4 + int(math.floor(3 * math.log(self.n_params)))
+        # self.lr /= 1000
+        self.batch_size = int(4*math.log2(self.n_params))
         # or 2.
         # self.lr = 0.1
         # self.batch_size = int(max(5,max(4*math.log2(self.n_params),0.2*self.n_params)))
@@ -62,6 +63,11 @@ class R1_NES(Policy):
         mu_list += [po_weight]
         self.mu = torch.cat(mu_list)
         self.mu = self.mu.unsqueeze(0)
+        # print(self.mu.norm())
+        # print("MAX",torch.max(torch.abs(self.mu)))
+        # print("MIN",torch.min(torch.abs(self.mu)))
+        # print("AVG",torch.mean(torch.abs(self.mu)))
+        # exit()
 
 
     '''
@@ -111,12 +117,16 @@ class R1_NES(Policy):
 
         # coba graph dulu yang nondom, pengen liat
         if writer is not None:
-            all = torch.cat([f_list,nondom_archive])
+            _all = f_list
             plt.figure()
-            plt.scatter(all[:,0], all[:,1], c="blue")
-            plt.scatter(nondom_archive[:,0], nondom_archive[:,1], c="red", marker="P")
-            plt.scatter(f_list[:,0], f_list[:,1], c="yellow", marker="^")
-                
+            if nondom_archive is not None:
+                _all = torch.cat([f_list,nondom_archive])
+                plt.scatter(nondom_archive[:,0], nondom_archive[:,1], c="red", marker="P")
+            # plt.scatter(_all[:,0], _all[:,1], c="blue")
+            _f_list = f_list.numpy()
+            _f_list[:,1] = -_f_list[:,1]
+            nondom_idx = fast_non_dominated_sort(_f_list)[0]
+            plt.scatter(f_list[nondom_idx,0], f_list[nondom_idx,1], c="yellow", marker="^")
             writer.add_figure("Train Nondom Solutions", plt.gcf(), step)
             writer.flush()
         # prepare natural gradients
@@ -196,6 +206,7 @@ class R1_NES(Policy):
         # bc_item_final = torch.mean(var_bc_item, dim=1, keepdim=True)
         # bc = 1-(bc_node_final+bc_item_final)/2
         # f_list = torch.cat((f_list, bc), dim=1)
+        nondom_archive=None
         self.update(w_list, x_list, f_list, weight, reference_point=reference_point, nondom_archive=nondom_archive, writer=writer, step=step)
 
     def write_progress_to_tb(self, writer, step):

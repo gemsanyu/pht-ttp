@@ -52,7 +52,7 @@ def get_parser():
                         help="learning rate")
     parser.add_argument('--encoder-size',
                         type=int,
-                        default=64,
+                        default=128,
                         help='Encoder layer\'s size.')
     parser.add_argument('--pointer-layers',
                         type=int,

@@ -7,7 +7,6 @@ from tqdm import tqdm
 from scipy.stats import ttest_rel
 
 from agent.agent import Agent
-from agent.critic import Critic
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -51,7 +50,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
     static_features, dynamic_features, eligibility_mask = env.begin()
     static_features =  torch.from_numpy(static_features).to(agent.device)
-    static_embeddings = agent.static_encoder(static_features)
+    item_static_embeddings = agent.item_static_encoder(static_features[:,:env.num_items,:])
+    depot_static_embeddings = agent.depot_init_embed.expand((env.batch_size,1,-1))
+    node_static_embeddings = agent.node_init_embed.expand((env.batch_size, env.num_nodes-1, -1))
+    static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings],dim=1)
     dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
@@ -85,17 +87,11 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
 
 def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
     advantage = (total_costs - critic_costs).to(logprobs.device)
-    advantage = (advantage-advantage.mean())/(1e-8+advantage.std())
+    # advantage = (advantage-advantage.mean())/(1e-8+advantage.std())
     agent_loss = -((advantage.detach())*logprobs).mean()
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss
 
-def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
-    remaining_profits = remaining_profits.to(logprobs.device)
-    tour_lengths = tour_lengths.to(logprobs.device)
-    profit_loss = ((remaining_profits.float())*logprobs).mean() # maximize hence the -
-    tour_length_loss = (tour_lengths*logprobs).mean()
-    return profit_loss, tour_length_loss
 
 def update(agent, agent_opt, loss):
     agent_opt.zero_grad(set_to_none=True)
@@ -103,11 +99,6 @@ def update(agent, agent_opt, loss):
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
 
-def update_phn(phn, phn_opt, loss):
-    phn_opt.zero_grad(set_to_none=True)
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
-    phn_opt.step()
 
 def evaluate(agent, batch):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
@@ -163,15 +154,17 @@ def save_nes(policy, epoch, checkpoint_path):
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
 
-def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, writer):
-    writer.add_scalar("Training Tour Length", tour_length)
-    writer.add_scalar("Training Total Profit", total_profit)
-    writer.add_scalar("Training Total Cost", total_cost)
-    writer.add_scalar("Training Agent Loss", agent_loss)
-    writer.add_scalar("Training Entropy Loss", entropy_loss)
-    writer.add_scalar("Training NLL", -logprob)
-    writer.add_scalar("Training Critic Exp Moving Average", critic_cost)
+def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, num_nodes, num_items, writer):
+    env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
+    writer.add_scalar("Training Tour Length"+env_title, tour_length)
+    writer.add_scalar("Training Total Profit"+env_title, total_profit)
+    writer.add_scalar("Training Total Cost"+env_title, total_cost)
+    writer.add_scalar("Training Agent Loss"+env_title, agent_loss)
+    writer.add_scalar("Training Entropy Loss"+env_title, entropy_loss)
+    writer.add_scalar("Training NLL"+env_title, -logprob)
+    writer.add_scalar("Training Critic Exp Moving Average"+env_title, critic_cost)
     writer.flush()
+
 
 def write_validation_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Validation Tour Length", tour_length)

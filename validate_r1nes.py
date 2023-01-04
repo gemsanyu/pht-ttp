@@ -22,7 +22,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent:Agent, policy, test_env, sample_solutions, writer, epoch, pop_size=100):
+def test_one_epoch(agent:Agent, policy, test_env, sample_solutions, writer, epoch, pop_size=30):
     agent.eval()
     static_features = test_env.get_static_features()
     static_features = torch.from_numpy(static_features).to(agent.device)

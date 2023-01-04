@@ -10,11 +10,12 @@ from tqdm import tqdm
 
 from agent.agent import Agent
 from arguments import get_parser
-from setup import setup_r1_nes
+from setup import setup_snes
 from ttp.ttp_dataset import read_prob, prob_to_env
 from ttp.ttp import TTP
 from ttp.utils import save_prob
-from policy.utils import update_nondom_archive
+# from policy.utils import update_nondom_archive
+from policy.snes import SNES
 from policy.r1_nes import R1_NES, ExperienceReplay
 from utils import save_nes, solve_decode_only
 from validate_r1nes import test_one_epoch
@@ -28,11 +29,10 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=20):
+def train_one_epoch(agent:Agent, policy: SNES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=20):
     agent.eval()
     if policy.batch_size is not None:
         pop_size = int(math.ceil(policy.batch_size/max_saved_policy))
-    er = ExperienceReplay(dim=policy.n_params, num_obj=2, max_saved_policy=max_saved_policy, num_sample=pop_size)
     train_env = prob_to_env(train_prob)
     
     # encode/embed first, it can be reused for same env/problem
@@ -65,20 +65,14 @@ def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, 
 
         inv_total_profit_list = -total_profit_list
         f_list = torch.cat((inv_total_profit_list, travel_time_list), dim=1)
-        # er.add(policy, sample_list, f_list, node_order_list, item_selection_list)
         step += 1
-        x_list = sample_list - policy.mu
-        w_list = x_list/math.exp(policy.ld)
-        policy.update(w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=writer, step=step)
-        # if er.num_saved_policy < er.max_saved_policy:
-        #     continue
-        # policy.update_with_er(er, train_prob.reference_point, train_prob.nondom_archive, writer, step)
+        policy.update(sample_list, f_list, step, writer=writer)
         policy.write_progress_to_tb(writer, step)
 
     return step, train_prob
 
 def run(args):
-    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args)
+    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_snes(args)
     num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city, idx) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for idx in range(100)]
@@ -115,7 +109,7 @@ def run(args):
 if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(os.cpu_count())
-    torch.set_num_threads(12)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

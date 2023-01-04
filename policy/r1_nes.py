@@ -23,7 +23,7 @@ class R1_NES(Policy):
         self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*stdv-stdv
-        self.ld = torch.zeros(size=(1,), dtype=torch.float32) - 2
+        self.ld = -2
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -35,19 +35,17 @@ class R1_NES(Policy):
         self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = -1e-5
+        self.negative_hv = 0
         self.lr_mu = 1
         # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
                 
         # choose the lr and batch size package?
         # 1.
-        self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
-        # self.lr /= 1000
+        # self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
+        # self.lr /= 100
         self.batch_size = int(4*math.log2(self.n_params))
         # or 2.
-        # self.lr = 0.1
-        # self.batch_size = int(max(5,max(4*math.log2(self.n_params),0.2*self.n_params)))
-        self.ld_lr = self.lr
+        self.lr = 0.1
 
     def copy_to_mu(self, agent: Agent):
         for name, param in agent.named_parameters():
@@ -63,11 +61,6 @@ class R1_NES(Policy):
         mu_list += [po_weight]
         self.mu = torch.cat(mu_list)
         self.mu = self.mu.unsqueeze(0)
-        # print(self.mu.norm())
-        # print("MAX",torch.max(torch.abs(self.mu)))
-        # print("MIN",torch.min(torch.abs(self.mu)))
-        # print("AVG",torch.mean(torch.abs(self.mu)))
-        # exit()
 
 
     '''
@@ -85,13 +78,17 @@ class R1_NES(Policy):
                 k_list = self.norm_dist.sample((int(n_sample/2), 1))
                 k_list = torch.cat((k_list, -k_list), dim=0)
             else:
-                y_list = self.norm_dist.sample((n_sample, self.n_params))
-                k_list = self.norm_dist.sample((n_sample, 1))
+                y_list = [torch.randn(1, self.n_params) for _ in range(n_sample)]
+                k_list = [torch.randn(1, self.n_params) for _ in range(n_sample)]
+                y_list = torch.cat(y_list, dim=0)
+                k_list = torch.cat(k_list, dim=0)
+                # y_list = self.norm_dist.sample((n_sample, self.n_params))
+                # k_list = self.norm_dist.sample((n_sample, 1))
         else:
             y_list = self.norm_dist.sample((1, self.n_params))
             k_list = self.norm_dist.sample((1, 1))
 
-        g = torch.exp(self.ld) * (y_list + k_list*self.principal_vector)
+        g = math.exp(self.ld) * (y_list + k_list*self.principal_vector)
         random_params = self.mu + g
 
         param_dict_list = []
@@ -111,7 +108,6 @@ class R1_NES(Policy):
     # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
     def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
         score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
-        
         if weight is None:
             weight = 1
 
@@ -123,10 +119,12 @@ class R1_NES(Policy):
                 _all = torch.cat([f_list,nondom_archive])
                 plt.scatter(nondom_archive[:,0], nondom_archive[:,1], c="red", marker="P")
             # plt.scatter(_all[:,0], _all[:,1], c="blue")
-            _f_list = f_list.numpy()
-            _f_list[:,1] = -_f_list[:,1]
-            nondom_idx = fast_non_dominated_sort(_f_list)[0]
-            plt.scatter(f_list[nondom_idx,0], f_list[nondom_idx,1], c="yellow", marker="^")
+            nondom_idx = fast_non_dominated_sort(f_list.numpy())[0] 
+            # print(score[nondom_idx]/(score[nondom_idx].sum()+1e-8))
+            # exit()
+            plt.scatter(f_list[:,0], f_list[:,1], c="red")
+            plt.scatter(f_list[nondom_idx,0], f_list[nondom_idx,1], s=score[nondom_idx]*3000, c="blue")
+            
             writer.add_figure("Train Nondom Solutions", plt.gcf(), step)
             writer.flush()
         # prepare natural gradients
@@ -165,7 +163,7 @@ class R1_NES(Policy):
         ngrad_mu_j = torch.sum(weight*score*ngrad_mu_l, dim=0)
         ngrad_ld_j = torch.sum(weight*score*ngrad_ld_l, dim=0)
         self.mu = self.mu + self.lr_mu*ngrad_mu_j
-        self.ld = self.ld + epsilon*ngrad_ld_j
+        self.ld = self.ld + self.lr*ngrad_ld_j
 
     @property
     def _getMaxVariance(self):
@@ -179,8 +177,8 @@ class R1_NES(Policy):
 
         cc = self.n_params*math.log(2*math.pi)
         temp1 = -self.ld*self.n_params - \
-            torch.log(1+r**2)/2 - torch.exp(-2*self.ld)*xtx/2
-        temp2 = ((torch.exp(-2*self.ld))/(2*(1+r**2)))*xtv**2
+            torch.log(1+r**2)/2 - math.exp(-2*self.ld)*xtx/2
+        temp2 = ((math.exp(-2*self.ld))/(2*(1+r**2)))*xtv**2
         logprob = cc + temp1 + temp2
         return logprob
 
@@ -214,7 +212,11 @@ class R1_NES(Policy):
         writer.add_scalar("Mu Norm", torch.norm(self.mu).cpu().item(), step)
         writer.add_scalar("V Norm", torch.norm(self.principal_vector).cpu().item(), step)
         writer.add_scalar("Max Var", self._getMaxVariance, step)    
-        writer.add_scalar("Lambda", self.ld.item(), step)
+        writer.add_scalar("Lambda", self.ld, step)
+        maxmu = torch.max(self.mu)
+        minmu = torch.min(self.mu)
+        writer.add_scalar("Max Mu", maxmu.item(), step)
+        writer.add_scalar("Min Mu", minmu.item(), step)
         writer.flush()
 
 '''
@@ -259,7 +261,7 @@ class ExperienceReplay(object):
         self.x_list = self.x_list.roll(self.num_sample, dims=0)
         self.x_list[:self.num_sample, :] = x_list
 
-        w_list = x_list/torch.exp(policy.ld)
+        w_list = x_list/math.exp(policy.ld)
         self.w_list = self.w_list.roll(self.num_sample, dims=0)
         self.w_list[:self.num_sample, :] = w_list
 

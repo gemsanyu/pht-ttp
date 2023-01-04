@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 from agent.agent import Agent
 from policy.policy import Policy, get_multi_importance_weight
-from policy.utils import get_hv_contributions, nondominated_sort, simcos, get_hypervolume, combine_with_nondom
-from policy.utils import get_score_hv_contributions, get_score_nsga2
+from policy.utils import get_score_hv_contributions
+from policy.non_dominated_sorting import fast_non_dominated_sort
 
 CPU_DEVICE = torch.device("cpu")
 # ES object
@@ -20,12 +20,11 @@ class SNES(Policy):
                  num_dynamic_features):
         super(SNES, self).__init__(num_neurons, num_dynamic_features)
 
-        self.norm_dist = torch.distributions.Normal(0,1)
-        self.mu = torch.randn(size=(1, self.n_params), dtype=torch.float32)
-        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-3), dtype=torch.float32)
+        self.mu = torch.randn(size=(1, self.n_params), dtype=torch.float32)*0.001
+        self.sigma = torch.full(size=(1, self.n_params), fill_value=math.exp(-1), dtype=torch.float32)
 
         # hyperparams
-        self.negative_hv = -1e-4
+        self.negative_hv = -1e-5
         self.lr_mu = 1
         self.lr_sigma = 0.6 * (3 + math.log(self.n_params)) / 3 / math.sqrt(self.n_params) #pybrain
         # self.lr_sigma = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
@@ -33,35 +32,39 @@ class SNES(Policy):
 
     def copy_to_mu(self, agent: Agent):
         for name, param in agent.named_parameters():
-            if name == "project_embeddings.weight":
-                pe_weight = param.data.ravel()
             if name == "project_current_state.weight":
                 pcs_weight = param.data.ravel()
             if name == "project_node_state.weight":
                 pns_weight = param.data.ravel()
             if name == "project_out.weight":
                 po_weight = param.data.ravel()
-        self.mu = torch.cat([pe_weight,pcs_weight,pns_weight,po_weight])
+        mu_list = []
+        mu_list += [pcs_weight]
+        mu_list += [pns_weight]
+        mu_list += [po_weight]
+        self.mu = torch.cat(mu_list)
         self.mu = self.mu.unsqueeze(0)
+    
 
     # def get_max_variance(self):
     #     return torch.exp(self.ld*2/self.n_params)
 
     '''
-    y ~ N(0,I)
-    k ~ N(0,1)
+    s ~ N(0,I)
     theta = mu + s*sigma
     return theta mapped with param names of the policy
     '''
     def generate_random_parameters(self, n_sample: int = 2, use_antithetic=True):
         if n_sample > 1:
             if use_antithetic:
-                s_list = self.norm_dist.sample((int(n_sample/2), self.n_params))
+                s_list = [torch.randn(1, self.n_params) for _ in range(n_sample/2)]
                 s_list = torch.cat((s_list,-s_list), dim=0)
             else:
-                s_list = self.norm_dist.sample((n_sample, self.n_params))
-        else:
-            s_list = self.norm_dist.sample((1, self.n_params))
+                s_list = [torch.randn(1, self.n_params) for _ in range(n_sample)]
+                s_list = torch.cat(s_list, dim=0)
+                
+        # else:
+        #     s_list = self.norm_dist.sample((1, self.n_params))
 
         random_params = self.mu + self.sigma*s_list
 
@@ -80,15 +83,23 @@ class SNES(Policy):
         return param_dict
 
     # update given the values
-    def update(self, s_list, f_list, weight=None, reference_point=None, nondom_archive=None):
+    def update(self, s_list, f_list, step, weight=None, reference_point=None, nondom_archive=None, writer=None):
         score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
+        if writer is not None:
+            nondom_idx = fast_non_dominated_sort(f_list.numpy())[0] 
+            plt.scatter(f_list[:,0], f_list[:,1], c="red")
+            plt.scatter(f_list[nondom_idx,0], f_list[nondom_idx,1], s=score[nondom_idx]*3000, c="blue")
+            
+            writer.add_figure("Train Nondom Solutions", plt.gcf(), step)
+            writer.flush()
         # score = get_score_nsga2(f_list, nondom_archive, reference_point)
         if weight is None:
             weight = 1
     
         ngrad_mu_j = torch.sum(score*s_list, dim=0)
         ngrad_sigma_j = torch.sum(score*(s_list*s_list-1), dim=0)
-
+        print(ngrad_mu_j, ngrad_sigma_j)
+        # exit()
         self.mu = self.mu + self.lr_mu*self.sigma*ngrad_mu_j
         self.sigma = self.sigma*torch.exp(self.lr_sigma*ngrad_sigma_j/2)
 

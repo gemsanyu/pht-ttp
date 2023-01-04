@@ -128,6 +128,7 @@ def solve_decode_only(agent:Agent,
                                    logits_K_static[is_not_finished],
                                    eligibility_mask[is_not_finished],
                                    param_dict)
+
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy

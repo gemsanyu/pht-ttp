@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 1
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 2
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 3
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 4
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 5
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 6
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 7
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 8
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 9
-# python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 10
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 1
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 2
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 3
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 4
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 5
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 6
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 7
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 8
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 9
+python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 10
 python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 11
 python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 12
 python main.py --title att_drlmoa_luna --max-epoch 200 --device cuda --num-training-samples 10000 --batch-size 256 --lr 1e-4  --total-weight 50 --weight-idx 13

@@ -42,7 +42,8 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
-def solve(agent: Agent, env: TTPEnv, normalized=False):
+
+def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -51,7 +52,12 @@ def solve(agent: Agent, env: TTPEnv, normalized=False):
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     # compute fixed static embeddings and graph embeddings once for reusage
-    static_embeddings, graph_embeddings = agent.gae(static_features)
+    item_init_embed = agent.item_init_embedder(static_features[:, :env.num_items, :])
+    depot_init_embed = agent.depot_init_embed.expand(size=(env.batch_size,1,-1))
+    node_init_embed = agent.node_init_embed.expand(size=(env.batch_size,env.num_nodes-1,-1))
+    init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
+    static_embeddings, graph_embeddings = agent.gae(init_embed)
+    fixed_context = agent.project_fixed_context(graph_embeddings)
     # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
     glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
     glimpse_K_static = agent._make_heads(glimpse_K_static)
@@ -62,22 +68,20 @@ def solve(agent: Agent, env: TTPEnv, normalized=False):
     
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
-    # u = 1
     while torch.any(eligibility_mask):
-        # print(u)
-        # u += 1
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
         selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
-                                   graph_embeddings[is_not_finished],
+                                   fixed_context[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],
                                    global_dynamic_features[is_not_finished],    
                                    glimpse_V_static[:, is_not_finished, :, :],
                                    glimpse_K_static[:, is_not_finished, :, :],
                                    logits_K_static[is_not_finished],
-                                   eligibility_mask[is_not_finished])
+                                   eligibility_mask[is_not_finished],
+                                   param_dict)
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy
@@ -88,43 +92,42 @@ def solve(agent: Agent, env: TTPEnv, normalized=False):
         prev_selected_idx[active_idx] = selected_idx
 
     # get total profits and tour lenghts
-    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized)
+    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, graph_embeddings):
+def solve_decode_only(agent:Agent, 
+                    env:TTPEnv, 
+                    static_embeddings, 
+                    fixed_context,
+                    glimpse_K_static, 
+                    glimpse_V_static, 
+                    logits_K_static,
+                    param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    static_features = torch.from_numpy(static_features).to(agent.device)
+    static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
     node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
     global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    # similarly, compute glimpse_K, glimpse_V, and logits_K once for reusage
-    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
-    glimpse_K_static = agent._make_heads(glimpse_K_static)
-    glimpse_V_static = agent._make_heads(glimpse_V_static)
-    # glimpse_K awalnya batch_size, num_items, embed_dim
-    # ubah ke batch_size, num_items, n_heads, key_dim
-    # terus permute agar jadi n_heads, batch_size, num_items, key_dim
     
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
-    # u = 1
     while torch.any(eligibility_mask):
-        # print(u)
-        # u += 1
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
         selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
-                                   graph_embeddings[is_not_finished],
+                                   fixed_context[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],
                                    global_dynamic_features[is_not_finished],    
                                    glimpse_V_static[:, is_not_finished, :, :],
                                    glimpse_K_static[:, is_not_finished, :, :],
                                    logits_K_static[is_not_finished],
-                                   eligibility_mask[is_not_finished])
+                                   eligibility_mask[is_not_finished],
+                                   param_dict)
+
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy

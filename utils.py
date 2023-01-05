@@ -6,7 +6,6 @@ import torch
 from tqdm import tqdm
 
 from agent.agent import Agent
-from agent.critic import Critic
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -50,7 +49,10 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
     static_features, dynamic_features, eligibility_mask = env.begin()
     static_features =  torch.from_numpy(static_features).to(agent.device)
-    static_embeddings = agent.static_encoder(static_features)
+    item_static_embeddings = agent.item_static_encoder(static_features[:,:env.num_items,:])
+    depot_static_embeddings = agent.depot_init_embed.expand((env.batch_size,1,-1))
+    node_static_embeddings = agent.node_init_embed.expand((env.batch_size, env.num_nodes-1, -1))
+    static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings],dim=1)
     dynamic_features = torch.from_numpy(dynamic_features).to(agent.device, non_blocking=True)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device, non_blocking=True)
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
@@ -58,10 +60,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     # initially pakai initial input
     previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
     first_turn = True
-    # u=1
     while torch.any(eligibility_mask):
-        # print(u)
-        # u += 1
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         if not first_turn:

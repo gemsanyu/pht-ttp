@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from agent.attention import Attention
 
 
-class Pointer(T.jit.ScriptModule):
+class Pointer(nn.Module):
     def __init__(
             self,
             num_neurons: int,
@@ -57,7 +57,6 @@ class Pointer(T.jit.ScriptModule):
 
         self.to(device)
 
-    @T.jit.script_method
     def forward(self,
                 features: T.Tensor,
                 decoder_input: T.Tensor,
@@ -91,26 +90,16 @@ class Pointer(T.jit.ScriptModule):
         # its like there are multiple layers of attention
         q = rnn_out
         if param_dict is not None:
-            glimpse_param_dict = {
-                                  "v":param_dict["v0"],
-                                  "fe_weight":param_dict["fe0_weight"],
-                                  "fe_bias":param_dict["fe0_bias"],
-                                  "qe_weight":param_dict["qe0_weight"],
-                                  "qe_bias":param_dict["qe0_bias"]
-                                 }
             att_param_dict = {
                                   "v":param_dict["v1"],
                                   "fe_weight":param_dict["fe1_weight"],
-                                  "fe_bias":param_dict["fe1_bias"],
                                   "qe_weight":param_dict["qe1_weight"],
-                                  "qe_bias":param_dict["qe1_bias"]
                                  }
         else:
-            glimpse_param_dict = None
             att_param_dict = None
 
         for i in range(self.n_glimpses):
-            embedded_features, glimpse_logits = self.glimpse(query=q, features=features, param_dict=glimpse_param_dict) #1*n
+            embedded_features, glimpse_logits = self.glimpse(query=q, features=features, param_dict=None) #1*n
             # mask the logit
             masked_glimpse_logits = glimpse_logits + mask.float().log()
             glimpse_att =  F.softmax(masked_glimpse_logits, dim=2)

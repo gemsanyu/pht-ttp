@@ -27,17 +27,23 @@ def prepare_args():
 def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
     agent.train()
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
-    critic_costs = None
     for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        norm_tour_lengths = tour_lengths/env.best_route_length_tsp - 1.
-        norm_total_profits = 1. - total_profits/env.best_profit_kp
-        norm_tour_lengths = norm_tour_lengths.to(agent.device)
-        norm_total_profits = norm_total_profits.to(agent.device)
-        tour_length_loss = (logprobs*norm_tour_lengths).mean()
-        profit_loss = (logprobs*norm_total_profits).mean()
+        agent.eval()
+        with torch.no_grad():
+            _, _, critic_lengths, critic_profits, _, _, _ = solve(agent, env)
+        agent.train()
+        length_adv = tour_lengths-critic_lengths
+        length_adv = (length_adv-length_adv.mean())/(1e-8+length_adv.std())
+        length_adv = length_adv.to(agent.device)
+        profit_adv = critic_profits - total_profits
+        profit_adv = (profit_adv-profit_adv.mean())/(1e-8+profit_adv.std())
+        profit_adv = profit_adv.to(agent.device)
+        tour_length_loss = (logprobs*length_adv).mean()
+        profit_loss = (logprobs*profit_adv).mean()
+        print(tour_length_loss, profit_loss, length_adv, profit_adv)
         loss = torch.stack([tour_length_loss, profit_loss])
         agent_loss = (ray*loss).sum()
         update(agent, agent_opt, agent_loss)
@@ -81,7 +87,7 @@ def run(args):
     ray = torch.tensor([a,b], dtype=torch.float32, device=args.device)
     validation_size = int(0.1*args.num_training_samples)
     training_size = args.num_training_samples - validation_size
-    num_nodes_list = [50]
+    num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
@@ -101,7 +107,7 @@ def run(args):
 if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(os.cpu_count())
-    torch.set_num_threads(12)
+    torch.set_num_threads(6)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

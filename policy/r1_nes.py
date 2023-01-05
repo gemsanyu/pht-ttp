@@ -35,7 +35,7 @@ class R1_NES(Policy):
         self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = 0
+        self.negative_hv = -1e-4
         self.lr_mu = 1
         # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
                 

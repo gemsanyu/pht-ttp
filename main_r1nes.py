@@ -28,7 +28,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=20):
+def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=5):
     agent.eval()
     if policy.batch_size is not None:
         pop_size = int(math.ceil(policy.batch_size/max_saved_policy))
@@ -84,7 +84,7 @@ def run(args):
     config_list = [(num_nodes, num_items_per_city, idx) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for idx in range(100)]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
     step=1
-    # test_proc=None
+    tp1,tp2,tp3=None,None,None
     for epoch in range(last_epoch, args.max_epoch):
         config_it = epoch%num_configs
         if config_it == 0:  
@@ -96,21 +96,43 @@ def run(args):
         if updated_train_prob is not None:
             save_prob(updated_train_prob, num_nodes, num_items_per_city, prob_idx)
         save_nes(policy, epoch, checkpoint_path)
-        # if test_proc is not None:
-        #     test_proc.wait()
-        # test_proc_cmd = ["python",
-        #                 "validate_r1nes.py",
-        #                 "--title",
-        #                 args.title,
-        #                 "--dataset-name",
-        #                 args.dataset_name,
-        #                 "--device",
-        #                 "cpu"]
-        # test_proc = subprocess.Popen(test_proc_cmd)
-        test_one_epoch(agent, policy, test_env, sample_solutions, writer, epoch)
+        if tp1 is not None:
+            tp1.wait()
+            tp2.wait()
+            tp3.wait()
+        tp1_cmd = ["python",
+                        "validate_r1nes.py",
+                        "--title",
+                        args.title,
+                        "--dataset-name",
+                        "eil76-n75_bs",
+                        "--device",
+                        "cpu"]
+        tp1 = subprocess.Popen(tp1_cmd)
+        tp2_cmd = ["python",
+                        "validate_r1nes.py",
+                        "--title",
+                        args.title,
+                        "--dataset-name",
+                        "eil76-n75_u",
+                        "--device",
+                        "cpu"]
+        tp2 = subprocess.Popen(tp2_cmd)
+        tp3_cmd = ["python",
+                        "validate_r1nes.py",
+                        "--title",
+                        args.title,
+                        "--dataset-name",
+                        "eil76-n75_us",
+                        "--device",
+                        "cpu"]
+        tp3 = subprocess.Popen(tp3_cmd)
+        # test_one_epoch(agent, policy, test_env, sample_solutions, writer, epoch, pop_size=100)
         
-    # if test_proc is not None:
-    #     test_proc.wait()
+    if tp1 is not None:
+        tp1.wait()
+        tp2.wait()
+        tp3.wait()
 
 if __name__ == '__main__':
     args = prepare_args()

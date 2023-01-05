@@ -22,7 +22,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent:Agent, policy, test_env, sample_solutions, writer, epoch, pop_size=30):
+def test_one_epoch(agent:Agent, policy, test_env, dataset_name, sample_solutions, writer, epoch, pop_size=100):
     agent.eval()
     static_features = test_env.get_static_features()
     static_features = torch.from_numpy(static_features).to(agent.device)
@@ -43,16 +43,16 @@ def test_one_epoch(agent:Agent, policy, test_env, sample_solutions, writer, epoc
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
         solution_list += [torch.stack([tour_lengths, total_profits], dim=1)]
     solution_list = torch.cat(solution_list)
-    write_test_phn_progress(writer, solution_list, epoch, sample_solutions)
+    write_test_phn_progress(writer, solution_list, epoch, dataset_name, sample_solutions)
 
 def run(args):
     agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args)
-    test_one_epoch(agent, policy, test_env, sample_solutions, writer, last_epoch)
+    test_one_epoch(agent, policy, test_env, args.dataset_name, sample_solutions, writer, last_epoch)
 
 if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(os.cpu_count())
-    torch.set_num_threads(12)
+    torch.set_num_threads(8)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

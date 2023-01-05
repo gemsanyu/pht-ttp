@@ -2,16 +2,15 @@ import os
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
-import torch.nn.functional as F
+import numpy as np
 import torch
 
 from agent.agent import Agent
 from ttp.ttp_env import TTPEnv
-
+from policy.hv import Hypervolume
+from policy.non_dominated_sorting import fast_non_dominated_sort
 
 CPU_DEVICE = torch.device('cpu')
-
-MASTER = 0
 
 class BatchProperty(NamedTuple):
     num_nodes: int
@@ -232,11 +231,28 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None):
     plt.figure()
-    plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    _f_list = f_list.clone().numpy()
+    _f_list[:,1] = -_f_list[:,1]
+    if sample_solutions is not None:
+        _ss = sample_solutions.clone().numpy()
+        _ss[:,1] = -_ss[:,1]
+        _all =  np.concatenate([_f_list,_ss], axis=0)
+    else:
+        _all = _f_list
+    _min,_max = np.min(_all, axis=0), np.max(_all, axis=0)
+    _min,_max = _min[np.newaxis,:], _max[np.newaxis,:]
+    _N  = (_f_list-_min)/((_max-_min)+1e-8)
+    reference_point = np.array([1.1,1.1])
+    hv_getter = Hypervolume(reference_point)
+    total_hv = hv_getter.calc(_N)
+    nondom_idx = fast_non_dominated_sort(_f_list)[0]
+    plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
+    
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
-    writer.add_figure("Solutions", plt.gcf(), epoch)
+    writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)
+    writer.add_scalar("Test HV "+dataset_name, total_hv, epoch)
     writer.flush()
 

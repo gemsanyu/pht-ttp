@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from agent.agent import Agent
 from arguments import get_parser
-from setup import setup_r1_nes
-from ttp.ttp_dataset import read_prob, prob_to_env
+from setup_r1nes import setup_r1_nes
+from ttp.ttp_dataset import read_prob, prob_list_to_env
 from ttp.ttp import TTP
 from ttp.utils import save_prob
 from policy.utils import update_nondom_archive
@@ -33,7 +33,7 @@ def train_one_epoch(agent:Agent, policy: R1_NES, train_prob: TTP, writer, step, 
     if policy.batch_size is not None:
         pop_size = int(math.ceil(policy.batch_size/max_saved_policy))
     er = ExperienceReplay(dim=policy.n_params, num_obj=2, max_saved_policy=max_saved_policy, num_sample=pop_size)
-    train_env = prob_to_env(train_prob)
+    train_env = prob_list_to_env([train_prob])
     
     # encode/embed first, it can be reused for same env/problem
     static_features = train_env.get_static_features()

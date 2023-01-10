@@ -76,7 +76,7 @@ def normalize_coords(coords, W=None):
 # get renting rate by solving both knapsack and TSP
 def get_renting_rate(W, weights, profits, capacity):
     # solve the knapsack first
-    optimal_profit = solve_knapsack(weights, profits, capacity)
+    optimal_profit, item_selection = solve_knapsack(weights, profits, capacity)
     # solve the tsp
     route_list, optimal_tour_length = solve_tsp(W)
     renting_rate = float(optimal_profit)/float(optimal_tour_length)

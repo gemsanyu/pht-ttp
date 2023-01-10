@@ -17,7 +17,13 @@ def solve_knapsack(weights, profits, capacity):
     
     solver.Init(profits_list, weights_list, cap)
     optimal_profit = solver.Solve()
-    return optimal_profit
+    sol_idx = []
+    for i in range(len(weights)):
+        if solver.BestSolutionContains(i):
+            sol_idx += [i]
+    item_selection = torch.zeros((len(weights),), dtype=torch.bool)
+    item_selection[sol_idx] = True
+    return optimal_profit, item_selection
 
 
 def solve_tsp(W):

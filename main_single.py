@@ -72,7 +72,7 @@ def run(args):
     num_items_per_city_list = [1,3,5]
     config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
     num_configs = len(num_nodes_list)*len(num_items_per_city_list)
-    test_proc=None
+    test_proc:subprocess.Popen=None
     for epoch in range(last_epoch, args.max_epoch):
         config_it = epoch%num_configs
         if config_it == 0:

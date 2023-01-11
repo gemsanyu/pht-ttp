@@ -64,6 +64,9 @@ class Validator:
         batch_size = validation_env_list[0].batch_size
         num_env = len(validation_env_list)
         self.hv_history = None
+        self.best_hv = 0
+        self.epoch = 0
+        self.is_improving = True
         self.hv_multiplier = torch.ones((num_env, batch_size, 1), dtype=torch.float32)
         # when nadir_points/utopia_points are updated, then
         # the rectangle must be enlarged, right? 
@@ -87,10 +90,15 @@ class Validator:
     def insert_hv_history(self, new_hv_history):
         print(new_hv_history.shape, self.hv_multiplier.shape)
         new_hv_history = new_hv_history * self.hv_multiplier
+        new_hv_mean = new_hv_history.mean()
+        if new_hv_mean > self.best_hv:
+            self.best_hv = new_hv_mean 
+            self.is_improving = True
         if self.hv_history is None:
             self.hv_history = new_hv_history
         else:
             self.hv_history = torch.cat([self.hv_history, new_hv_history], dim=-1)
+        
 
 def load_validator(title) -> Validator:
     checkpoint_root = "checkpoints"

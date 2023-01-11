@@ -20,7 +20,6 @@ class R1_NES(Policy):
                  num_dynamic_features):
         super(R1_NES, self).__init__(num_neurons, num_dynamic_features)
 
-        self.norm_dist = torch.distributions.Normal(0, 1)
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*2*stdv-stdv
         self.ld = -2
@@ -105,28 +104,7 @@ class R1_NES(Policy):
         return param_dict
 
     # update given the values
-    # def update(self, w_list, x_list, f_list, novelty_score=0, novelty_w=0, weight=None):
-    def update(self, w_list, x_list, f_list, weight=None, reference_point=None, nondom_archive=None, writer=None, step=0):
-        score = get_score_hv_contributions(f_list, self.negative_hv, nondom_archive, reference_point)
-        if weight is None:
-            weight = 1
-
-        # coba graph dulu yang nondom, pengen liat
-        if writer is not None:
-            _all = f_list
-            plt.figure()
-            if nondom_archive is not None:
-                _all = torch.cat([f_list,nondom_archive])
-                plt.scatter(nondom_archive[:,0], nondom_archive[:,1], c="red", marker="P")
-            # plt.scatter(_all[:,0], _all[:,1], c="blue")
-            nondom_idx = fast_non_dominated_sort(f_list.numpy())[0] 
-            # print(score[nondom_idx]/(score[nondom_idx].sum()+1e-8))
-            # exit()
-            plt.scatter(f_list[:,0], f_list[:,1], c="red")
-            plt.scatter(f_list[nondom_idx,0], f_list[nondom_idx,1], s=score[nondom_idx]*3000, c="blue")
-            
-            writer.add_figure("Train Nondom Solutions", plt.gcf(), step)
-            writer.flush()
+    def update(self, w_list, x_list, score):
         # prepare natural gradients
         d = self.n_params
         r = torch.norm(self.principal_vector)
@@ -139,12 +117,12 @@ class R1_NES(Policy):
         ngrad_ld_l = 1/(2*(d-1)) * ((wtw-d) - (wtu2-1))
         ngrad_pv_l = ((r**2-d+2)*wtu2-(r**2+1)*wtw) * \
             u/(2*r*(d-1)) + (wtu*w_list)/r
-        ngrad_pv_j = torch.sum(weight*score*ngrad_pv_l, dim=0, keepdim=True)
+        ngrad_pv_j = torch.sum(score*ngrad_pv_l, dim=0, keepdim=True)
         nvtz = torch.sum(ngrad_pv_l*u, dim=1, keepdim=True)
         ngrad_c_l = nvtz/r
         ngrad_z_l = (ngrad_pv_l - nvtz*u)/r
-        ngrad_c_j = torch.sum(weight*score*ngrad_c_l, dim=0)
-        ngrad_z_j = torch.sum(weight*score*ngrad_z_l, dim=0, keepdim=True)
+        ngrad_c_j = torch.sum(score*ngrad_c_l, dim=0)
+        ngrad_z_j = torch.sum(score*ngrad_z_l, dim=0, keepdim=True)
             
         # start updating
         # conditional update on c,z,v to prevent unstable (flipping and large) v update
@@ -160,8 +138,8 @@ class R1_NES(Policy):
             # additive update
             self.principal_vector = self.principal_vector + epsilon*ngrad_pv_j
 
-        ngrad_mu_j = torch.sum(weight*score*ngrad_mu_l, dim=0)
-        ngrad_ld_j = torch.sum(weight*score*ngrad_ld_l, dim=0)
+        ngrad_mu_j = torch.sum(score*ngrad_mu_l, dim=0)
+        ngrad_ld_j = torch.sum(score*ngrad_ld_l, dim=0)
         self.mu = self.mu + self.lr_mu*ngrad_mu_j
         self.ld = self.ld + self.lr*ngrad_ld_j
 
@@ -181,31 +159,6 @@ class R1_NES(Policy):
         temp2 = ((math.exp(-2*self.ld))/(2*(1+r**2)))*xtv**2
         logprob = cc + temp1 + temp2
         return logprob
-
-    # update with experience replay
-    def update_with_er(self, er, reference_point, nondom_archive, writer, step):
-        num_samples = er.num_sample*er.num_saved_policy
-        w_list = er.w_list[:num_samples, :]
-        x_list = er.x_list[:num_samples, :]
-        f_list = er.f_list[:num_samples, :]
-        weight = get_multi_importance_weight(
-            er.policy_list[:er.num_saved_policy], x_list)
-
-        # # adding BC to f_list as the third objective
-        # node_order_list = er.node_order_list[:num_samples, :]
-        # item_selection_list = er.item_selection_list[:num_samples, :]
-        # bc_node = bc_node_order(node_order_list)
-        # mean_bc_node = torch.mean(bc_node, dim=0, keepdim=True)
-        # var_bc_node = (bc_node-mean_bc_node)**2
-        # bc_node_final = torch.mean(var_bc_node, dim=1, keepdim=True)
-        # bc_item = bc_item_selection(item_selection_list)
-        # mean_bc_item = torch.mean(bc_item, dim=0, keepdim=True)
-        # var_bc_item = (bc_item-mean_bc_item)**2
-        # bc_item_final = torch.mean(var_bc_item, dim=1, keepdim=True)
-        # bc = 1-(bc_node_final+bc_item_final)/2
-        # f_list = torch.cat((f_list, bc), dim=1)
-        nondom_archive=None
-        self.update(w_list, x_list, f_list, weight, reference_point=reference_point, nondom_archive=nondom_archive, writer=writer, step=step)
 
     def write_progress_to_tb(self, writer, step):
         # note the parameters

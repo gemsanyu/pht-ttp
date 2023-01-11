@@ -23,6 +23,7 @@ class TTPDataset(Dataset):
                  num_samples:int=1000000,
                  num_nodes:int = 50,
                  num_items_per_city:int =1,
+                 item_correlation:int=0,
                  dataset_name=None
             ) -> None:
         super(TTPDataset, self).__init__()
@@ -31,9 +32,9 @@ class TTPDataset(Dataset):
             self.num_samples = num_samples
             self.num_nodes = num_nodes
             self.num_items_per_city = num_items_per_city
+            self.item_correlation = item_correlation
             self.num_items_idx = 0
             self.prob = None
-            self.config_iterator = 0
         else:
             self.num_samples = 2
             self.dataset_path = dataset_name
@@ -46,7 +47,7 @@ class TTPDataset(Dataset):
 
     def __getitem__(self, index):
         if self.prob is None:
-            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, prob_idx=index%1000)
+            prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, item_correlation=self.item_correlation, prob_idx=index%1000)
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W
@@ -110,12 +111,12 @@ def prob_list_to_env(prob_list):
     return env
 
 
-def read_prob(num_nodes=None, num_items_per_city=None, prob_idx=None, dataset_path=None) -> TTP:
+def read_prob(num_nodes=None, num_items_per_city=None, item_correlation=None, prob_idx=None, dataset_path=None) -> TTP:
     if dataset_path is None:
         data_root = "data_full" 
         data_dir = pathlib.Path(".")/data_root/"training"/"sop"
         data_dir.mkdir(parents=True, exist_ok=True)
-        dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_"+str(prob_idx)
+        dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_"+str(prob_idx)
         dataset_path = data_dir/(dataset_name+".pt")
     with open(dataset_path.absolute(), 'rb') as handle:
         prob = pickle.load(handle)

@@ -1,4 +1,5 @@
 import os
+import pathlib
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
@@ -18,30 +19,6 @@ class BatchProperty(NamedTuple):
     num_clusters: int
     item_correlation: int
     capacity_factor: int
-
-
-def get_batch_properties(num_nodes_list, num_items_per_city_list):
-    """
-        training dataset information for each batch
-        1 batch will represent 1 possible problem configuration
-        including num of node clusters, capacity factor, item correlation
-        num_nodes, num_items_per_city_list
-    """
-    batch_properties = []
-    capacity_factor_list = [i+1 for i in range(10)]
-    num_clusters_list = [1]
-    item_correlation_list = [i for i in range(3)]
-
-    for num_nodes in num_nodes_list:
-        for num_items_per_city in num_items_per_city_list:
-            for capacity_factor in capacity_factor_list:
-                for num_clusters in num_clusters_list:
-                    for item_correlation in item_correlation_list:
-                        batch_property = BatchProperty(num_nodes, num_items_per_city,
-                                                       num_clusters, item_correlation,
-                                                       capacity_factor)
-                        batch_properties += [batch_property]
-    return batch_properties
 
 def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -103,6 +80,7 @@ def solve_decode_only(agent:Agent,
                     glimpse_V_static, 
                     logits_K_static,
                     param_dict=None):
+    env.begin()
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -149,29 +127,11 @@ def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss
 
-def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
-    remaining_profits = remaining_profits.to(logprobs.device)
-    tour_lengths = tour_lengths.to(logprobs.device)
-    profit_loss = ((remaining_profits.float())*logprobs).mean() # maximize hence the -
-    tour_length_loss = (tour_lengths*logprobs).mean()
-    return profit_loss, tour_length_loss
-
 def update(agent, agent_opt, loss):
     agent_opt.zero_grad(set_to_none=True)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
-
-
-def evaluate(agent, batch):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
-    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
-    agent.eval()
-    with torch.no_grad():
-        tour_list, item_selection, tour_length, total_profit, total_cost, _, _ = solve(agent, env)
-
-    return tour_list, item_selection, tour_length.item(), total_profit.item(), total_cost.item()
-
 
 def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, checkpoint_path):
     checkpoint = {
@@ -195,8 +155,12 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
+def save_nes(policy, epoch, title):
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(title+".pt")
 
-def save_nes(policy, epoch, checkpoint_path):
     checkpoint = {
         "policy":policy,  
         "epoch":epoch,

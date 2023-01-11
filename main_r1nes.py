@@ -14,10 +14,8 @@ from setup_r1nes import setup_r1_nes
 from ttp.ttp_dataset import read_prob, prob_list_to_env
 from ttp.ttp import TTP
 from ttp.utils import save_prob
-from policy.utils import update_nondom_archive
 from policy.r1_nes import R1_NES, ExperienceReplay
 from utils import save_nes, solve_decode_only
-from validate_r1nes import test_one_epoch
 
 CPU_DEVICE = torch.device("cpu")
 

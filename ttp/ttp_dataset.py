@@ -68,7 +68,7 @@ def prob_list_to_env(prob_list):
     for prob in prob_list:
         coords, norm_coords, W, norm_W = prob.location_data.coords.unsqueeze(0), prob.location_data.norm_coords.unsqueeze(0), prob.location_data.W.unsqueeze(0), prob.location_data.norm_W.unsqueeze(0)
         coords_list += [coords]
-        norm_coords_list += norm_coords
+        norm_coords_list += [norm_coords]
         W_list += [W]
         norm_W_list += [norm_W] 
         profits, norm_profits = prob.profit_data.profits.unsqueeze(0), prob.profit_data.norm_profits.unsqueeze(0)
@@ -77,8 +77,8 @@ def prob_list_to_env(prob_list):
         norm_profits_list += [norm_profits]
         weights_list += [weights]
         norm_weights_list += [norm_weights]
-        min_v, max_v, renting_rate = prob.min_v, prob.max_v, prob.renting_rate
-        max_cap = prob.max_cap
+        min_v, max_v, renting_rate = prob.min_v.unsqueeze(0), prob.max_v.unsqueeze(0), prob.renting_rate
+        max_cap = prob.max_cap.unsqueeze(0)
         min_v_list += [min_v]
         max_v_list += [max_v]
         renting_rate_list += [renting_rate]
@@ -89,8 +89,23 @@ def prob_list_to_env(prob_list):
         item_city_mask_list += [item_city_mask]
         best_profit_kp_list += [best_profit_kp]
         best_route_length_tsp_list += [best_route_length_tsp]
-    print(coords_list)
-    exit()
+    
+    coords = torch.cat(coords_list)
+    norm_coords = torch.cat(norm_coords_list)
+    W = torch.cat(W_list)
+    norm_W = torch.cat(norm_W_list)
+    profits =  torch.cat(profits_list)
+    norm_profits = torch.cat(norm_profits_list)
+    weights = torch.cat(weights_list)
+    norm_weights = torch.cat(norm_weights_list)
+    min_v = torch.cat(min_v_list)
+    max_v = torch.cat(max_v_list)
+    max_cap = torch.cat(max_cap_list) 
+    renting_rate =  torch.Tensor(renting_rate_list)
+    item_city_idx = torch.cat(item_city_idx_list) 
+    item_city_mask = torch.cat(item_city_mask_list) 
+    best_profit_kp = torch.Tensor(best_profit_kp_list)
+    best_route_length_tsp = torch.Tensor(best_route_length_tsp_list)
     env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     return env
 

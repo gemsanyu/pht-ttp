@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 
 from arguments import get_parser
-from setup import setup
+from setup_single import setup
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 from utils import compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save

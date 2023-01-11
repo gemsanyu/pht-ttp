@@ -18,7 +18,7 @@ def get_args():
 
     parser.add_argument('--num-dataset',
                         type=int,
-                        default=5,
+                        default=64,
                         help="num of datasets generated per config")
 
     parser.add_argument('--num-nodes',
@@ -52,7 +52,7 @@ def generate(num_nodes, num_items_per_city, item_correlation, idx, dataseed=None
 
 def run(args):
     generate_args = [(args.num_nodes, nic, ic, idx, args.dataseed) for nic in args.num_items_per_city for ic in range(3) for idx in range(args.num_dataset)]
-    with Pool(processes=2) as pool:
+    with Pool(processes=32) as pool:
         L = pool.starmap(generate, generate_args)
 
 if __name__ == "__main__":

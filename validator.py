@@ -6,6 +6,7 @@ import torch
 from ttp.ttp_dataset import read_prob, prob_list_to_env
 
 def load_validation_env_list(num_instance_per_config=3):
+    pathlib.WindowsPath = pathlib.PosixPath
     num_nodes_list = [20,30]
     nipc_list = [1,3,5]
     num_ic = 3

@@ -115,7 +115,7 @@ def run(args):
 if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(os.cpu_count())
-    torch.set_num_threads(2)
+    torch.set_num_threads(12)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

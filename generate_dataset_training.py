@@ -36,15 +36,14 @@ def get_args():
     return args
 
 
-def generate(num_nodes, num_items_per_city, prob_idx, dataseed=None):
-    item_correlation = random.randint(0,2)
+def generate(num_nodes, num_items_per_city, item_correlation, idx, dataseed=None):
     capacity_factor = random.randint(1,10)
 
     problem = TTP(num_nodes=num_nodes, num_items_per_city=num_items_per_city, item_correlation=item_correlation, capacity_factor=capacity_factor, dataseed=dataseed)
     data_root = "data_full" 
     data_dir = pathlib.Path(".")/data_root/"training"/"sop"
     data_dir.mkdir(parents=True, exist_ok=True)
-    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_"+str(prob_idx)
+    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_"+str(idx)
     dataset_path = data_dir/(dataset_name+".pt")
 
     with open(dataset_path.absolute(), "wb") as handle:
@@ -52,7 +51,7 @@ def generate(num_nodes, num_items_per_city, prob_idx, dataseed=None):
 
 
 def run(args):
-    generate_args = [(args.num_nodes, nic, idx, args.dataseed) for nic in args.num_items_per_city for idx in range(args.num_dataset)]
+    generate_args = [(args.num_nodes, nic, idx, ic, args.dataseed) for nic in args.num_items_per_city for ic in range(3) for idx in range(args.num_dataset)]
     with Pool(processes=4) as pool:
         L = pool.starmap(generate, generate_args)
 

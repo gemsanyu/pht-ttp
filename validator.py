@@ -1,12 +1,16 @@
 import os
 import pathlib
+import platform
 
 import torch
 
 from ttp.ttp_dataset import read_prob, prob_list_to_env
 
 def load_validation_env_list(num_instance_per_config=3):
-    pathlib.WindowsPath = pathlib.PosixPath
+    # pickle error if run on linux, cuz the data is generated
+    # on windows
+    if platform.system() == 'Linux':
+        pathlib.WindowsPath = pathlib.PosixPath
     num_nodes_list = [20,30]
     nipc_list = [1,3,5]
     num_ic = 3
@@ -95,6 +99,8 @@ class Validator:
         if new_hv_mean > self.best_hv:
             self.best_hv = new_hv_mean 
             self.is_improving = True
+        else:
+            self.is_improving = False
         if self.hv_history is None:
             self.hv_history = new_hv_history
         else:

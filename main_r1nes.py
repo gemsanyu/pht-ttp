@@ -21,6 +21,7 @@ from utils import encode
 from validator import load_validator
 
 CPU_DEVICE = torch.device("cpu")
+MAX_PATIENCE = 20
 
 def prepare_args():
     parser = get_parser()
@@ -83,9 +84,12 @@ def run(args):
     step=1  
     vd_proc:subprocess.Popen=None
     epoch = last_epoch
+    early_stop = 0
     while epoch < args.max_epoch:
         dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size)) for dataset in datasets]
         for i in range(4):
+            if early_stop == MAX_PATIENCE:
+                break
             batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
             train_one_generation(agent, policy, batch_list)
             policy.write_progress_to_tb(writer, step)
@@ -94,7 +98,10 @@ def run(args):
                 vd_proc.wait()
             vd = load_validator(args.title)
             if vd.is_improving:
+                early_stop = 0
                 save_nes(policy, epoch, args.title)
+            else:   
+                early_stop += 1
             vd_proc_cmd = ["python",
                         "validate_r1nes.py",
                         "--title",

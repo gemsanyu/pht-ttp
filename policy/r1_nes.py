@@ -22,7 +22,7 @@ class R1_NES(Policy):
 
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*2*stdv-stdv
-        self.ld = -2
+        self.ld = -1
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1

@@ -153,7 +153,7 @@ def run(args):
         vd_proc_cmd = ["python",
                     "validate_phn.py",
                     "--ray-hidden-size",
-                    args.ray_hidden_size,
+                    str(args.ray_hidden_size),
                     "--title",
                     args.title,
                     "--dataset-name",

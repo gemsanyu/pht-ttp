@@ -1,4 +1,5 @@
 import os
+import pathlib
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
@@ -213,7 +214,13 @@ def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     glimpse_V_static = agent._make_heads(glimpse_V_static)
     return static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static
 
-def save_phn(phn, phn_opt, epoch, checkpoint_path):
+def save_phn(phn, phn_opt, epoch, title, best=False):
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(title+".pt")
+    if best:
+        checkpoint_path = checkpoint_dir/(title+"_best.pt")
     checkpoint = {
         "phn_state_dict":phn.state_dict(),
         "phn_opt_state_dict":phn_opt.state_dict(),  
@@ -249,7 +256,7 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, ray_list, epoch, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
     plt.figure()
     plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
     if sample_solutions is not None:
@@ -270,19 +277,19 @@ def write_test_phn_progress(writer, f_list, ray_list, epoch, sample_solutions=No
     writer.add_scalar('Test HV', _hv)
     _N = torch.from_numpy(_N)
     # write hv contribution per ray
-    hv_contributions = get_hv_contributions(_N)
-    hv_contribution_dict = {}
-    for i,ray in enumerate(ray_list):
-        hv_contribution_dict["ray-"+str(i)]=hv_contributions[i]
-    writer.add_scalars("Test HV Contribution", hv_contribution_dict)
+    # hv_contributions = get_hv_contributions(_N)
+    # hv_contribution_dict = {}
+    # for i,ray in enumerate(ray_list):
+    #     hv_contribution_dict["ray-"+str(i)]=hv_contributions[i]
+    # writer.add_scalars("Test HV Contribution", hv_contribution_dict)
 
     # write penalty total and per solutions
-    cos_penalty = F.cosine_similarity(_N, ray_list, dim=1)
-    cos_penalty_dict ={}
-    for i,ray in enumerate(ray_list):
-        cos_penalty_dict["ray-"+str(i)]=cos_penalty[i]
-    writer.add_scalars("Test Cos Penalty", cos_penalty_dict)
-    writer.add_scalar("Test Total Cos Penalty", cos_penalty.sum())
+    # cos_penalty = F.cosine_similarity(_N, ray_list, dim=1)
+    # cos_penalty_dict ={}
+    # for i,ray in enumerate(ray_list):
+    #     cos_penalty_dict["ray-"+str(i)]=cos_penalty[i]
+    # writer.add_scalars("Test Cos Penalty", cos_penalty_dict)
+    # writer.add_scalar("Test Total Cos Penalty", cos_penalty.sum())
     writer.flush()
 
 def write_training_phn_progress(writer, f_list, ray_list, cos_penalty_list):

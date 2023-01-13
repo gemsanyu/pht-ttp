@@ -25,7 +25,7 @@ def get_parser():
                         help='seed for random generator')
     parser.add_argument('--batch-size',
                         type=int,
-                        default=64,
+                        default=256,
                         help="dataloader batch size")
     parser.add_argument('--num-training-samples',
                         type=int,

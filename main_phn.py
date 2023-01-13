@@ -140,7 +140,7 @@ def run(args):
     vd_proc:subprocess.Popen=None
     early_stop = 0
     for epoch in range(last_epoch, args.max_epoch):
-        train_one_epoch(agent, phn, phn_opt, writer, args.num_training_samples, args.num_ray, args.ld)
+        train_one_epoch(agent, phn, phn_opt, writer, args.batch_size, args.num_training_samples, args.num_ray, args.ld)
         if vd_proc is not None:
             vd_proc.wait()
         vd = load_validator(args.title)

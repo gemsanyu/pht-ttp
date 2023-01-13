@@ -22,7 +22,7 @@ class R1_NES(Policy):
 
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*2*stdv-stdv
-        self.ld = -1
+        self.ld = -1.
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -34,7 +34,7 @@ class R1_NES(Policy):
         self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = -1e-4
+        self.negative_hv = -1e-5
         self.lr_mu = 1
         # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
                 

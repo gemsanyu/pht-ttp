@@ -123,6 +123,29 @@ def read_prob(num_nodes=None, num_items_per_city=None, item_correlation=None, pr
     return prob
 
 
+def combine_batch_list(batch_list):
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch_list[0]
+    for i in range(1,len(batch_list)):
+        coordsi, norm_coordsi, Wi, norm_Wi, profitsi, norm_profitsi, weightsi, norm_weightsi, min_vi, max_vi, max_capi, renting_ratei, item_city_idxi, item_city_maski, best_profit_kpi, best_route_length_tspi = batch_list[i]
+        coords = torch.cat([coords, coordsi], dim=0)
+        norm_coords = torch.cat([norm_coords, norm_coordsi], dim=0)
+        W = torch.cat([W, Wi], dim=0)
+        norm_W = torch.cat([norm_W, norm_Wi], dim=0)
+        profits = torch.cat([profits, profitsi], dim=0)
+        norm_profits = torch.cat([norm_profits, norm_profitsi], dim=0)
+        weights = torch.cat([weights, weightsi], dim=0)
+        norm_weights = torch.cat([norm_weights, norm_weightsi], dim=0)
+        min_v = torch.cat([min_v, min_vi], dim=0)
+        max_v = torch.cat([max_v, max_vi], dim=0)
+        max_cap = torch.cat([max_cap, max_capi], dim=0)
+        renting_rate = torch.cat([renting_rate, renting_ratei], dim=0)
+        item_city_idx = torch.cat([item_city_idx, item_city_idxi], dim=0)
+        item_city_mask = torch.cat([item_city_mask, item_city_maski], dim=0)
+        best_profit_kp = torch.cat([best_profit_kp, best_profit_kpi], dim=0)
+        best_route_length_tsp = torch.cat([best_route_length_tsp, best_route_length_tspi], dim=0)
+    return coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp
+
+
 if __name__ == "__main__":
     train_dataset = TTPDataset(1000000)
     train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True)

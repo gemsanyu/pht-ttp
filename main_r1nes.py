@@ -11,7 +11,7 @@ from tqdm import tqdm
 from agent.agent import Agent
 from arguments import get_parser
 from setup_r1nes import setup_r1_nes
-from ttp.ttp_dataset import read_prob, TTPDataset
+from ttp.ttp_dataset import read_prob, TTPDataset, combine_batch_list
 from ttp.ttp import TTP
 from ttp.ttp_env import TTPEnv
 from policy.r1_nes import R1_NES
@@ -21,7 +21,7 @@ from utils import encode
 from validator import load_validator
 
 CPU_DEVICE = torch.device("cpu")
-MAX_PATIENCE = 20
+MAX_PATIENCE = 50
 
 def prepare_args():
     parser = get_parser()
@@ -86,12 +86,13 @@ def run(args):
     epoch = last_epoch
     early_stop = 0
     while epoch < args.max_epoch:
-        dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size)) for dataset in datasets]
+        dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size, shuffle=True)) for dataset in datasets]
         for i in range(4):
             if early_stop == MAX_PATIENCE:
                 break
             batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
-            train_one_generation(agent, policy, batch_list)
+            batch_list = [combine_batch_list([batch_list[i],batch_list[i+1],batch_list[i+2]]) for i in range(0,18,3)]# hasil kombinasi yg jumlah elemen sama
+            train_one_generation(agent, policy, batch_list, pop_size=policy.batch_size)
             policy.write_progress_to_tb(writer, step)
             # Validate dulu baru save jika masih ada progress?
             if vd_proc is not None:
@@ -99,9 +100,10 @@ def run(args):
             vd = load_validator(args.title)
             if vd.is_improving:
                 early_stop = 0
-                save_nes(policy, epoch, args.title)
+                save_nes(policy, epoch, args.title, best=True)
             else:   
                 early_stop += 1
+            save_nes(policy, epoch, args.title)
             vd_proc_cmd = ["python",
                         "validate_r1nes.py",
                         "--title",
@@ -112,6 +114,8 @@ def run(args):
                         "cpu"]
             vd_proc = subprocess.Popen(vd_proc_cmd)
             epoch += 1
+        if early_stop == MAX_PATIENCE:
+            break
     vd_proc.wait()
 
 if __name__ == '__main__':

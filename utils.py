@@ -168,11 +168,14 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
-def save_nes(policy, epoch, title):
+def save_nes(policy, epoch, title, best=False):
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir/(title+".pt")
+    if best:
+        checkpoint_path = checkpoint_dir/(title+"_best.pt")
+        
 
     checkpoint = {
         "policy":policy,  

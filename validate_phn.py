@@ -111,12 +111,11 @@ def run(args):
     write_test_phn_progress(writer, test_solution_list, vd.epoch, test_sample_solutions)
     writer.add_scalar("Validation Mean HV", new_hv.mean())
     save_validator(vd, args.title)
-    test_one_epoch(agent, phn, test_env, test_sample_solutions, writer, last_epoch)
-
+    
 if __name__ == '__main__':
     # torch.backends.cudnn.enabled = False
     args = prepare_args()
-    torch.set_num_threads(2)
+    torch.set_num_threads(16)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

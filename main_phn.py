@@ -34,7 +34,7 @@ def decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed
     total_profit_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
     logprobs_list = torch.zeros((pop_size, batch_size), dtype=torch.float32, device=agent.device)
     
-    for n, param_dict in enumerate(tqdm(param_dict_list, desc="Solve Batch")):
+    for n, param_dict in enumerate(param_dict_list):
         solve_output = solve_decode_only(agent, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
         travel_time_list[n,:] = tour_lengths
@@ -118,28 +118,29 @@ def train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray=16, ld=1):
     phn.zero_grad(set_to_none=True)
     # write_training_phn_progress(writer, loss.detach().cpu(),ray_list.cpu(),cos_penalty.detach().cpu())
 
-def train_one_epoch(agent, phn, phn_opt, writer, total_num_samples=10000, num_ray=8):
+def train_one_epoch(agent, phn, phn_opt, writer, batch_size, total_num_samples, num_ray, ld):
     phn.train()
-    batch_size_per_config = 16
     num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
     ic_list = [0,1,2]
-    num_samples = int(total_num_samples/18)
+    num_config = len(num_nodes_list)*len(num_items_per_city_list)*len(ic_list)
+    batch_size_per_config = int(batch_size/num_config)
+    num_samples = int(total_num_samples/num_config)
     max_iter = int(num_samples/batch_size_per_config)
     config_list = [(num_nodes, num_items_per_city, ic) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for ic in ic_list]
-    datasets = [TTPDataset(64, config[0], config[1], config[2]) for config in config_list]
+    datasets = [TTPDataset(num_samples, config[0], config[1], config[2]) for config in config_list]
     dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size_per_config, shuffle=True)) for dataset in datasets]
     for i in tqdm(range(max_iter),desc="Train Epoch"):
         batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
         batch_list = [combine_batch_list([batch_list[i], batch_list[i+1], batch_list[i+2]]) for i in range(0,18,3)]
-        train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray)
+        train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray, ld)
 
 def run(args):
-    agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
+    agent, phn, phn_opt, last_epoch, writer, _, _ = setup_phn(args)
     vd_proc:subprocess.Popen=None
     early_stop = 0
     for epoch in range(last_epoch, args.max_epoch):
-        train_one_epoch(agent, phn, phn_opt, writer, args.num_training_samples)
+        train_one_epoch(agent, phn, phn_opt, writer, args.num_training_samples, args.num_ray, args.ld)
         if vd_proc is not None:
             vd_proc.wait()
         vd = load_validator(args.title)

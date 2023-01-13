@@ -79,7 +79,7 @@ def compute_hv(solution_list, nadir_points, utopia_points):
     
 
 @torch.no_grad()
-def test_one_epoch(agent, phn, test_env, n_solutions=100):
+def test_one_epoch(agent, phn, test_env, n_solutions=30):
     agent.eval()
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
@@ -100,7 +100,7 @@ def test_one_epoch(agent, phn, test_env, n_solutions=100):
     return solution_list
     
 def run(args):
-    agent, phn, _, last_epoch, writer, _, test_env, test_sample_solutions = setup_phn(args)
+    agent, phn, _, last_epoch, writer, test_env, test_sample_solutions = setup_phn(args)
     vd = load_validator(args.title)
     solution_list = validate(agent, phn, vd.validation_env_list)
     new_hv, new_nadir_points, new_utopia_points = compute_hv(solution_list, vd.nadir_points, vd.utopia_points) 
@@ -109,7 +109,7 @@ def run(args):
     vd.epoch += 1
     test_solution_list = test_one_epoch(agent, phn, test_env)
     write_test_phn_progress(writer, test_solution_list, vd.epoch, test_sample_solutions)
-    writer.add_scalar("Validation Mean HV", new_hv.mean())
+    writer.add_scalar("Validation Mean HV", vd.last_hv)
     save_validator(vd, args.title)
     
 if __name__ == '__main__':

@@ -15,15 +15,6 @@ def get_parser():
                         type=str,
                         default='cpu',
                         help='device to be used cpu or cuda(gpu)')
-    parser.add_argument('--num-items-per-city',
-                        nargs='+',
-                        type=int,
-                        default=[1,3,5],
-                        help='number of items per city')
-    parser.add_argument('--num-nodes',
-                        type=int,
-                        default=50,
-                        help='num nodes/num cities')
     parser.add_argument('--max-epoch',
                         type=int,
                         default=100000,
@@ -40,8 +31,6 @@ def get_parser():
                         type=int,
                         default=1000,
                         help="dataloader batch size")
-    
-    # Agent
     parser.add_argument('--max-grad-norm',
                         type=int,
                         default=1,
@@ -50,34 +39,18 @@ def get_parser():
                         type=float,
                         default=1e-4,
                         help="learning rate")
-    parser.add_argument('--encoder-size',
+    
+    # PHN
+    parser.add_argument('--num-ray',
                         type=int,
-                        default=64,
-                        help='Encoder layer\'s size.')
-    parser.add_argument('--pointer-layers',
+                        default=128,
+                        help="number of rays in training")
+    parser.add_argument('--ld',
                         type=int,
-                        default=2,
-                        help='Total layer(s) for pointer.')
-    parser.add_argument('--pointer-neurons',
-                        nargs='?',
-                        type=int,
-                        default=None,
-                        help='Total neurons for pointer.')
-    parser.add_argument('--dropout',
-                        type=float,
-                        default=0.2,
-                        help='Dropout.')
-    parser.add_argument('--use-critic',
-                        type=bool,
-                        default=False,
-                        help='Use critic (True) or use self-critic (False).')
-    parser.add_argument('--n-glimpses',
-                        type=int,
-                        default=1,
-                        help="num of repetition for glimpse computation")
+                        default=4,
+                        help="lambda for cosine penalty")
     parser.add_argument('--ray-hidden-size',
                         type=int,
                         default=128,
                         help="ray hidden size")
-
     return parser

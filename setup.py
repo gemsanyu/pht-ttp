@@ -67,7 +67,7 @@ def setup_phn(args):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
         
-    return agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_dataset.prob.sample_solutions
+    return agent, phn, phn_opt, last_epoch, writer, test_env, test_dataset.prob.sample_solutions
 
 def setup(args):
     # similar to Attention learn routing default

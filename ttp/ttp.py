@@ -106,7 +106,8 @@ class TTP(object):
         self.item_city_mask = torch.arange(self.num_nodes, device=self.device).expand(self.num_items, self.num_nodes).transpose(1, 0)
         self.item_city_mask = self.item_city_mask == self.item_city_idx.unsqueeze(0)
         self.item_city_mask = self.item_city_mask.bool()
-        self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
+        self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
+        # self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
         self.min_tour_length = torch.tensor(self.min_tour_length, dtype=torch.float32)
         self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
 

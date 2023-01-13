@@ -15,6 +15,7 @@ from ttp.ttp_dataset import TTPDataset, combine_batch_list
 from ttp.ttp_env import TTPEnv
 from utils import update_phn, write_training_phn_progress, save_phn
 from utils import solve_decode_only, encode
+from validate_phn import test_one_epoch
 
 CPU_DEVICE = torch.device("cpu")
 MAX_PATIENCE = 50
@@ -24,6 +25,26 @@ def prepare_args():
     args = parser.parse_args(sys.argv[1:])
     args.device = torch.device(args.device)
     return args
+
+
+
+def decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static):
+    pop_size = len(param_dict_list)
+    batch_size = train_env.batch_size
+    travel_time_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
+    total_profit_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
+    logprobs_list = torch.zeros((pop_size, batch_size), dtype=torch.float32, device=agent.device)
+    
+    for n, param_dict in enumerate(tqdm(param_dict_list, desc="Solve Batch")):
+        solve_output = solve_decode_only(agent, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
+        travel_time_list[n,:] = tour_lengths
+        total_profit_list[n,:] = total_profits
+        logprobs_list[n,:] = logprobs
+    inv_total_profit_list = -total_profit_list 
+    f_list = torch.cat((travel_time_list.unsqueeze(2),inv_total_profit_list.unsqueeze(2)), dim=-1)
+    return f_list, logprobs_list
+
 
 def solve_one_batch(agent, param_dict_list, batch):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
@@ -39,31 +60,9 @@ def solve_one_batch(agent, param_dict_list, batch):
     agent.eval()
     with torch.no_grad():
         critic_f_list, _ = decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static)
-    print(f_list.shape)
-    print(critic_f_list.shape)
-    print(logprobs_list.shape)
-    exit()
-
-
-def decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static):
-    pop_size = len(param_dict_list)
-    batch_size = train_env.batch_size
-    travel_time_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
-    total_profit_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
-    logprobs_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
-    for n, param_dict in enumerate(tqdm(param_dict_list, desc="Solve Batch")):
-        solve_output = solve_decode_only(agent, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
-        travel_time_list[n,:] = tour_lengths
-        total_profit_list[n,:] = total_profits
-        logprobs_list[n,:] = logprobs
-    inv_total_profit_list = -total_profit_list 
-    f_list = torch.cat((travel_time_list.unsqueeze(2),inv_total_profit_list.unsqueeze(2)), dim=-1)
-    return f_list, logprobs_list
+    return f_list, critic_f_list, logprobs_list
 
 def train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray=16, ld=1):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
-    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     mo_opt = HvMaximization(n_mo_sol=num_ray, n_mo_obj=2)
     ray_list = []
     profit_loss_list = []
@@ -80,73 +79,61 @@ def train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray=16, ld=1):
         param_dict = phn(ray)
         param_dict_list += [param_dict]
         ray_list += [ray]
-
+    ray_list = torch.stack(ray_list)
+    
+    all_f_list = []
+    all_crit_f_list = []
+    all_logprob_list = []
     for batch in batch_list:
         f_list, crit_f_list, logprob_list = solve_one_batch(agent, param_dict_list, batch)
+        all_f_list += [f_list]
+        all_crit_f_list += [crit_f_list]
+        all_logprob_list += [logprob_list]
+    all_f_list = torch.cat(all_f_list, dim=1)
+    all_crit_f_list = torch.cat(all_crit_f_list, dim=1)
+    adv_list = (all_f_list-all_crit_f_list).to(agent.device)
+    all_logprob_list = torch.cat(all_logprob_list, dim=1)
+    all_logprob_list = all_logprob_list.unsqueeze(2).expand_as(all_f_list)
+    loss = (adv_list)*all_logprob_list
+    loss_max, _ = torch.max(loss, dim=0, keepdim=True)
+    loss_min, _ = torch.min(loss, dim=0, keepdim=True)
+    loss_max, loss_min = loss_max.detach(), loss_min.detach()
+    norm_loss = (loss-loss_min)/(loss_max-loss_min+1e-8)
+    norm_obj = norm_loss.detach().cpu().numpy()
+    _, num_instances, _ = norm_obj.shape
+    hv_drv_list = [] 
+    for i in range(num_instances):
+        obj_instance = np.transpose(norm_obj[:, i, :]) 
+        hv_drv_instance = mo_opt.compute_weights(obj_instance).transpose(0,1).unsqueeze(1)
+        hv_drv_list.append(hv_drv_instance)
+    hv_drv_list = torch.cat(hv_drv_list, dim=1).to(agent.device)
+    losses_per_obj = loss*hv_drv_list
+    losses_per_instance = torch.sum(losses_per_obj, dim=2)
+    losses_per_ray = torch.mean(losses_per_instance, dim=1)
+    total_loss = torch.sum(losses_per_ray)
 
-
-    # # sample rollout
-    # # greedy critic rollout
-
-
-    #     solve_output = solve_decode_only(agent, env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
-    #     tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
-    #     agent.eval()
-    #     with torch.no_grad():
-    #         critic_output = solve_decode_only(agent, env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
-    #         _, _, critic_lengths, critic_profits, _, _, _ = critic_output    
-    #     agent.train()
-    #     agent.gae.eval()
-    #     profit_loss = (critic_profits-total_profits).to(agent.device)*logprobs
-    #     length_loss = (tour_lengths-critic_lengths).to(agent.device)*logprobs
-    #     profit_loss_list.append(profit_loss)
-    #     length_loss_list.append(length_loss)
-    #     ray_list.append(ray)
-
-    # profit_loss_list = torch.stack(profit_loss_list)
-    # length_loss_list = torch.stack(length_loss_list)
-    # loss_list = torch.cat([length_loss_list.unsqueeze(2), profit_loss_list.unsqueeze(2)],dim=2)
-    # profit_loss_max, _ = torch.max(profit_loss_list,dim=0)
-    # profit_loss_min, _ = torch.min(profit_loss_list,dim=0)
-    # length_loss_max, _ = torch.max(length_loss_list,dim=0)
-    # length_loss_min, _ = torch.min(length_loss_list,dim=0)
-    # profit_loss_min, profit_loss_max = profit_loss_min.unsqueeze(0), profit_loss_max.unsqueeze(0)
-    # length_loss_min, length_loss_max = length_loss_min.unsqueeze(0), length_loss_max.unsqueeze(0)
-    # norm_profit_loss_list = (profit_loss_list-profit_loss_min)/(profit_loss_max-profit_loss_min)
-    # norm_length_loss_list = (length_loss_list-length_loss_min)/(length_loss_max-length_loss_min)
-    # norm_obj = torch.cat([norm_length_loss_list.unsqueeze(2), norm_profit_loss_list.unsqueeze(2)],dim=2)
-    # norm_obj = norm_obj.detach().cpu().numpy()
-    # ray_list = torch.stack(ray_list)
-    # hv_drv_list = [] 
-    # for i in range(env.batch_size):
-    #     obj_instance = np.transpose(norm_obj[:, i, :]) 
-    #     hv_drv_instance = mo_opt.compute_weights(obj_instance).transpose(0,1).unsqueeze(1)
-    #     hv_drv_list.append(hv_drv_instance)
-    # hv_drv_list = torch.cat(hv_drv_list, dim=1).to(agent.device)
-    # losses_per_obj = loss_list*hv_drv_list
-    # losses_per_instance = torch.sum(losses_per_obj, dim=2)
-    # losses_per_ray = torch.mean(losses_per_instance, dim=1)
-    # total_loss = torch.sum(losses_per_ray)
-    
     # # compute cosine similarity penalty
-    # cos_penalty = cosine_similarity(loss_list, ray_list.unsqueeze(1), dim=2)
-    # total_loss += ld*cos_penalty.sum()
-    # update_phn(phn, phn_opt, total_loss)
-    # agent.zero_grad(set_to_none=True)
-    # phn.zero_grad(set_to_none=True)
+    cos_penalty = cosine_similarity(loss, ray_list.unsqueeze(1), dim=2)
+    print(cos_penalty.shape)
+    exit()
+    # cos_penalty_per_ray = 
+    total_loss += ld*cos_penalty.sum()
+    update_phn(phn, phn_opt, total_loss)
+    agent.zero_grad(set_to_none=True)
+    phn.zero_grad(set_to_none=True)
     # write_training_phn_progress(writer,loss_list.detach().cpu(),ray_list.cpu(),cos_penalty.detach().cpu())
 
 def train_one_epoch(agent, phn, phn_opt, writer, total_num_samples=10000, num_ray=8):
     phn.train()
-    batch_size = 2
+    batch_size_per_config = 2
     num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
     ic_list = [0,1,2]
     num_samples = int(total_num_samples/18)
-    max_iter = int(num_samples/batch_size)
+    max_iter = int(num_samples/batch_size_per_config)
     config_list = [(num_nodes, num_items_per_city, ic) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for ic in ic_list]
     datasets = [TTPDataset(64, config[0], config[1], config[2]) for config in config_list]
-    dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size)) for dataset in datasets]
+    dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size_per_config)) for dataset in datasets]
     for i in tqdm(range(max_iter),desc="Train Epoch"):
         batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
         batch_list = [combine_batch_list([batch_list[i], batch_list[i+1], batch_list[i+2]]) for i in range(0,18,3)]
@@ -154,42 +141,29 @@ def train_one_epoch(agent, phn, phn_opt, writer, total_num_samples=10000, num_ra
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, checkpoint_path, test_env, test_sample_solutions = setup_phn(args)
-    num_nodes_list = [20,30]
-    num_items_per_city_list = [1,3,5]
-    config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
-    num_configs = len(num_nodes_list)*len(num_items_per_city_list)
-    test_proc = None
     for epoch in range(last_epoch, args.max_epoch):
-        config_it = epoch%num_configs
-        if config_it == 0:
-            random.shuffle(config_list)
-        num_nodes, num_items_per_city = config_list[config_it]
-        print("EPOCH:", epoch)
-        print("CONFIG:",num_nodes,num_items_per_city)
-        print("---------------------------------------")
-        dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
-        train_one_epoch(agent, phn, phn_opt, dataset, writer)
-        save_phn(phn, phn_opt, epoch, checkpoint_path)
-        if test_proc is not None:
-            test_proc.wait()
-        # test_proc_cmd = "python validate.py --title "+ args.title + " --dataset-name "+ args.dataset_name + " --device cpu"
-        test_proc_cmd = ["python",
-                        "validate_phn.py",
-                        "--title",
-                        args.title,
-                        "--dataset-name",
-                        args.dataset_name,
-                        "--device",
-                        "cpu"]
-        test_proc = subprocess.Popen(test_proc_cmd)
-        # test_one_epoch(agent,phn,test_env,test_sample_solutions,writer,epoch,n_solutions=10)
-    if test_proc is not None:
-        test_proc.wait()
+        train_one_epoch(agent, phn, phn_opt, writer, args.num_training_samples)
+        # save_phn(phn, phn_opt, epoch, checkpoint_path)
+        # if test_proc is not None:
+        #     test_proc.wait()
+        # # test_proc_cmd = "python validate.py --title "+ args.title + " --dataset-name "+ args.dataset_name + " --device cpu"
+        # test_proc_cmd = ["python",
+        #                 "validate_phn.py",
+        #                 "--title",
+        #                 args.title,
+        #                 "--dataset-name",
+        #                 args.dataset_name,
+        #                 "--device",
+        #                 "cpu"]
+        # test_proc = subprocess.Popen(test_proc_cmd)
+        test_one_epoch(agent,phn,test_env,test_sample_solutions,writer,epoch,n_solutions=30)
+    # if test_proc is not None:
+    #     test_proc.wait()
 
 if __name__ == '__main__':
     # torch.backends.cudnn.enabled = False
     args = prepare_args()
-    torch.set_num_threads(6)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

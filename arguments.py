@@ -15,15 +15,7 @@ def get_parser():
                         type=str,
                         default='cpu',
                         help='device to be used cpu or cuda(gpu)')
-    parser.add_argument('--num-items-per-city',
-                        nargs='+',
-                        type=int,
-                        default=[1,3,5],
-                        help='number of items per city')
-    parser.add_argument('--num-nodes',
-                        type=int,
-                        default=50,
-                        help='num nodes/num cities')
+    
     parser.add_argument('--max-epoch',
                         type=int,
                         default=100000,
@@ -34,7 +26,7 @@ def get_parser():
                         help='seed for random generator')
     parser.add_argument('--batch-size',
                         type=int,
-                        default=64,
+                        default=256,
                         help="dataloader batch size")
     parser.add_argument('--num-training-samples',
                         type=int,
@@ -50,34 +42,20 @@ def get_parser():
                         type=float,
                         default=1e-4,
                         help="learning rate")
-    parser.add_argument('--encoder-size',
-                        type=int,
-                        default=64,
-                        help='Encoder layer\'s size.')
-    parser.add_argument('--pointer-layers',
-                        type=int,
-                        default=2,
-                        help='Total layer(s) for pointer.')
-    parser.add_argument('--pointer-neurons',
-                        nargs='?',
-                        type=int,
-                        default=None,
-                        help='Total neurons for pointer.')
-    parser.add_argument('--dropout',
+    
+
+    #R1_NES
+    parser.add_argument('--ld',
                         type=float,
-                        default=0.2,
-                        help='Dropout.')
-    parser.add_argument('--use-critic',
-                        type=bool,
-                        default=False,
-                        help='Use critic (True) or use self-critic (False).')
-    parser.add_argument('--n-glimpses',
+                        default=0,
+                        help="lambda e^ld in R1-NES")
+    parser.add_argument('--pop-size',
                         type=int,
-                        default=1,
-                        help="num of repetition for glimpse computation")
-    parser.add_argument('--ray-hidden-size',
-                        type=int,
-                        default=128,
-                        help="ray hidden size")
+                        default=1e-4,
+                        help="r1 nes pop size in 1 generation")
+    parser.add_argument('--negative-hv',
+                        type=float,
+                        default=-1e-5,
+                        help="negative hv penalty")
 
     return parser

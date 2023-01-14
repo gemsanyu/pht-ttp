@@ -19,7 +19,12 @@ def setup_r1_nes(args):
                  gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)        
-    policy = R1_NES(num_neurons=128, num_dynamic_features=4)
+    policy = R1_NES(num_neurons=128, 
+                    num_dynamic_features=4,
+                    ld=args.ld,
+                    lr=args.lr,
+                    negative_hv=args.negative_hv,
+                    pop_size=args.pop_size)
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root

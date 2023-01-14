@@ -17,12 +17,17 @@ CPU_DEVICE = torch.device("cpu")
 class R1_NES(Policy):
     def __init__(self,
                  num_neurons,
-                 num_dynamic_features):
+                 num_dynamic_features,
+                 ld,
+                 negative_hv,
+                 lr=None,
+                 pop_size=None
+                 ):
         super(R1_NES, self).__init__(num_neurons, num_dynamic_features)
 
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*2*stdv-stdv
-        self.ld = -1.
+        self.ld = ld
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -34,17 +39,16 @@ class R1_NES(Policy):
         self.principal_vector /= torch.norm(self.principal_vector)
 
         # hyperparams
-        self.negative_hv = -1e-5
+        self.negative_hv = negative_hv
         self.lr_mu = 1
         # old self.lr = (3+math.log(self.n_params))/(5*math.sqrt(self.n_params))
                 
-        # choose the lr and batch size package?
-        # 1.
-        # self.lr = 0.6 * (3 + math.log(self.n_params)) / self.n_params / math.sqrt(self.n_params)
-        # self.lr /= 100
-        self.batch_size = int(4*math.log2(self.n_params))
-        # or 2.
-        self.lr = 0.1
+        if pop_size is None:
+            pop_size = int(4*math.log2(self.n_params))
+        self.pop_size = pop_size
+        if lr is None:
+            lr = 0.6 * (3 + math.log2(self.n_params)) / self.n_params / math.sqrt(self.n_params)
+        self.lr = lr
 
     def copy_to_mu(self, agent: Agent):
         for name, param in agent.named_parameters():

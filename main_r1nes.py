@@ -21,7 +21,7 @@ from utils import encode
 from validator import load_validator
 
 CPU_DEVICE = torch.device("cpu")
-MAX_PATIENCE = 50
+MAX_PATIENCE = 20
 
 def prepare_args():
     parser = get_parser()
@@ -79,7 +79,7 @@ def run(args):
     num_items_per_city_list = [1,3,5]
     ic_list = [0,1,2]
     num_config = len(num_nodes_list)*len(num_items_per_city_list)*len(ic_list)
-    batch_size = 16
+    batch_size_per_config = int(args.batch_size/num_config)
     config_list = [(num_nodes, num_items_per_city, ic) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for ic in ic_list]
     datasets = [TTPDataset(64, config[0], config[1], config[2]) for config in config_list]
     step=1  
@@ -87,13 +87,13 @@ def run(args):
     epoch = last_epoch
     early_stop = 0
     while epoch < args.max_epoch:
-        dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size, shuffle=True)) for dataset in datasets]
+        dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size_per_config, shuffle=True)) for dataset in datasets]
         for i in range(4):
             if early_stop == MAX_PATIENCE:
                 break
             batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
             batch_list = [combine_batch_list([batch_list[i],batch_list[i+1],batch_list[i+2]]) for i in range(0,18,3)]# hasil kombinasi yg jumlah elemen sama
-            train_one_generation(agent, policy, batch_list, pop_size=policy.batch_size)
+            train_one_generation(agent, policy, batch_list, pop_size=policy.pop_size)
             policy.write_progress_to_tb(writer, step)
             # Validate dulu baru save jika masih ada progress?
             if vd_proc is not None:

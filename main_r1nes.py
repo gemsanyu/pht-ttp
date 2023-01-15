@@ -21,7 +21,7 @@ from utils import encode
 from validator import load_validator
 
 CPU_DEVICE = torch.device("cpu")
-MAX_PATIENCE = 20
+MAX_PATIENCE = 50
 
 def prepare_args():
     parser = get_parser()

@@ -5,7 +5,7 @@ def get_parser():
     # GENERAL
     parser.add_argument('--dataset-name',
                         type=str,
-                        default="a280-n279",
+                        default="eil76-n75",
                         help="dataset's name for real testing")
     parser.add_argument('--title',
                         type=str,

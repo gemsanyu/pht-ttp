@@ -55,11 +55,7 @@ def solve_one_batch(agent, param_dict_list, batch):
     # sample rollout
     agent.train()
     f_list, logprobs_list = decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static)
-    # greedy critic rollout
-    agent.eval()
-    with torch.no_grad():
-        critic_f_list, _ = decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static)
-    return f_list, critic_f_list, logprobs_list
+    return f_list, logprobs_list
 
 def train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray=16, ld=1):
     mo_opt = HvMaximization(n_mo_sol=num_ray, n_mo_obj=2)
@@ -79,16 +75,17 @@ def train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray=16, ld=1):
     ray_list = torch.stack(ray_list)
     
     all_f_list = []
-    all_crit_f_list = []
     all_logprob_list = []
     for batch in batch_list:
-        f_list, crit_f_list, logprob_list = solve_one_batch(agent, param_dict_list, batch)
+        f_list, logprob_list = solve_one_batch(agent, param_dict_list, batch)
         all_f_list += [f_list]
-        all_crit_f_list += [crit_f_list]
         all_logprob_list += [logprob_list]
     all_f_list = torch.cat(all_f_list, dim=1)
-    all_crit_f_list = torch.cat(all_crit_f_list, dim=1)
-    adv_list = (all_f_list-all_crit_f_list).to(agent.device)
+    adv_list = (all_f_list).to(agent.device)
+    adv_max, _ = torch.max(adv_list, dim=0, keepdim=True)
+    adv_min, _ = torch.min(adv_list, dim=0, keepdim=True)
+    adv_max, adv_min = adv_max.detach(), adv_min.detach()
+    adv_list = (adv_list-adv_min)/(adv_max-adv_min+1e-8)
     all_logprob_list = torch.cat(all_logprob_list, dim=1)
     all_logprob_list = all_logprob_list.unsqueeze(2).expand_as(all_f_list)
     loss = (adv_list)*all_logprob_list
@@ -112,7 +109,7 @@ def train_one_batch(agent, phn, phn_opt, batch_list, writer, num_ray=16, ld=1):
     # # compute cosine similarity penalty
     cos_penalty = cosine_similarity(loss, ray_list.unsqueeze(1), dim=2)
     cos_penalty_per_ray = cos_penalty.mean(dim=1)
-    total_loss += ld*cos_penalty_per_ray.sum()
+    total_loss -= ld*cos_penalty_per_ray.sum()
     update_phn(phn, phn_opt, total_loss)
     agent.zero_grad(set_to_none=True)
     phn.zero_grad(set_to_none=True)
@@ -137,20 +134,7 @@ def train_one_epoch(agent, phn, phn_opt, writer, batch_size, total_num_samples, 
 
 def run(args):
     agent, phn, phn_opt, last_epoch, writer, _, _ = setup_phn(args)
-    vd_proc:subprocess.Popen=None
-    early_stop = 0
-    for epoch in range(last_epoch, args.max_epoch):
-        train_one_epoch(agent, phn, phn_opt, writer, args.batch_size, args.num_training_samples, args.num_ray, args.ld)
-        if vd_proc is not None:
-            vd_proc.wait()
-        vd = load_validator(args.title)
-        if vd.is_improving:
-            early_stop = 0
-            save_phn(phn, phn_opt, epoch, args.title, best=True)
-        else:   
-            early_stop += 1
-        save_phn(phn, phn_opt, epoch, args.title)
-        vd_proc_cmd = ["python",
+    vd_proc_cmd = ["python",
                     "validate_phn.py",
                     "--ray-hidden-size",
                     str(args.ray_hidden_size),
@@ -160,13 +144,24 @@ def run(args):
                     args.dataset_name,
                     "--device",
                     "cpu"]
+    vd_proc = subprocess.Popen(vd_proc_cmd)
+    early_stop = 0
+    for epoch in range(last_epoch, args.max_epoch):
+        train_one_epoch(agent, phn, phn_opt, writer, args.batch_size, args.num_training_samples, args.num_ray, args.ld)
+        vd_proc.wait()
+        vd = load_validator(args.title)
+        if vd.is_improving:
+            early_stop = 0
+            save_phn(phn, phn_opt, epoch, args.title, best=True)
+        else:   
+            early_stop += 1
+        save_phn(phn, phn_opt, epoch, args.title)
         vd_proc = subprocess.Popen(vd_proc_cmd)
         epoch += 1
     vd_proc.wait()
 
 
 if __name__ == '__main__':
-    # torch.backends.cudnn.enabled = False
     args = prepare_args()
     torch.set_num_threads(4)
     torch.manual_seed(args.seed)

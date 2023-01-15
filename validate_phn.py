@@ -109,7 +109,7 @@ def run(args):
     vd.epoch += 1
     test_solution_list = test_one_epoch(agent, phn, test_env)
     write_test_phn_progress(writer, test_solution_list, vd.epoch, test_sample_solutions)
-    writer.add_scalar("Validation Mean HV", vd.last_hv)
+    # writer.add_scalar("Validation Mean HV", vd.last_hv)
     save_validator(vd, args.title)
     
 if __name__ == '__main__':

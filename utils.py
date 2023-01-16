@@ -1,10 +1,10 @@
 import os
+import pathlib
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
-from scipy.stats import ttest_rel
 
 from agent.agent import Agent
 from ttp.ttp_env import TTPEnv
@@ -54,6 +54,50 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     depot_static_embeddings = agent.depot_init_embed.expand((env.batch_size,1,-1))
     node_static_embeddings = agent.node_init_embed.expand((env.batch_size, env.num_nodes-1, -1))
     static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings],dim=1)
+    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
+    prev_selected_idx = prev_selected_idx + env.num_nodes
+    # initially pakai initial input
+    previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
+    first_turn = True
+    while torch.any(eligibility_mask):
+        is_not_finished = torch.any(eligibility_mask, dim=1)
+        active_idx = is_not_finished.nonzero().long().squeeze(1)
+        if not first_turn:
+            previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :]
+            previous_embeddings = previous_embeddings.unsqueeze(1)
+        next_pointer_hidden_states = last_pointer_hidden_states
+        dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
+        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
+        next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+        last_pointer_hidden_states = next_pointer_hidden_states
+        selected_idx, logprob, entropy = agent.select(probs)
+        #save logprobs
+        logprobs[active_idx] += logprob
+        sum_entropies[active_idx] += entropy
+        dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
+        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+        prev_selected_idx[active_idx] = selected_idx
+        first_turn = False
+    # # get total profits and tour lenghts
+    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
+    return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
+
+def encode(agent, static_features, num_nodes, num_items, batch_size):
+    static_features =  torch.from_numpy(static_features).to(agent.device)
+    item_static_embeddings = agent.item_static_encoder(static_features[:,:num_items,:])
+    depot_static_embeddings = agent.depot_init_embed.expand((batch_size,1,-1))
+    node_static_embeddings = agent.node_init_embed.expand((batch_size, num_nodes-1, -1))
+    static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings], dim=1)
+    return static_embeddings
+
+def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
+    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
+    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
+    last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
+    static_features, dynamic_features, eligibility_mask = env.begin()
     dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
@@ -143,7 +187,15 @@ def save_phn(phn, phn_opt, epoch, checkpoint_path):
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
-def save_nes(policy, epoch, checkpoint_path):
+def save_nes(policy, epoch, title, best=False):
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(title+".pt")
+    if best:
+        checkpoint_path = checkpoint_dir/(title+"_best.pt")
+        
+
     checkpoint = {
         "policy":policy,  
         "epoch":epoch,
@@ -152,7 +204,6 @@ def save_nes(policy, epoch, checkpoint_path):
     torch.save(checkpoint, checkpoint_path.absolute())
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
-
 
 def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, num_nodes, num_items, writer):
     env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
@@ -180,12 +231,12 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None):
     plt.figure()
     plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
-    writer.add_figure("Solutions", plt.gcf(), epoch)
+    writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)
     writer.flush()
 
 

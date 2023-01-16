@@ -1,26 +1,26 @@
 import math
-from multiprocessing import Pool
 import os
 import random
+import subprocess
 import sys
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from agent.agent import Agent
 from arguments import get_parser
-from setup import setup_r1_nes
-from ttp.ttp_dataset import read_prob, prob_to_env
-from ttp.ttp import TTP
-from ttp.utils import save_prob
-from policy.utils import update_nondom_archive
-# from policy.snes import ExperienceReplay, SNES
-from policy.r1_nes import ExperienceReplay, R1_NES
-from utils import solve, write_test_phn_progress, save_nes
+from setup_r1nes import setup_r1_nes
+from ttp.ttp_env import TTPEnv
+from ttp.ttp_dataset import TTPDataset, combine_batch_list
+from policy.r1_nes import R1_NES
+from policy.utils import get_score_hv_contributions
+from utils import solve_decode_only, encode, save_nes
+from validator import load_validator
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
+MAX_PATIENCE = 50
 
 def prepare_args():
     parser = get_parser()
@@ -28,82 +28,91 @@ def prepare_args():
     args.device = torch.device(args.device)
     return args
 
+def solve_one_batch(agent, param_dict_list, batch):
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
+    train_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+    # encode/embed first, it can be reused for same env/problem
+    num_nodes, num_items, batch_size = train_env.num_nodes, train_env.num_items, train_env.batch_size
+    static_features, dynamic_features, eligibility_mask = train_env.begin()
+    static_embeddings = encode(agent, static_features, num_nodes, num_items, batch_size)
+
+    pop_size = len(param_dict_list)
+    travel_time_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
+    total_profit_list = torch.zeros((pop_size, batch_size), dtype=torch.float32)
+    for n, param_dict in enumerate(tqdm(param_dict_list, desc="Solve Batch")):
+        solve_output = solve_decode_only(agent, train_env, static_embeddings, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
+        travel_time_list[n,:] = tour_lengths
+        total_profit_list[n,:] = total_profits
+    inv_total_profit_list = -total_profit_list 
+    f_list = torch.cat((travel_time_list.unsqueeze(2),inv_total_profit_list.unsqueeze(2)), dim=-1)
+    return f_list
 
 @torch.no_grad()
-def train_one_epoch(agent, policy: R1_NES, train_prob: TTP, writer, step, pop_size=10, max_saved_policy=5, max_iter=20):
-    agent.eval()
-    if policy.batch_size is not None:
-        pop_size = int(math.ceil(policy.batch_size/max_saved_policy))
-    er = ExperienceReplay(dim=policy.n_params, num_obj=2, max_saved_policy=max_saved_policy, num_sample=pop_size)
-    # keep worst points
-    train_env = prob_to_env(train_prob)
-    for it in tqdm(range(max_iter)):
-        param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
-        travel_time_list = torch.zeros((pop_size, 1), dtype=torch.float32)
-        total_profit_list = torch.zeros((pop_size, 1), dtype=torch.float32)
-        node_order_list = torch.zeros((pop_size, train_env.num_nodes), dtype=torch.long)
-        item_selection_list = torch.zeros((pop_size, train_env.num_items), dtype=torch.bool)
-        for n, param_dict in enumerate(param_dict_list):
-            tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, train_env, param_dict, normalized=False)
-            node_order_list[n] = tour_list
-            item_selection_list[n] = item_selection
-            travel_time_list[n] = tour_lengths
-            total_profit_list[n] = total_profits
-
-        travel_time_list = travel_time_list/train_env.best_route_length_tsp -1
-        inv_total_profit_list = 1 - total_profit_list/train_env.best_profit_kp
-        max_curr_f1 = torch.max(inv_total_profit_list).unsqueeze(0)
-        max_curr_f2 = torch.max(travel_time_list).unsqueeze(0)
-        max_curr_f = torch.cat([max_curr_f1, max_curr_f2])
-        train_prob.reference_point = torch.maximum(train_prob.reference_point, max_curr_f)
-        f_list = torch.cat((inv_total_profit_list, travel_time_list), dim=1)
-        train_prob.nondom_archive = update_nondom_archive(train_prob.nondom_archive, f_list)
-        er.add(policy, sample_list, f_list)
-        step += 1
-        if er.num_saved_policy < er.max_saved_policy:
-            continue
-        policy.update_with_er(er, train_prob.reference_point, train_prob.nondom_archive, writer, step)
-        policy.write_progress_to_tb(writer, step)
-
-    return step, train_prob
-
-@torch.no_grad()
-def test_one_epoch(agent, policy, test_env, sample_solutions, writer, epoch, pop_size=100):
+def train_one_generation(agent:Agent, policy: R1_NES, batch_list, pop_size=10):
     agent.eval()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
-    solution_list = []
-    for n, param_dict in enumerate(param_dict_list):
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, test_env, param_dict, normalized=False)
-        solution_list += [torch.stack([tour_lengths, total_profits], dim=1)]
-    solution_list = torch.cat(solution_list)
-    write_test_phn_progress(writer, solution_list, epoch, sample_solutions)
+    f_list = []
+
+    for batch in tqdm(batch_list, desc="Generation"):
+        batch_f_list = solve_one_batch(agent, param_dict_list, batch)    
+        f_list += [batch_f_list]
+    f_list = torch.cat(f_list, dim=1)
+    _, total_batch_size, _ = f_list.shape
+    score = []
+    for batch_idx in range(total_batch_size):
+        batch_score = get_score_hv_contributions(f_list[:,batch_idx,:], policy.negative_hv)    
+        score += [batch_score]
+    score = torch.cat(score, dim=-1)
+    score = score.mean(dim=1, keepdim=True)
+    x_list = sample_list - policy.mu
+    w_list = x_list/math.exp(policy.ld)
+    policy.update(w_list, x_list, score)
 
 def run(args):
     agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args)
-    num_nodes_list = [50]
+    num_nodes_list = [20,30]
     num_items_per_city_list = [1,3,5]
-    config_list = [(num_nodes, num_items_per_city, idx) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for idx in range(5)]
-    num_configs = len(num_nodes_list)*len(num_items_per_city_list)
-    step=1
-    # process_pool = Pool(processes=6)
-
-    for epoch in range(last_epoch, args.max_epoch):
-        config_it = epoch%num_configs
-        if config_it == 0:  
-            random.shuffle(config_list)
-        num_nodes, num_items_per_city, prob_idx = config_list[config_it]
-        print("EPOCH:", epoch, "NN:", num_nodes, "NIC:", num_items_per_city)
-        train_prob = read_prob(num_nodes, num_items_per_city, prob_idx)
-        step, updated_train_prob = train_one_epoch(agent, policy, train_prob, writer, step)
-        if updated_train_prob is not None:
-            save_prob(updated_train_prob, num_nodes, num_items_per_city, prob_idx)
-        test_one_epoch(agent, policy, test_env, sample_solutions, writer, epoch)
-        save_nes(policy, epoch, checkpoint_path)
+    ic_list = [0,1,2]
+    num_config = len(num_nodes_list)*len(num_items_per_city_list)*len(ic_list)
+    batch_size_per_config = int(args.batch_size/num_config)
+    config_list = [(num_nodes, num_items_per_city, ic) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for ic in ic_list]
+    datasets = [TTPDataset(64, config[0], config[1], config[2]) for config in config_list]
+    epoch = last_epoch
+    vd_proc_cmd = ["python",
+                        "validate_r1nes.py",
+                        "--title",
+                        args.title,
+                        "--dataset-name",
+                        args.dataset_name,
+                        "--device",
+                        "cpu"]
+    vd_proc = subprocess.Popen(vd_proc_cmd)
+    early_stop = 0
+    while epoch < args.max_epoch:
+        dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size_per_config, shuffle=True)) for dataset in datasets]
+        if early_stop == MAX_PATIENCE:
+            break
+        batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
+        batch_list = [combine_batch_list([batch_list[i],batch_list[i+1],batch_list[i+2]]) for i in range(0,18,3)]# hasil kombinasi yg jumlah elemen sama
+        train_one_generation(agent, policy, batch_list, pop_size=policy.pop_size)
+        policy.write_progress_to_tb(writer, epoch)
+        # validating and saving
+        vd_proc.wait()
+        vd = load_validator(args.title)
+        if vd.is_improving:
+            early_stop = 0
+            save_nes(policy, epoch, args.title, best=True)
+        else:   
+            early_stop += 1
+        save_nes(policy, epoch, args.title)
+        vd_proc = subprocess.Popen(vd_proc_cmd)
+        epoch += 1
+    vd_proc.wait()
 
 if __name__ == '__main__':
     args = prepare_args()
-    # torch.set_num_threads(2)
-    torch.set_num_threads(os.cpu_count())
+    torch.set_num_threads(2)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

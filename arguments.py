@@ -67,14 +67,20 @@ def get_parser():
                         type=float,
                         default=0.2,
                         help='Dropout.')
-    parser.add_argument('--use-critic',
-                        type=bool,
-                        default=False,
-                        help='Use critic (True) or use self-critic (False).')
     parser.add_argument('--n-glimpses',
                         type=int,
                         default=1,
                         help="num of repetition for glimpse computation")
+
+    # PHN
+    parser.add_argument('--num-ray',
+                        type=int,
+                        default=128,
+                        help="number of rays in training")
+    parser.add_argument('--ld',
+                        type=int,
+                        default=4,
+                        help="lambda for cosine penalty")
     parser.add_argument('--ray-hidden-size',
                         type=int,
                         default=128,

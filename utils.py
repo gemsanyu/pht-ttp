@@ -1,5 +1,5 @@
 import os
-from typing import NamedTuple
+import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,37 +12,49 @@ from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
 
+def encode(agent, static_features, num_nodes, num_items, batch_size):
+    static_features =  torch.from_numpy(static_features).to(agent.device)
+    item_static_embeddings = agent.item_static_encoder(static_features[:,:num_items,:])
+    depot_static_embeddings = agent.depot_init_embed.expand((batch_size,1,-1))
+    node_static_embeddings = agent.node_init_embed.expand((batch_size, num_nodes-1, -1))
+    static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings], dim=1)
+    return static_embeddings
 
-class BatchProperty(NamedTuple):
-    num_nodes: int
-    num_items_per_city: int
-    num_clusters: int
-    item_correlation: int
-    capacity_factor: int
-
-
-def get_batch_properties(num_nodes_list, num_items_per_city_list):
-    """
-        training dataset information for each batch
-        1 batch will represent 1 possible problem configuration
-        including num of node clusters, capacity factor, item correlation
-        num_nodes, num_items_per_city_list
-    """
-    batch_properties = []
-    capacity_factor_list = [i+1 for i in range(10)]
-    num_clusters_list = [1]
-    item_correlation_list = [i for i in range(3)]
-
-    for num_nodes in num_nodes_list:
-        for num_items_per_city in num_items_per_city_list:
-            for capacity_factor in capacity_factor_list:
-                for num_clusters in num_clusters_list:
-                    for item_correlation in item_correlation_list:
-                        batch_property = BatchProperty(num_nodes, num_items_per_city,
-                                                       num_clusters, item_correlation,
-                                                       capacity_factor)
-                        batch_properties += [batch_property]
-    return batch_properties
+def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
+    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
+    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
+    last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
+    static_features, dynamic_features, eligibility_mask = env.begin()
+    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
+    prev_selected_idx = prev_selected_idx + env.num_nodes
+    # initially pakai initial input
+    previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
+    first_turn = True
+    while torch.any(eligibility_mask):
+        is_not_finished = torch.any(eligibility_mask, dim=1)
+        active_idx = is_not_finished.nonzero().long().squeeze(1)
+        if not first_turn:
+            previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :]
+            previous_embeddings = previous_embeddings.unsqueeze(1)
+        next_pointer_hidden_states = last_pointer_hidden_states
+        dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
+        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
+        next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
+        last_pointer_hidden_states = next_pointer_hidden_states
+        selected_idx, logprob, entropy = agent.select(probs)
+        #save logprobs
+        logprobs[active_idx] += logprob
+        sum_entropies[active_idx] += entropy
+        dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
+        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
+        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+        prev_selected_idx[active_idx] = selected_idx
+        first_turn = False
+    # # get total profits and tour lenghts
+    tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
+    return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
 def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -140,7 +152,13 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
-def save_phn(phn, phn_opt, epoch, checkpoint_path):
+def save_phn(phn, phn_opt, epoch, title, best=False):
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(title+".pt")
+    if best:
+        checkpoint_path = checkpoint_dir/(title+"_best.pt")
     checkpoint = {
         "phn_state_dict":phn.state_dict(),
         "phn_opt_state_dict":phn_opt.state_dict(),  

@@ -30,12 +30,18 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        norm_tour_lengths = tour_lengths/env.best_route_length_tsp - 1.
-        norm_total_profits = 1. - total_profits/env.best_profit_kp
-        norm_tour_lengths = norm_tour_lengths.to(agent.device)
-        norm_total_profits = norm_total_profits.to(agent.device)
-        tour_length_loss = (logprobs*norm_tour_lengths).mean()
-        profit_loss = (logprobs*norm_total_profits).mean()
+        agent.eval()
+        with torch.no_grad():
+            _, _, critic_lengths, critic_profits, _, _, _ = solve(agent, env)
+        agent.train()
+        length_adv = tour_lengths-critic_lengths
+        length_adv = (length_adv-length_adv.mean())/(1e-8+length_adv.std())
+        length_adv = length_adv.to(agent.device)
+        profit_adv = critic_profits - total_profits
+        profit_adv = (profit_adv-profit_adv.mean())/(1e-8+profit_adv.std())
+        profit_adv = profit_adv.to(agent.device)
+        tour_length_loss = (logprobs*length_adv).mean()
+        profit_loss = (logprobs*profit_adv).mean()
         loss = torch.stack([tour_length_loss, profit_loss])
         agent_loss = (ray*loss).sum()
         update(agent, agent_opt, agent_loss)

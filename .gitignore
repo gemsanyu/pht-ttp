@@ -2,6 +2,6 @@ runs*
 *__pycache__*
 data/*
 logs/*
-data_full/*
+data_full/training/
 .ipynb_checkpoints*
 *.ipynb_checkpoints*

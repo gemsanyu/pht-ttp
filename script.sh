@@ -1,302 +1,122 @@
 #!/bin/bash
 
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 1 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 2 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 3 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 4 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 5 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 6 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 7 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 8 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 9 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 10 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 11 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 12 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 13 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 14 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 15 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 16 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 17 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 18 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 19 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 20 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 21 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 22 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 23 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 24 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 25 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 26 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 27 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 28 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 29 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 30 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 31 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 32 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 33 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 34 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 35 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 36 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 37 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 38 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 39 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 40 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 41 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 42 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 43 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 44 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 45 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 46 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 47 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 48 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 49 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n279 --weight-idx 50 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 1 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 2 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 3 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 4 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 5 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 6 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 7 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 8 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 9 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 10 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 11 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 12 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 13 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 14 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 15 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 16 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 17 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 18 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 19 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 20 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 21 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 22 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 23 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 24 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 25 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 26 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 27 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 28 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 29 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 30 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 31 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 32 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 33 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 34 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 35 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 36 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 37 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 38 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 39 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 40 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 41 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 42 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 43 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 44 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 45 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 46 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 47 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 48 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 49 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n1395 --weight-idx 50 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 1 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 2 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 3 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 4 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 5 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 6 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 7 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 8 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 9 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 10 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 11 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 12 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 13 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 14 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 15 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 16 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 17 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 18 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 19 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 20 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 21 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 22 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 23 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 24 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 25 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 26 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 27 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 28 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 29 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 30 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 31 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 32 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 33 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 34 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 35 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 36 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 37 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 38 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 39 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 40 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 41 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 42 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 43 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 44 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 45 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 46 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 47 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 48 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 49 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name a280-n2790 --weight-idx 50 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 1 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 2 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 3 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 4 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 5 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 6 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 7 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 8 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 9 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 10 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 11 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 12 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 13 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 14 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 15 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 16 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 17 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 18 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 19 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 20 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 21 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 22 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 23 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 24 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 25 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 26 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 27 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 28 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 29 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 30 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 31 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 32 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 33 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 34 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 35 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 36 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 37 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 38 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 39 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 40 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 41 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 42 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 43 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 44 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 45 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 46 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 47 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 48 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 49 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n4460 --weight-idx 50 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 1 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 2 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 3 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 4 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 5 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 6 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 7 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 8 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 9 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 10 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 11 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 12 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 13 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 14 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 15 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 16 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 17 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 18 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 19 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 20 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 21 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 22 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 23 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 24 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 25 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 26 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 27 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 28 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 29 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 30 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 31 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 32 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 33 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 34 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 35 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 36 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 37 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 38 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 39 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 40 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 41 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 42 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 43 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 44 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 45 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 46 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 47 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 48 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 49 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n22300 --weight-idx 50 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 1 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 2 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 3 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 4 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 5 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 6 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 7 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 8 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 9 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 10 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 11 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 12 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 13 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 14 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 15 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 16 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 17 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 18 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 19 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 20 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 21 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 22 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 23 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 24 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 25 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 26 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 27 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 28 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 29 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 30 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 31 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 32 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 33 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 34 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 35 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 36 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 37 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 38 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 39 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 40 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 41 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 42 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 43 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 44 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 45 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 46 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 47 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 48 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 49 --total-weight 50 --encoder-size 128
-python test.py --title mpn_drlmoa --device cuda --dataset-name fnl4461-n44600 --weight-idx 50 --total-weight 50 --encoder-size 128
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n1490_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n149_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n447_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name ch150_n745_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n225_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n375_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n750_uncorr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_05
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr_01
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr_02
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr_03
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr_04
+python .\test.py --title mpn-eil --total-weight 100 --dataset-name eil76_n75_uncorr_05

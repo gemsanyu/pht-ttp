@@ -6,15 +6,15 @@ import time
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
+from agent.agent import Agent
 from arguments import get_parser
-from setup import setup
+from ttp.ttp_dataset import TTPDataset
+from ttp.ttp_env import TTPEnv
 from utils import solve
-# from utils import solve_fast as solve
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
 def prepare_args():
     parser = get_parser()
@@ -41,19 +41,43 @@ def test_one_epoch(agent, test_env, x_file, y_file):
     print(tour_length+" "+total_profit+"\n")    
 
 
+def load_agent_checkpoint(agent, title, weight_idx, total_weight, device=CPU_DEVICE):
+    agent_title = title + str(weight_idx) + "_" + str(total_weight)
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/agent_title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(args.title+".pt")
+    checkpoint = torch.load(checkpoint_path.absolute(), map_location=device)
+    agent.load_state_dict(checkpoint["agent_state_dict"])
+    return agent
+
 def run(args):
-    start_time = time.time()
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
-    results_dir = summary_dir = pathlib.Path(".")/"results"
-    model_result_dir = results_dir/args.title
-    model_result_dir.mkdir(parents=True, exist_ok=True)
-    x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
-    y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
+    agent = Agent(device=args.device,
+                  num_static_features=3,
+                  num_dynamic_features=4,
+                  static_encoder_size=args.encoder_size,
+                  dynamic_encoder_size=args.encoder_size,
+                  decoder_encoder_size=args.encoder_size,
+                  pointer_num_layers=args.pointer_layers,
+                  pointer_num_neurons=args.encoder_size,
+                  dropout=args.dropout,
+                  n_glimpses=args.n_glimpses)   
+    test_dataset = TTPDataset(dataset_name=args.dataset_name)
+    test_dataloader = DataLoader(test_dataset, batch_size=1)
+    test_batch = next(iter(test_dataloader))
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+
+    for weight_idx in range(1,args.total_weight+1):
+        agent = load_agent_checkpoint(agent, args.title, weight_idx, args.total_weight, args.device)
+        results_dir = summary_dir = pathlib.Path(".")/"results"
+        model_result_dir = results_dir/args.title
+        model_result_dir.mkdir(parents=True, exist_ok=True)
+        x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
+        y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
+        with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
+            test_one_epoch(agent, test_env, x_file, y_file)
     
-    with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
-        test_one_epoch(agent, test_env, x_file, y_file)
-    end_time = time.time()
-    print(end_time-start_time)
 
 if __name__ == '__main__':
     args = prepare_args()

@@ -6,10 +6,15 @@ import time
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
+
 
 from arguments import get_parser
 from setup import setup
-from utils import solve_decode_only
+from utils import solve_decode_only, encode
+from agent.agent import Agent
+from ttp.ttp_dataset import TTPDataset
+from ttp.ttp_env import TTPEnv
 # from utils import solve_fast as solve
 
 CPU_DEVICE = torch.device("cpu")
@@ -23,12 +28,11 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
-    static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = test_env.begin()
-    static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
-    static_embeddings, graph_embeddings = agent.gae(static_features)
-    static_embeddings = static_embeddings.to(agent.device)
-    graph_embeddings = graph_embeddings.to(agent.device) 
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings)
+    static_features, _, _, _ = test_env.begin()
+    num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size
+    encode_output = encode(agent, static_features, num_nodes, num_items, batch_size)
+    static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static = encode_output
+    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, fixed_context,glimpse_K_static, glimpse_V_static, logits_K_static)
     node_order_str = ""
     for i in tour_list[0]:
         node_order_str+= str(i.item()) + " "
@@ -43,21 +47,40 @@ def test_one_epoch(agent, test_env, x_file, y_file):
     y_file.write(tour_length+" "+total_profit+"\n")
     print(tour_length+" "+total_profit+"\n")    
 
+def load_agent_checkpoint(agent, title, weight_idx, total_weight, device=CPU_DEVICE):
+    agent_title = title + str(weight_idx) + "_" + str(total_weight)
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/agent_title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(args.title+".pt")
+    checkpoint = torch.load(checkpoint_path.absolute(), map_location=device)
+    agent.load_state_dict(checkpoint["agent_state_dict"])
+    return agent
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
-    agent.gae = agent.gae.cpu()
-    results_dir = summary_dir = pathlib.Path(".")/"results"
-    model_result_dir = results_dir/args.title
-    model_result_dir.mkdir(parents=True, exist_ok=True)
-    x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
-    y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
-    
-    start_time = time.time()
-    with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
-        test_one_epoch(agent, test_env, x_file, y_file)
-    end_time = time.time()
-    print(end_time-start_time)
+    agent = Agent(n_heads=8,
+                 num_static_features=3,
+                 num_dynamic_features=4,
+                 n_gae_layers=3,
+                 embed_dim=128,
+                 gae_ff_hidden=128,
+                 tanh_clip=10,
+                 device=args.device)    
+    test_dataset = TTPDataset(dataset_name=args.dataset_name)
+    test_dataloader = DataLoader(test_dataset, batch_size=1)
+    test_batch = next(iter(test_dataloader))
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+
+    for weight_idx in range(1,args.total_weight+1):
+        agent = load_agent_checkpoint(agent, args.title, weight_idx, args.total_weight, args.device)
+        results_dir = pathlib.Path(".")/"results"
+        model_result_dir = results_dir/args.title
+        model_result_dir.mkdir(parents=True, exist_ok=True)
+        x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
+        y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
+        with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
+            test_one_epoch(agent, test_env, x_file, y_file)
 
 if __name__ == '__main__':
     args = prepare_args()

@@ -1,3 +1,5 @@
+import pathlib
+import pickle
 from typing import NamedTuple, Union
 
 import torch
@@ -74,7 +76,7 @@ def normalize_coords(coords, W=None):
 # get renting rate by solving both knapsack and TSP
 def get_renting_rate(W, weights, profits, capacity):
     # solve the knapsack first
-    optimal_profit = solve_knapsack(weights, profits, capacity)
+    optimal_profit, item_selection = solve_knapsack(weights, profits, capacity)
     # solve the tsp
     route_list, optimal_tour_length = solve_tsp(W)
     renting_rate = float(optimal_profit)/float(optimal_tour_length)
@@ -143,4 +145,14 @@ def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,Wei
     profit_data = ProfitData(profits, norm_profits, profit_scale)
     weight_data = WeightData(weights, norm_weights, weight_scale)                
     item_city_idx = item_city_idx
-    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v
+    return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v, max_cap
+
+def save_prob(problem, num_nodes, num_items_per_city, prob_idx):
+    data_root = "data_full"
+    data_dir = pathlib.Path(".")/data_root/"training"/"sop"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_"+str(prob_idx)
+    dataset_path = data_dir/(dataset_name+".pt")
+
+    with open(dataset_path.absolute(), "wb") as handle:
+        pickle.dump(problem, handle, protocol=pickle.HIGHEST_PROTOCOL)

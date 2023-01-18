@@ -42,6 +42,19 @@ def get_batch_properties(num_nodes_list, num_items_per_city_list):
                         batch_properties += [batch_property]
     return batch_properties
 
+def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
+    static_features = torch.from_numpy(static_features).to(agent.device)
+    item_init_embed = agent.item_init_embedder(static_features[:, :num_items, :])
+    depot_init_embed = agent.depot_init_embed.expand(size=(batch_size,1,-1))
+    node_init_embed = agent.node_init_embed.expand(size=(batch_size,num_nodes-1,-1))
+    init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
+    static_embeddings, graph_embeddings = agent.gae(init_embed)
+    fixed_context = agent.project_fixed_context(graph_embeddings)
+    glimpse_K_static, glimpse_V_static, logits_K_static = agent.project_embeddings(static_embeddings).chunk(3, dim=-1)
+    glimpse_K_static = agent._make_heads(glimpse_K_static)
+    glimpse_V_static = agent._make_heads(glimpse_V_static)
+    return static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static
+
 
 def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -95,6 +108,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
+
 def solve_decode_only(agent:Agent, 
                     env:TTPEnv, 
                     static_embeddings, 
@@ -103,6 +117,7 @@ def solve_decode_only(agent:Agent,
                     glimpse_V_static, 
                     logits_K_static,
                     param_dict=None):
+    env.begin()
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()

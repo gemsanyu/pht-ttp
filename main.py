@@ -43,7 +43,6 @@ def train_one_epoch(agent, agent_opt, train_dataset, writer, ray):
         profit_adv = profit_adv.to(agent.device)
         tour_length_loss = (logprobs*length_adv).mean()
         profit_loss = (logprobs*profit_adv).mean()
-        print(tour_length_loss, profit_loss, length_adv, profit_adv)
         loss = torch.stack([tour_length_loss, profit_loss])
         agent_loss = (ray*loss).sum()
         update(agent, agent_opt, agent_loss)

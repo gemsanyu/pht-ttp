@@ -52,7 +52,8 @@ def setup(args):
     last_step = 0
     if checkpoint is not None:
         agent.load_state_dict(checkpoint["agent_state_dict"])
-        agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
+        agent_opt_state_dict = checkpoint["agent_opt_state_dict"]
+        agent_opt.load_state_dict(agent_opt_state_dict)
         last_epoch = checkpoint["epoch"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)

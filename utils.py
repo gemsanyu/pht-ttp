@@ -7,6 +7,7 @@ import torch
 from tqdm import tqdm
 
 from agent.agent import Agent
+from policy.non_dominated_sorting import fast_non_dominated_sort
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -231,9 +232,15 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None, nondominated_only=False):
     plt.figure()
-    plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    if nondominated_only:
+        f_list_d = f_list.clone().numpy()
+        f_list_d[:,1]=-f_list_d[:,1]
+        nondom_idx = fast_non_dominated_sort(f_list_d)[0]
+        plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
+    else:
+        plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
     writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)

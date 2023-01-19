@@ -78,7 +78,7 @@ def compute_hv(solution_list, nadir_points, utopia_points):
     return new_hv, new_nadir_points, new_utopia_points
     
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, pop_size=50):
+def test_one_epoch(agent, policy, test_env, pop_size=200):
     agent.eval()
     # reuse the static embeddings
     #get static embeddings first, it can be widely reused
@@ -100,15 +100,15 @@ def test_one_epoch(agent, policy, test_env, pop_size=50):
 def run(args):
     agent, policy, _, writer, _, test_env, test_sample_solutions  = setup_r1_nes(args)
     vd = load_validator(args.title)
-    solution_list = validate(agent, policy, vd.validation_env_list)
-    new_hv, new_nadir_points, new_utopia_points = compute_hv(solution_list, vd.nadir_points, vd.utopia_points) 
-    vd.update_ref_points(new_nadir_points, new_utopia_points)
-    vd.insert_hv_history(new_hv)
-    vd.epoch += 1
+    # solution_list = validate(agent, policy, vd.validation_env_list)
+    # new_hv, new_nadir_points, new_utopia_points = compute_hv(solution_list, vd.nadir_points, vd.utopia_points) 
+    # vd.update_ref_points(new_nadir_points, new_utopia_points)
+    # vd.insert_hv_history(new_hv)
+    # vd.epoch += 1
     test_solution_list = test_one_epoch(agent, policy, test_env)
-    write_test_phn_progress(writer, test_solution_list, vd.epoch, args.dataset_name, test_sample_solutions)
-    writer.add_scalar("Validation Mean HV", vd.last_hv)
-    save_validator(vd, args.title)
+    write_test_phn_progress(writer, test_solution_list, vd.epoch, args.dataset_name, test_sample_solutions, nondominated_only=False)
+    # writer.add_scalar("Validation Mean HV", vd.last_hv)
+    # save_validator(vd, args.title)
 
 if __name__ == '__main__':
     args = prepare_args()

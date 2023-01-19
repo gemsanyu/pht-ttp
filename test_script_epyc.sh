@@ -6,6 +6,9 @@
 #SBATCH --output=logs/result-%j.out   # Output terminal program.
 #SBATCH --error=logs/result-%j.err    # Output verbose program.
 
+module load Anaconda3/2022.05;
+conda activate torch-cpu;
+
 python test.py --title att-drlmoa-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_01
 python test.py --title att-drlmoa-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_02
 python test.py --title att-drlmoa-eil --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_03

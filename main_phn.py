@@ -13,7 +13,7 @@ from setup import setup_phn
 from solver.hv_maximization import HvMaximization
 from ttp.ttp_dataset import TTPDataset, combine_batch_list
 from ttp.ttp_env import TTPEnv
-from utils import update_phn, write_training_phn_progress, save_phn
+from utils import update_phn, save_phn
 from utils import solve_decode_only, encode
 from validator import load_validator
 

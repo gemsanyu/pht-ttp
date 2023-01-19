@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-
 from arguments import get_parser
 from setup import setup_phn
 from utils import solve_decode_only

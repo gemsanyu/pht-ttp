@@ -9,6 +9,7 @@ import torch.nn.functional as F
 
 from agent.agent import Agent
 from policy.normalization import normalize
+from policy.non_dominated_sorting import fast_non_dominated_sort
 from policy.hv import Hypervolume
 from policy.utils import get_hv_contributions
 from ttp.ttp_env import TTPEnv
@@ -256,38 +257,32 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None, nondominated_only=False):
     plt.figure()
-    plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    _f_list = f_list.clone().numpy()
+    _f_list[:,1] = -_f_list[:,1]
+    if sample_solutions is not None:
+        _ss = sample_solutions.clone().numpy()
+        _ss[:,1] = -_ss[:,1]
+        _all =  np.concatenate([_f_list,_ss], axis=0)
+    else:
+        _all = _f_list
+    _min,_max = np.min(_all, axis=0), np.max(_all, axis=0)
+    _min,_max = _min[np.newaxis,:], _max[np.newaxis,:]
+    _N  = (_f_list-_min)/((_max-_min)+1e-8)
+    reference_point = np.array([1.1,1.1])
+    hv_getter = Hypervolume(reference_point)
+    total_hv = hv_getter.calc(_N)
+    nondom_idx = fast_non_dominated_sort(_f_list)[0]
+    if nondominated_only:
+        plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
+    else:
+        plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
-    writer.add_figure("Solutions", plt.gcf(), epoch)
-
-    # write the HV
-    # get nadir and ideal point first
-    print(f_list)
-    _all = torch.cat([f_list, sample_solutions]).numpy()
-    ideal_point = np.min(_all, axis=0)
-    nadir_point = np.max(_all, axis=0)
-    _N = normalize(f_list.numpy(), ideal_point, nadir_point)
-    _N[:,1] = 1-_N[:,1]
-    _hv = Hypervolume(np.array([1,1])).calc(_N)
-    writer.add_scalar('Test HV', _hv)
-    _N = torch.from_numpy(_N)
-    # write hv contribution per ray
-    # hv_contributions = get_hv_contributions(_N)
-    # hv_contribution_dict = {}
-    # for i,ray in enumerate(ray_list):
-    #     hv_contribution_dict["ray-"+str(i)]=hv_contributions[i]
-    # writer.add_scalars("Test HV Contribution", hv_contribution_dict)
-
-    # write penalty total and per solutions
-    # cos_penalty = F.cosine_similarity(_N, ray_list, dim=1)
-    # cos_penalty_dict ={}
-    # for i,ray in enumerate(ray_list):
-    #     cos_penalty_dict["ray-"+str(i)]=cos_penalty[i]
-    # writer.add_scalars("Test Cos Penalty", cos_penalty_dict)
-    # writer.add_scalar("Test Total Cos Penalty", cos_penalty.sum())
+    writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)
+    writer.add_scalar("Test HV "+dataset_name, total_hv, epoch)
     writer.flush()
 
 def write_training_phn_progress(writer, f_list, ray_list, cos_penalty_list):

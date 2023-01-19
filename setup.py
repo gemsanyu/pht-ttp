@@ -10,7 +10,7 @@ from agent.phn import PHN
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
 
-def setup_phn(args):
+def setup_phn(args, load_best=False):
     agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
@@ -38,6 +38,8 @@ def setup_phn(args):
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/args.title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir/(args.title+".pt")
+    if load_best:
+        checkpoint_path = checkpoint_dir/(args.title+"_best.pt")
     agent_checkpoint_path = checkpoint_dir/(args.title+"_agent.pt")
 
     agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)

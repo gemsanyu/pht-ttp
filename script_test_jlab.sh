@@ -1,122 +1,122 @@
 #!/bin/bash
 
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n1490_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n149_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n447_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name ch150_n745_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n225_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n375_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n750_uncorr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_bounded-strongly-corr_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr-similar-weights_05
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr_01
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr_02
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr_03
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr_04
-python test.py --title mpn-r1nes --total-weight 100 --dataset-name eil76_n75_uncorr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n1490_uncorr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n149_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n149_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n149_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n149_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n149_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n149_uncorr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n447_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n447_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n447_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n447_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n447_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n447_uncorr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n745_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n745_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n745_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n745_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n745_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr_01
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr_02
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr_03
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr_04
+python test.py --title mpn-r1nes --dataset-name ch150_n745_uncorr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n225_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n225_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n225_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n225_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n225_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n225_uncorr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n375_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n375_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n375_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n375_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n375_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n375_uncorr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n750_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n750_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n750_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n750_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n750_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n750_uncorr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n75_bounded-strongly-corr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n75_bounded-strongly-corr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n75_bounded-strongly-corr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n75_bounded-strongly-corr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n75_bounded-strongly-corr_05
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr-similar-weights_01
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr-similar-weights_02
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr-similar-weights_03
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr-similar-weights_04
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr-similar-weights_05
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_01
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_02
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_03
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_04
+python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_05

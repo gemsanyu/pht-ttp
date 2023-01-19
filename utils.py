@@ -3,47 +3,16 @@ import pathlib
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from tqdm import tqdm
 
 from agent.agent import Agent
+from policy.hv import Hypervolume
 from policy.non_dominated_sorting import fast_non_dominated_sort
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
-
-MASTER = 0
-
-class BatchProperty(NamedTuple):
-    num_nodes: int
-    num_items_per_city: int
-    num_clusters: int
-    item_correlation: int
-    capacity_factor: int
-
-
-def get_batch_properties(num_nodes_list, num_items_per_city_list):
-    """
-        training dataset information for each batch
-        1 batch will represent 1 possible problem configuration
-        including num of node clusters, capacity factor, item correlation
-        num_nodes, num_items_per_city_list
-    """
-    batch_properties = []
-    capacity_factor_list = [i+1 for i in range(10)]
-    num_clusters_list = [1]
-    item_correlation_list = [i for i in range(3)]
-
-    for num_nodes in num_nodes_list:
-        for num_items_per_city in num_items_per_city_list:
-            for capacity_factor in capacity_factor_list:
-                for num_clusters in num_clusters_list:
-                    for item_correlation in item_correlation_list:
-                        batch_property = BatchProperty(num_nodes, num_items_per_city,
-                                                       num_clusters, item_correlation,
-                                                       capacity_factor)
-                        batch_properties += [batch_property]
-    return batch_properties
 
 def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -234,17 +203,32 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
 
 def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None, nondominated_only=False):
     plt.figure()
+    _f_list = f_list.clone().numpy()
+    _f_list[:,1] = -_f_list[:,1]
+    if sample_solutions is not None:
+        _ss = sample_solutions.clone().numpy()
+        _ss[:,1] = -_ss[:,1]
+        _all =  np.concatenate([_f_list,_ss], axis=0)
+    else:
+        _all = _f_list
+    _min,_max = np.min(_all, axis=0), np.max(_all, axis=0)
+    _min,_max = _min[np.newaxis,:], _max[np.newaxis,:]
+    _N  = (_f_list-_min)/((_max-_min)+1e-8)
+    reference_point = np.array([1.1,1.1])
+    hv_getter = Hypervolume(reference_point)
+    total_hv = hv_getter.calc(_N)
+    nondom_idx = fast_non_dominated_sort(_f_list)[0]
     if nondominated_only:
-        f_list_d = f_list.clone().numpy()
-        f_list_d[:,1]=-f_list_d[:,1]
-        nondom_idx = fast_non_dominated_sort(f_list_d)[0]
         plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
     else:
         plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+    
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
     writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)
+    writer.add_scalar("Test HV "+dataset_name, total_hv, epoch)
     writer.flush()
+
 
 
 def write_training_phn_progress(mean_total_profit, mean_tour_length, profit_loss, tour_length_loss, epo_loss, logprob, num_nodes, num_items, writer):

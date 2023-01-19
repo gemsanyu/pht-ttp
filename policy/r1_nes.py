@@ -67,7 +67,7 @@ class R1_NES(Policy):
     theta = mu + s*sigma
     return theta mapped with param names of the policy
     '''
-    def generate_random_parameters(self, n_sample: int = 2, use_antithetic=True):
+    def generate_random_parameters(self, n_sample: int = 2, use_antithetic=True, device=CPU_DEVICE):
         if n_sample > 1:
             if use_antithetic:
                 y_list = self.norm_dist.sample(
@@ -88,7 +88,7 @@ class R1_NES(Policy):
 
         g = math.exp(self.ld) * (y_list + k_list*self.principal_vector)
         random_params = self.mu + g
-
+        random_params = random_params.to(device)
         param_dict_list = []
         for param_vec in random_params:
             param_dict_list += [self.create_param_dict(param_vec)]

@@ -8,17 +8,11 @@ import torch
 from tqdm import tqdm
 
 from arguments import get_parser
-from setup import setup_r1_nes
-from ttp.ttp_dataset import prob_to_env
-from ttp.ttp import TTP
-from policy.utils import update_nondom_archive
-from policy.r1_nes import ExperienceReplay, R1_NES
-from utils import solve
-
+from setup_r1nes import setup_r1_nes
+from policy.r1_nes import R1_NES
+from utils import solve_decode_only, encode
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
 def prepare_args():
     parser = get_parser()
@@ -27,11 +21,16 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
+def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, pop_size=500):
     agent.eval()
-    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False, device=agent.device)
+    static_features, _, _ = test_env.begin()
+    num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size
+    static_embeddings = encode(agent, static_features, num_nodes, num_items, batch_size)
+
+    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False, device=agent.device)    
     for param_dict in tqdm(param_dict_list):
-        tour_list, item_selection, tour_length, total_profit, total_costs, logprobs, sum_entropies = solve(agent, test_env, param_dict, normalized=False)
+        solve_output = solve_decode_only(agent, test_env, static_embeddings, param_dict)
+        tour_list, item_selection, tour_length, total_profit, total_costs, logprobs, sum_entropies = solve_output
         node_order_str = ""
         for i in tour_list[0]:
             node_order_str+= str(i.item()) + " "
@@ -48,7 +47,7 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
 
 
 def run(args):
-    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args)
+    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args, load_best=True)
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)

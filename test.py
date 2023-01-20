@@ -21,7 +21,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, pop_size=500):
+def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, pop_size=200):
     agent.eval()
     static_features, _, _ = test_env.begin()
     num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size

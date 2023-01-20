@@ -190,6 +190,32 @@ def get_score_hv_contributions(f_list, negative_hv, nondom_archive=None, referen
     score = score[:real_num_sample]
     return score
 
+
+def cmp(a, b, crowding_distance_list):
+    if crowding_distance_list[a] > crowding_distance_list[b]:
+        return -1
+    elif crowding_distance_list[a] < crowding_distance_list[b]:
+        return 1
+    return 0
+
+def get_crowding_distance(score_list, fmax, fmin):
+    num_sample, num_obj = score_list.shape
+    if num_sample <= 2:
+        return torch.zeros((num_sample,), dtype=torch.float32) + 999999
+    arg_idx = torch.argsort(score_list, dim=0)
+    obj_rank = torch.argsort(arg_idx, dim=0)  # scipy rankdata
+    val_range = (fmax-fmin).view(1, num_obj)
+    sorted_score_list, _ = torch.sort(score_list, dim=0)
+    next_obj = sorted_score_list.gather(0, (obj_rank+1) % num_sample)
+    prev_obj = sorted_score_list.gather(0, (obj_rank-1) % num_sample)
+    dist_obj = next_obj-prev_obj
+    is_extreme = torch.logical_or(obj_rank == 0, obj_rank == (num_sample-1))
+    is_extreme = torch.sum(is_extreme, dim=1).bool()
+    dist_obj /= val_range
+    dist_obj = torch.sum(dist_obj, dim=1)
+    dist_obj[is_extreme] = 999999
+    return dist_obj
+
 def get_score_nsga2(f_list, nondom_archive=None, reference_point=None):
     real_num_sample, M = f_list.shape
     if nondom_archive is not None:

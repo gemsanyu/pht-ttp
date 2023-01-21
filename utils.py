@@ -211,7 +211,7 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None):
+def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None, nondominated_only=False):
     plt.figure()
     _f_list = f_list.clone().numpy()
     _f_list[:,1] = -_f_list[:,1]
@@ -228,8 +228,11 @@ def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solution
     hv_getter = Hypervolume(reference_point)
     total_hv = hv_getter.calc(_N)
     nondom_idx = fast_non_dominated_sort(_f_list)[0]
-    plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
-    
+    if nondominated_only:
+        plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
+    else:
+        plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
+
     if sample_solutions is not None:
         plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
     writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)

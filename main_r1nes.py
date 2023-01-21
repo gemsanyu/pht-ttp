@@ -11,7 +11,7 @@ from tqdm import tqdm
 from agent.agent import Agent
 from arguments import get_parser
 from setup_r1nes import setup_r1_nes
-from ttp.ttp_dataset import read_prob, TTPDataset, combine_batch_list
+from ttp.ttp_dataset import TTPDataset, combine_batch_list
 from ttp.ttp import TTP
 from ttp.ttp_env import TTPEnv
 from policy.r1_nes import R1_NES
@@ -82,41 +82,36 @@ def run(args):
     batch_size_per_config = int(args.batch_size/num_config)
     config_list = [(num_nodes, num_items_per_city, ic) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list for ic in ic_list]
     datasets = [TTPDataset(64, config[0], config[1], config[2]) for config in config_list]
-    step=1  
-    vd_proc:subprocess.Popen=None
     epoch = last_epoch
+    vd_proc_cmd = ["python",
+                    "validate_r1nes.py",
+                    "--title",
+                    args.title,
+                    "--dataset-name",
+                    args.dataset_name,
+                    "--device",
+                    "cpu"]
+    vd_proc = subprocess.Popen(vd_proc_cmd)
     early_stop = 0
     while epoch < args.max_epoch:
         dl_iter_list = [iter(DataLoader(dataset, batch_size=batch_size_per_config, shuffle=True)) for dataset in datasets]
-        for i in range(4):
-            if early_stop == MAX_PATIENCE:
-                break
-            batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
-            batch_list = [combine_batch_list([batch_list[i],batch_list[i+1],batch_list[i+2]]) for i in range(0,18,3)]# hasil kombinasi yg jumlah elemen sama
-            train_one_generation(agent, policy, batch_list, pop_size=policy.pop_size)
-            policy.write_progress_to_tb(writer, step)
-            # Validate dulu baru save jika masih ada progress?
-            if vd_proc is not None:
-                vd_proc.wait()
-            vd = load_validator(args.title)
-            if vd.is_improving:
-                early_stop = 0
-                save_nes(policy, epoch, args.title, best=True)
-            else:   
-                early_stop += 1
-            save_nes(policy, epoch, args.title)
-            vd_proc_cmd = ["python",
-                        "validate_r1nes.py",
-                        "--title",
-                        args.title,
-                        "--dataset-name",
-                        args.dataset_name,
-                        "--device",
-                        "cpu"]
-            vd_proc = subprocess.Popen(vd_proc_cmd)
-            epoch += 1
         if early_stop == MAX_PATIENCE:
             break
+        batch_list = [next(dl_iter) for dl_iter in dl_iter_list]
+        batch_list = [combine_batch_list([batch_list[i],batch_list[i+1],batch_list[i+2]]) for i in range(0,18,3)]# hasil kombinasi yg jumlah elemen sama
+        train_one_generation(agent, policy, batch_list, pop_size=policy.pop_size)
+        policy.write_progress_to_tb(writer, epoch)
+        # Validate dulu baru save jika masih ada progress?
+        vd_proc.wait()
+        vd = load_validator(args.title)
+        if vd.is_improving:
+            early_stop = 0
+            save_nes(policy, epoch, args.title, best=True)
+        else:   
+            early_stop += 1
+        save_nes(policy, epoch, args.title)
+        vd_proc = subprocess.Popen(vd_proc_cmd)
+        epoch += 1
     vd_proc.wait()
 
 if __name__ == '__main__':

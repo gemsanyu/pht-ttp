@@ -9,8 +9,8 @@ import torch
 from tqdm import tqdm
 
 from arguments import get_parser
-from setup import setup_r1_nes
-from utils import solve_decode_only
+from setup_r1nes import setup_r1_nes
+from utils import solve_decode_only, encode
 
 CPU_DEVICE = torch.device("cpu")
 MASTER = 0
@@ -27,17 +27,18 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
     # reuse the static embeddings
     #get static embeddings first, it can be widely reused
     static_features, _, _, _ = test_env.begin()
-    static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
-    static_embeddings, graph_embeddings = agent.gae(static_features)
-    static_embeddings = static_embeddings.to(agent.device)
-    graph_embeddings = graph_embeddings.to(agent.device)
+    num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size
+    encode_output = encode(agent, static_features, num_nodes, num_items, batch_size)
+    static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static = encode_output
+
 
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
     
     for param_dict in tqdm(param_dict_list):
         for k in param_dict.keys():
             param_dict[k] = param_dict[k].to(agent.device)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, graph_embeddings, param_dict)
+        solve_output = solve_decode_only(agent, test_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
+        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
         node_order_str = ""
         for i in tour_list[0]:
             node_order_str+= str(i.item()) + " "
@@ -53,7 +54,7 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
         print(tour_length+" "+total_profit+"\n")
 
 def test(args):
-    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args)
+    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args, load_best=True)
     agent.gae = agent.gae.cpu()
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
@@ -68,7 +69,7 @@ def test(args):
 if __name__=='__main__':
     args = prepare_args()
     #torch.set_num_threads(os.cpu_count()-4)
-    torch.set_num_threads(8)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

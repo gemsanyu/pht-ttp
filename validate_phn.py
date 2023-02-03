@@ -79,7 +79,7 @@ def compute_hv(solution_list, nadir_points, utopia_points):
     
 
 @torch.no_grad()
-def test_one_epoch(agent, phn, test_env, n_solutions=200):
+def test_one_epoch(agent, phn, test_env, n_solutions=50):
     agent.eval()
     phn.eval()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
@@ -114,7 +114,7 @@ def run(args):
     
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(16)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

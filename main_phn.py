@@ -156,6 +156,8 @@ def run(args):
         else:   
             early_stop += 1
         save_phn(phn, phn_opt, epoch, args.title)
+        if early_stop == MAX_PATIENCE:
+            break
         vd_proc = subprocess.Popen(vd_proc_cmd)
         epoch += 1
     vd_proc.wait()

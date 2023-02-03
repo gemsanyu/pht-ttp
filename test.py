@@ -2,7 +2,7 @@ import os
 import pathlib
 import random
 import sys
-
+import time
 
 import numpy as np
 import torch
@@ -13,8 +13,6 @@ from setup_r1nes import setup_r1_nes
 from utils import solve_decode_only, encode
 
 CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
 def prepare_args():
     parser = get_parser()
@@ -22,19 +20,20 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
+def test_one_epoch(agent, policy, test_env, x_file, y_file, time_file, pop_size=200):
     agent.eval()
     # reuse the static embeddings
     #get static embeddings first, it can be widely reused
+    encode_start = time.time()
     static_features, _, _, _ = test_env.begin()
     num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size
     encode_output = encode(agent, static_features, num_nodes, num_items, batch_size)
     static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static = encode_output
+    encode_elapsed_time = (time.time()-encode_start)
 
-
+    decode_start = time.time()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
-    
-    for param_dict in tqdm(param_dict_list):
+    for param_dict in param_dict_list:
         for k in param_dict.keys():
             param_dict[k] = param_dict[k].to(agent.device)
         solve_output = solve_decode_only(agent, test_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
@@ -51,7 +50,12 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, pop_size=200):
         tour_length = "{:.16f}".format(tour_lengths[0].item())
         total_profit = "{:.16f}".format(total_profits[0].item())
         y_file.write(tour_length+" "+total_profit+"\n")
-        print(tour_length+" "+total_profit+"\n")
+        # print(tour_length+" "+total_profit+"\n")
+        
+    decode_elapsed_time = (time.time()-decode_start)
+    encode_elapsed_str = "{:.16f}".format(encode_elapsed_time)
+    decode_elapsed_str = "{:.16f}".format(decode_elapsed_time)
+    time_file.write(encode_elapsed_str+" "+decode_elapsed_str+"\n")
 
 def test(args):
     agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args, load_best=True)
@@ -61,9 +65,9 @@ def test(args):
     model_result_dir.mkdir(parents=True, exist_ok=True)
     x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
-    
-    with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
-        test_one_epoch(agent, policy, test_env, x_file, y_file)
+    time_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".time")
+    with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file, open(time_file_path.absolute(), "w") as time_file:
+        test_one_epoch(agent, policy, test_env, x_file, y_file, time_file)
 
 
 if __name__=='__main__':

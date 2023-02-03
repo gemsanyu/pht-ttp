@@ -68,15 +68,23 @@ def run(args):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
 
+    
+    elapsed_time = 0
+    results_dir = summary_dir = pathlib.Path(".")/"results"
+    model_result_dir = results_dir/args.title
+    model_result_dir.mkdir(parents=True, exist_ok=True)
     for weight_idx in range(1,args.total_weight+1):
         agent = load_agent_checkpoint(agent, args.title, weight_idx, args.total_weight, args.device)
-        results_dir = summary_dir = pathlib.Path(".")/"results"
-        model_result_dir = results_dir/args.title
-        model_result_dir.mkdir(parents=True, exist_ok=True)
         x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
         y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
+        start = time.time()
         with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
             test_one_epoch(agent, test_env, x_file, y_file)
+        elapsed_time += (time.time() - start)
+    time_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".time")
+    with open(time_file_path.absolute(), "a+") as time_file:
+        elapsed_time_str = "{:.16f}".format(elapsed_time)
+        time_file.write(elapsed_time_str+"\n")
     
 
 if __name__ == '__main__':

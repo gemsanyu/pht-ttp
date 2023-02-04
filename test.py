@@ -22,7 +22,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, time_file, pop_size=200):
+def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, time_file, pop_size=500):
     agent.eval()
     
     encode_start = time.time()

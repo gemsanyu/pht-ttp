@@ -24,7 +24,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def validate(agent, policy, validation_env_list, pop_size=10):
+def validate(agent, policy, validation_env_list, pop_size=20):
     # sample once for every env?
     agent.eval()
     num_env = len(validation_env_list)
@@ -78,7 +78,7 @@ def compute_hv(solution_list, nadir_points, utopia_points):
     return new_hv, new_nadir_points, new_utopia_points
     
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, pop_size=200):
+def test_one_epoch(agent, policy, test_env, pop_size=50):
     agent.eval()
     # reuse the static embeddings
     #get static embeddings first, it can be widely reused
@@ -98,7 +98,7 @@ def test_one_epoch(agent, policy, test_env, pop_size=200):
     return solution_list
     
 def run(args):
-    agent, policy, _, writer, _, test_env, test_sample_solutions  = setup_r1_nes(args, load_best=True)
+    agent, policy, _, writer, _, test_env, test_sample_solutions  = setup_r1_nes(args)
     vd = load_validator(args.title)
     solution_list = validate(agent, policy, vd.validation_env_list)
     new_hv, new_nadir_points, new_utopia_points = compute_hv(solution_list, vd.nadir_points, vd.utopia_points) 

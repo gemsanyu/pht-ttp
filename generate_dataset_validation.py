@@ -18,12 +18,12 @@ def get_args():
     parser.add_argument('--dataseed',
                         type=str,
                         nargs="?",
-                        default="eil76-n75",
+                        default="lin105_n104",
                         help="dataset's name for real testing")
 
     parser.add_argument('--num-dataset',
                         type=int,
-                        default=1000,
+                        default=3,
                         help="num of datasets generated per config")
 
     parser.add_argument('--num-nodes',

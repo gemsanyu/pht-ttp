@@ -108,7 +108,7 @@ def run(args):
     test_solution_list = test_one_epoch(agent, policy, test_env)
     write_test_phn_progress(writer, test_solution_list, vd.epoch, args.dataset_name, test_sample_solutions, nondominated_only=True)
     writer.add_scalar("Validation Mean HV", vd.last_hv)
-    # save_validator(vd, args.title)
+    save_validator(vd, args.title)
 
 if __name__ == '__main__':
     args = prepare_args()

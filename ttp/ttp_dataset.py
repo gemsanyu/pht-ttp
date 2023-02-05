@@ -49,7 +49,7 @@ class TTPDataset(Dataset):
         if self.prob is None:
             # prob = read_prob(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, item_correlation=self.item_correlation, prob_idx=index%1000)
             capacity_factor = random.randint(1,10)
-            prob = TTP(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, item_correlation=self.item_correlation, capacity_factor=capacity_factor, dataseed="eil76-n75")
+            prob = TTP(num_nodes=self.num_nodes, num_items_per_city=self.num_items_per_city, item_correlation=self.item_correlation, capacity_factor=capacity_factor, dataseed="lin105_n104")
         else:
             prob = self.prob
         coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

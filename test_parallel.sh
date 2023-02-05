@@ -288,123 +288,147 @@
 # python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_07 &
 # python test.py --title mpn-r1nes --dataset-name eil76_n75_uncorr_08 &
 # wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_05 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_10 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_01 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_02 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_03 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_04 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_05 &
+# wait;
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_06 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_07 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_08 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_09 &
+# python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_10 &
+# wait;
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_01 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_02 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_03 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_04 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_05 &
 wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr_10 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_06 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_07 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_08 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_09 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_bounded-strongly-corr_10 &
 wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_05 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_01 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_02 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_03 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_04 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_05 &
 wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_bounded-strongly-corr_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr-similar-weights_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n104_uncorr_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_bounded-strongly-corr_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr-similar-weights_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n312_uncorr_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_bounded-strongly-corr_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr-similar-weights_10 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_01 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_02 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_03 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_04 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_05 &
-wait;
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_06 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_07 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_08 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_09 &
-python test.py --title mpn-r1nes --dataset-name lin105_n520_uncorr_10 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_06 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_07 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_08 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_09 &
+python test.py --title mpn-r1nes --dataset-name lin105_n1040_uncorr-similar-weights_10 &
 wait;

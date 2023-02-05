@@ -22,7 +22,7 @@ def prepare_args():
     return args
 
 @torch.no_grad()
-def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, time_file, pop_size=500):
+def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, time_file, pop_size=200):
     agent.eval()
     
     encode_start = time.time()
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(2)
     # torch.set_num_threads(os.cpu_count()-4)
-    torch.set_num_threads(4)
+    torch.set_num_threads(2)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

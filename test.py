@@ -70,7 +70,7 @@ if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(2)
     # torch.set_num_threads(os.cpu_count()-4)
-    torch.set_num_threads(4)
+    torch.set_num_threads(2)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

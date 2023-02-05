@@ -44,7 +44,7 @@ def test_one_epoch(agent, policy:R1_NES, test_env, x_file, y_file, time_file, po
     num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size
     static_embeddings = encode(agent, static_features, num_nodes, num_items, batch_size)
     encode_elapsed_time = (time.time()-encode_start)
-    
+
     decode_start = time.time()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False, device=agent.device)   
     for param_dict in param_dict_list:

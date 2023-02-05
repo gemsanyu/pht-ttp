@@ -4,7 +4,8 @@ from ttp.ttp import TTP
 
 
 def run():
-    dataset_name, gname = "eil76-n75", "eil76"
+    dataset_name, gname = "lin105_n104_bounded-strongly-corr_01", "lin105"
+    # dataset_name, gname = "eil76-n75", "eil76"
     # dataset_name, gname = "ch150_n149_bounded-strongly-corr_01", "ch150"
     prob = TTP(dataset_name=dataset_name)
     coords = prob.location_data.coords

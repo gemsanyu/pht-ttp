@@ -21,27 +21,32 @@ def get_args():
                         default=64,
                         help="num of datasets generated per config")
 
-    parser.add_argument('--num-nodes',
+    parser.add_argument('--num-nodes-lise',
                         type=int,
-                        default=30,
+                        nargs="+",
+                        default=[20,30],
                         help="num of nodes in dataset")
 
     parser.add_argument('--num-items-per-city',
                         type=int,
                         nargs="+",
                         default=[1,3,5],
-                        help="num of nodes in dataset")    
-
+                        help="num of nodes in dataset")   
+     
+    parser.add_argument('--mode',
+                        type=str,
+                        default="training",
+                        help="where to use the generated instance, training/validation")   
     args = parser.parse_args(sys.argv[1:])
     return args
 
 
-def generate(num_nodes, num_items_per_city, item_correlation, idx, dataseed=None):
+def generate(num_nodes, num_items_per_city, item_correlation, idx, dataseed=None, mode="validation"):
     capacity_factor = random.randint(1,10)
 
     problem = TTP(num_nodes=num_nodes, num_items_per_city=num_items_per_city, item_correlation=item_correlation, capacity_factor=capacity_factor, dataseed=dataseed)
     data_root = "data_full" 
-    data_dir = pathlib.Path(".")/data_root/"training"/"sop"
+    data_dir = pathlib.Path(".")/data_root/args.mode
     data_dir.mkdir(parents=True, exist_ok=True)
     dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_"+str(idx)
     dataset_path = data_dir/(dataset_name+".pt")
@@ -51,7 +56,7 @@ def generate(num_nodes, num_items_per_city, item_correlation, idx, dataseed=None
 
 
 def run(args):
-    generate_args = [(args.num_nodes, nic, ic, idx, args.dataseed) for nic in args.num_items_per_city for ic in range(3) for idx in range(args.num_dataset)]
+    generate_args = [(nn, nic, ic, idx, args.dataseed, args.mode) for nn in args.num_nodes_list for nic in args.num_items_per_city for ic in range(3) for idx in range(args.num_dataset)]
     with Pool(processes=32) as pool:
         L = pool.starmap(generate, generate_args)
 

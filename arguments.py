@@ -39,7 +39,11 @@ def get_parser():
     parser.add_argument('--num-training-samples',
                         type=int,
                         default=1000,
-                        help="dataloader batch size")
+                        help="total training instances")
+    parser.add_argument('--num-validation-samples',
+                        type=int,
+                        default=1000,
+                        help="total validation instances")
     
     # Agent
     parser.add_argument('--max-grad-norm',
@@ -85,5 +89,9 @@ def get_parser():
                         type=int,
                         default=128,
                         help="ray hidden size")
+    parser.add_argument('--omega',
+                        type=int,
+                        default=10,
+                        help="max patience")
 
     return parser

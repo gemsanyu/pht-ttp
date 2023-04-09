@@ -21,8 +21,8 @@ Encoder input: last customers static features
 """
 CPU_DEVICE = T.device("cpu")
 
-class Agent(T.jit.ScriptModule):
-# class Agent(nn.Module):
+# class Agent(T.jit.ScriptModule):
+class Agent(nn.Module):
     def __init__(
             self,
             device: CPU_DEVICE,
@@ -71,7 +71,7 @@ class Agent(T.jit.ScriptModule):
         self.softmax = nn.Softmax(dim=2)
         self.to(self.device)
 
-    @T.jit.script_method   
+    # @T.jit.script_method   
     def forward(self, 
                 last_pointer_hidden_states: T.Tensor, 
                 static_embeddings: T.Tensor, 
@@ -96,7 +96,7 @@ class Agent(T.jit.ScriptModule):
         probs = self.softmax(logits)
         return next_pointer_hidden_state, logits, probs
 
-    @T.jit.ignore
+    # @T.jit.ignore
     def select(self, probs: T.Tensor) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
         '''
         ### Select next operation to be executed.

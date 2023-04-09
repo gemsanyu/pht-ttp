@@ -1,16 +1,24 @@
 import os
 import pathlib
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+from arguments import get_parser
 from agent.agent import Agent
 from policy.hv import Hypervolume
 from policy.normalization import normalize
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
+def prepare_args():
+    parser = get_parser()
+    args = parser.parse_args(sys.argv[1:])
+    args.device = torch.device(args.device)
+    return args
+
 
 def encode(agent, static_features, num_nodes, num_items, batch_size):
     static_features =  torch.from_numpy(static_features).to(agent.device)
@@ -32,6 +40,7 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
     # initially pakai initial input
     previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
     first_turn = True
+    active_param_dict = param_dict
     while torch.any(eligibility_mask):
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
@@ -40,7 +49,9 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
             previous_embeddings = previous_embeddings.unsqueeze(1)
         next_pointer_hidden_states = last_pointer_hidden_states
         dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
-        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
+        if param_dict is not None:
+            active_param_dict = {"v1":param_dict["v1"][active_idx,:,:]}
+        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, active_param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
         selected_idx, logprob, entropy = agent.select(probs)

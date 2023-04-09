@@ -1,119 +1,149 @@
 import os
 import pathlib
-import platform
 
+import numpy as np
 import torch
+from pymoo.indicators.igd import IGD
 
-from ttp.ttp_dataset import read_prob, prob_list_to_env
+from policy.non_dominated_sorting import fast_non_dominated_sort
 
-def load_validation_env_list(num_instance_per_config=3):
-    # pickle error if run on linux, cuz the data is generated
-    # on windows
-    if platform.system() == 'Linux':
-        pathlib.WindowsPath = pathlib.PosixPath
-    num_nodes_list = [20,30]
-    nipc_list = [1,3,5]
-    num_ic = 3
-    config_list = [(nn, nipc) for nn in num_nodes_list for nipc in nipc_list]
-    data_root = "data_full" 
-    validation_dir = pathlib.Path(".")/data_root/"validation"
-    validation_dir.mkdir(parents=True, exist_ok=True)
-    solution_dir = validation_dir/"solutions"
-    env_list = []
-    env_nadir_points, env_utopia_points = [], []
-    for config in config_list:
-        nn, nipc = config[0],config[1]
-        prob_list = []
-        nadir_points, utopia_points = [], []
-        for ic in range(num_ic):
-            for idx in range(num_instance_per_config):
-                dataset_name = "nn_"+str(nn)+"_nipc_"+str(nipc)+"_ic_"+str(ic)+"_"+str(idx)
-                dataset_path = validation_dir/(dataset_name+".pt")
-                solution_path = solution_dir/(dataset_name+".txt")  
-                prob = read_prob(dataset_path=dataset_path)
-                solutions = []
-                with open(solution_path.absolute(), "r") as data_file:
-                    lines = data_file.readlines()
-                    for i, line in enumerate(lines):
-                        strings = line.split()
-                        sol = [float(strings[0]), float(strings[1])]
-                        solutions += [sol]
-                sample_solutions = torch.tensor(solutions)
-                sample_solutions[:,1] = -sample_solutions[:,1]
-                nadir_point, _ = torch.max(sample_solutions, dim=0)
-                nadir_points += [nadir_point.unsqueeze(0)]
-                utopia_point, _ = torch.min(sample_solutions, dim=0)
-                utopia_points += [utopia_point.unsqueeze(0)]
-                prob_list += [prob]
-        nadir_points = torch.cat(nadir_points).unsqueeze(0)
-        utopia_points = torch.cat(utopia_points).unsqueeze(0)
-        env_nadir_points += [nadir_points]
-        env_utopia_points += [utopia_points]
-        env = prob_list_to_env(prob_list)
-        env_list += [env]
-    env_nadir_points = torch.cat(env_nadir_points)
-    env_utopia_points = torch.cat(env_utopia_points)
-    return env_list, env_nadir_points, env_utopia_points 
-
-
+"""
+omega is the patience length for
+early stopping
+"""
 class Validator:
-    def __init__(self, 
-                validation_env_list=None,
-                utopia_points=None,
-                nadir_points=None):
-        if validation_env_list is None:
-            validation_env_list, nadir_points, utopia_points = load_validation_env_list(num_instance_per_config=3)
-        self.validation_env_list = validation_env_list
-        self.nadir_points = nadir_points
-        self.utopia_points = utopia_points
-        batch_size = validation_env_list[0].batch_size
-        num_env = len(validation_env_list)
-        self.hv_history = None
-        self.best_hv = 0
-        self.last_hv = 0
+    def __init__(self,
+                 omega:int,
+                 num_validation_samples:int,
+                 num_objectives:int=2):
+        self.omega = omega
+        self.num_validation_samples = num_validation_samples
+        self.num_objectives = num_objectives
+        self.nadir_points = None
+        self.utopia_points = None
+        self.delta_nadir = None
+        self.delta_utopia = None
+        self.mean_delta_nadir = None
+        self.mean_delta_utopia = None
+        self.nd_solutions_list = None
+        self.running_igd = None
+        self.mean_running_igd = None
         self.epoch = 0
-        self.is_improving = True
-        self.hv_multiplier = torch.ones((num_env, batch_size, 1), dtype=torch.float32)
-        # when nadir_points/utopia_points are updated, then
-        # the rectangle must be enlarged, right? 
-        # so we multiply the new hv     
+    
+    @property
+    def is_improving(self):
+        if self.mean_running_igd is None or len(self.mean_running_igd) < self.omega:
+            return True
+        max_running_igd = float(np.max(self.mean_running_igd))
+        max_delta_nadir = float(np.max(self.mean_delta_nadir))
+        max_delta_utopia = float(np.max(self.mean_delta_utopia))
+        is_convergence_done = (max_delta_nadir<=0.05) and (max_delta_utopia<=0.05)
+        is_diversification_done = max_running_igd<=0.05
+        return not (is_convergence_done and is_diversification_done)
+    
+    def get_last_mean_running_igd(self):
+        if self.mean_running_igd is None:
+            return None
+        return self.mean_running_igd[-1]
 
-    def update_ref_points(self, new_nadir_points, new_utopia_points):
-        # update hv multiplier
-        old_nadir_points, old_utopia_points = self.nadir_points, self.utopia_points
-        old_area = (old_nadir_points[:,:,0]-old_utopia_points[:,:,0])*(old_nadir_points[:,:,1]-old_utopia_points[:,:,1])
-        new_area = (new_nadir_points[:,:,0]-new_utopia_points[:,:,0])*(new_nadir_points[:,:,1]-new_utopia_points[:,:,1])
-        ratio = (new_area/old_area).unsqueeze(2)
-        # replace only with bigger areas
-        is_bigger = (ratio > 1).expand_as(old_nadir_points)
-        self.nadir_points[is_bigger] = new_nadir_points[is_bigger]
-        self.utopia_points[is_bigger] = new_utopia_points[is_bigger]
-        
-        #update hv multiplier
-        ratio[ratio<=1] = 1
-        self.hv_multiplier *= ratio
+    def get_last_delta_refpoints(self):
+        if self.mean_delta_nadir is None:
+            return None, None
+        return self.mean_delta_nadir[-1], self.mean_delta_utopia[-1]
 
-    def insert_hv_history(self, new_hv_history):
-        new_hv_history = new_hv_history * self.hv_multiplier
-        new_hv_mean = new_hv_history.mean()
-        self.last_hv = new_hv_mean
-        if new_hv_mean > self.best_hv:
-            self.best_hv = new_hv_mean 
-            self.is_improving = True
+    def insert_new_nd_solutions(self, nd_solutions_list):
+        if self.nd_solutions_list is None:
+            self.nd_solutions_list = [nd_solutions_list]
         else:
-            self.is_improving = False
-        if self.hv_history is None:
-            self.hv_history = new_hv_history
-        else:
-            self.hv_history = torch.cat([self.hv_history, new_hv_history], dim=-1)
+            self.nd_solutions_list += [nd_solutions_list]
+        if len(self.nd_solutions_list) > self.omega:
+            self.nd_solutions_list = self.nd_solutions_list[-self.omega:]
+        self.update_running_igd()
         
+    def insert_new_ref_points(self, new_nadir_points, new_utopia_points):
+        new_nadir_points = new_nadir_points.copy()
+        new_utopia_points = new_utopia_points.copy()
+        if self.nadir_points is None:
+            self.nadir_points = new_nadir_points[np.newaxis, :, :]
+            self.utopia_points = new_utopia_points[np.newaxis, :, :]
+        else:
+            last_nadir_points = self.nadir_points[-1]
+            last_utopia_points = self.utopia_points[-1]
+            new_nadir_points = np.maximum(last_nadir_points, new_nadir_points)
+            new_utopia_points = np.minimum(new_utopia_points, last_utopia_points)
+            self.nadir_points = np.concatenate([self.nadir_points, new_nadir_points[np.newaxis, :, :]], axis=0)
+            self.utopia_points = np.concatenate([self.utopia_points, new_utopia_points[np.newaxis, :, :]], axis=0)
+        if len(self.nadir_points) > self.omega:
+            self.nadir_points = self.nadir_points[-self.omega:]
+            self.utopia_points = self.utopia_points[-self.omega:]
+        self.update_delta_ref_points()
 
-def load_validator(title) -> Validator:
+    def update_running_igd(self):
+        if len(self.nd_solutions_list) == 1 or self.nd_solutions_list is None:
+            return
+        num_problems = len(self.nd_solutions_list[0])
+        running_igd_list = []
+        for i in range(num_problems):
+            current_nd_solutions = self.nd_solutions_list[-1][i]
+            last_nd_solutions = self.nd_solutions_list[-2][i]
+            nadir_points = self.nadir_points[-1,i,np.newaxis,:]
+            utopia_points = self.utopia_points[-1,i,np.newaxis,:]
+            denom = nadir_points-utopia_points
+            current_nd_solutions = (current_nd_solutions-utopia_points)/denom
+            last_nd_solutions = (last_nd_solutions-utopia_points)/denom
+            combined_nd = np.concatenate([current_nd_solutions, last_nd_solutions], axis=0)
+            nondom_idx = fast_non_dominated_sort(combined_nd)[0]
+            combined_nd = combined_nd[nondom_idx]
+            igd_getter = IGD(pf=combined_nd)
+            running_igd = igd_getter._do(last_nd_solutions)
+            running_igd_list += [running_igd]
+        running_igd_list = np.asanyarray([running_igd_list])
+        if self.running_igd is None:
+            self.running_igd = running_igd_list
+        else:
+            self.running_igd = np.concatenate([self.running_igd, running_igd_list], axis=0)
+        new_mean_running_igd = np.mean(self.running_igd[-1], keepdims=True)
+        if self.mean_running_igd is None:
+            self.mean_running_igd = new_mean_running_igd
+        else:
+            self.mean_running_igd = np.concatenate([self.mean_running_igd, new_mean_running_igd],axis=0)
+        if len(self.running_igd) > self.omega:
+            self.running_igd = self.running_igd[-self.omega:]
+            self.mean_running_igd = self.mean_running_igd[-self.omega:]
+        
+    def update_delta_ref_points(self):
+        if len(self.nadir_points) == 1 or self.nadir_points is None:
+            return
+        len_history = len(self.nadir_points)
+        numerator_nadir = np.abs(self.nadir_points[len_history-2] - self.nadir_points[len_history-1])
+        numerator_utopia = np.abs(self.utopia_points[len_history-2] - self.utopia_points[len_history-1])
+        denominator = self.nadir_points[len_history-1] - self.utopia_points[len_history-1]
+        denominator[denominator==0] = 1
+        new_delta_nadir = np.max(numerator_nadir/denominator, axis=-1)[np.newaxis, :]
+        new_delta_utopia = np.max(numerator_utopia/denominator, axis=-1)[np.newaxis, :]
+        if self.delta_nadir is None:
+            self.delta_nadir = new_delta_nadir
+            self.delta_utopia = new_delta_utopia
+            self.mean_delta_nadir = np.mean(new_delta_nadir)[np.newaxis]
+            self.mean_delta_utopia = np.mean(new_delta_utopia)[np.newaxis]
+        else:
+            self.delta_nadir = np.concatenate([self.delta_nadir, new_delta_nadir], axis=0)
+            self.delta_utopia = np.concatenate([self.delta_utopia, new_delta_utopia], axis=0)        
+            self.mean_delta_nadir =  np.concatenate([self.mean_delta_nadir, np.mean(new_delta_nadir)[np.newaxis]])
+            self.mean_delta_utopia = np.concatenate([self.mean_delta_utopia, np.mean(new_delta_utopia)[np.newaxis]])
+        if len(self.delta_nadir) > self.omega:
+            self.delta_nadir = self.delta_nadir[-self.omega:]
+            self.delta_utopia = self.delta_utopia[-self.omega:]
+            self.mean_delta_nadir = self.mean_delta_nadir[-self.omega:]
+            self.mean_delta_utopia = self.mean_delta_utopia[-self.omega:]
+
+def load_validator(args) -> Validator:
+    title = args.title
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     validator_path = checkpoint_dir/(title+"_validator.pt")
-    validator = Validator()
+    validator = Validator(args.omega, args.num_validation_samples)
     if os.path.isfile(validator_path.absolute()):
         validator = torch.load(validator_path.absolute())
     return validator

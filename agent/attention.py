@@ -63,8 +63,8 @@ class Attention(nn.Module):
             # projected_query = F.linear(query, qe_weight)
             projected_features = self.features_embedder(features)
             projected_query = self.query_embedder(query)
-            # v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
-            v = param_dict["v"]
+            v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
+            # v = param_dict["v"]
         
         hidden =(projected_features+projected_query).tanh()
         hidden = hidden.permute(0,2,1)

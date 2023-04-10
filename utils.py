@@ -40,7 +40,7 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
     # initially pakai initial input
     previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
     first_turn = True
-    active_param_dict = param_dict
+    # active_param_dict = param_dict
     while torch.any(eligibility_mask):
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
@@ -49,9 +49,9 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
             previous_embeddings = previous_embeddings.unsqueeze(1)
         next_pointer_hidden_states = last_pointer_hidden_states
         dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
-        if param_dict is not None:
-            active_param_dict = {"v1":param_dict["v1"][active_idx,:,:]}
-        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, active_param_dict)
+        # if param_dict is not None:
+        #     active_param_dict = {"v1":param_dict["v1"][active_idx,:,:]}
+        forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
         selected_idx, logprob, entropy = agent.select(probs)
@@ -204,24 +204,6 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test Total Cost", total_cost)
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
-
-def write_test_phn_progress(writer, f_list, epoch, sample_solutions=None):
-    plt.figure()
-    plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
-    if sample_solutions is not None:
-        plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
-    writer.add_figure("Solutions", plt.gcf(), epoch)
-    
-    # write the HV
-    # get nadir and ideal point first
-    all = torch.cat([f_list, sample_solutions]).numpy()
-    ideal_point = np.min(all, axis=0)
-    nadir_point = np.max(all, axis=0)
-    _N = normalize(f_list.numpy(), ideal_point, nadir_point)
-    _hv = Hypervolume(np.array([1,1])).calc(_N)
-    writer.add_scalar('Test HV', _hv)
-    writer.flush()
-
 
 def write_training_phn_progress(mean_total_profit, mean_tour_length, profit_loss, tour_length_loss, epo_loss, logprob, num_nodes, num_items, writer):
     writer.add_scalar(f'Training PHN Mean Total Profit {num_nodes},{num_items}', mean_total_profit)

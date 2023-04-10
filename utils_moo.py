@@ -1,4 +1,3 @@
-import math
 import pathlib
 import sys
 
@@ -16,6 +15,8 @@ from ttp.ttp_env import TTPEnv
 from policy.non_dominated_sorting import fast_non_dominated_sort
 from utils import encode, solve_decode_only
 from solver.hv_maximization import HvMaximization
+from policy.normalization import normalize
+from policy.hv import Hypervolume
 
 def prepare_args():
     parser = get_parser()
@@ -63,7 +64,7 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
     norm_obj = torch.from_numpy(norm_obj).to(device)
     ray_list = ray_list.unsqueeze(1).expand_as(norm_obj)
     # print(logprob_list.shape, cosine_similarity(batch_f_list, ray_list, dim=2).shape)
-    cos_penalty = (1-cosine_similarity(norm_obj, 1-ray_list, dim=2).unsqueeze(2))
+    cos_penalty = (1-cosine_similarity(norm_obj, ray_list, dim=2).unsqueeze(2))
     cos_penalty_loss = logprob_list*cos_penalty
     cos_penalty_loss_per_ray = cos_penalty_loss.mean(dim=0)
     total_cos_penalty_loss = cos_penalty_loss_per_ray.sum()
@@ -104,6 +105,7 @@ def generate_params(phn, num_ray, device, is_random=True):
         param_dict = phn(ray)
         param_dict_list += [param_dict]
     return ray_list, param_dict_list
+
 
 def decode_one_batch(agent, param_dict_list, train_env, static_embeddings):
     pop_size = len(param_dict_list)
@@ -154,14 +156,15 @@ def solve_one_batchv2(agent, phn, ray_list, batch):
 
     # sample rollout
     f_list, logprobs_list, sum_entropies_list = decode_one_batch(agent, param_dict_list, train_env, static_embeddings)
-    return logprobs_list, f_list, sum_entropies_list
+    return logprobs_list, f_list, sum_entropies_list, param_dict_list
 
 def compute_spread_loss(logprobs, f_list, param_dict_list):
-    param_list = [param_dict["v1"].ravel().unsqueeze(0) for param_dict in param_dict_list]
-    param_list = torch.cat(param_list).unsqueeze(0)
-    distance_matrix = torch.cdist(param_list, param_list)
+    # param_list = [param_dict["v1"].ravel().unsqueeze(0) for param_dict in param_dict_list]
+    # param_list = torch.cat(param_list).unsqueeze(0)
+    f_list = torch.from_numpy(f_list)
+    distance_matrix = torch.cdist(f_list.transpose(0,1), f_list.transpose(0,1))
     batched_distance_per_ray = torch.transpose(distance_matrix.sum(dim=2),0,1)
-    spread_loss = batched_distance_per_ray.mean()
+    spread_loss = (logprobs*batched_distance_per_ray).mean()
     return spread_loss
 
 @torch.no_grad()        
@@ -199,20 +202,23 @@ def validate_one_epoch(args, agent, phn, validator, validation_dataset, test_bat
         tb_writer.add_scalar("Mean Delta Nadir", last_mean_delta_nadir, validator.epoch)
         tb_writer.add_scalar("Mean Delta Utopia", last_mean_delta_utopia, validator.epoch)
 
-    # test
-    marker_list = [".","o","v","^","<",">","1","2","3","4"]
-    colors_list = [key for key in mcolors.TABLEAU_COLORS.keys()]
-    combination_list = [[c,m] for c in colors_list for m in marker_list]
+    # Scatter plot with gradient colors
     ray_list, param_dict_list = generate_params(phn, 50, agent.device)
     logprobs_list, test_f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, test_batch)
+    # Define the light and dark blue colors
+    light_blue = mcolors.CSS4_COLORS['lightblue']
+    dark_blue = mcolors.CSS4_COLORS['darkblue']
+
+    # Create a linear gradient from light blue to dark blue
+    gradient = np.linspace(0,1,len(param_dict_list))
+    colors = np.vstack((mcolors.to_rgba(light_blue), mcolors.to_rgba(dark_blue)))
+    my_cmap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors, N=len(param_dict_list))
+
     plt.figure()
-    for i in range(len(param_dict_list)):
-        c = combination_list[i][0]
-        m = combination_list[i][1]
-        plt.scatter(test_f_list[i,0,0], -test_f_list[i,0,1], c=c, marker=m)
-    for i in range(len(test_sample_solutions)):
-        plt.scatter(test_sample_solutions[i,0], test_sample_solutions[i,1], c="red")
-    tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), validator.epoch)
+    plt.scatter(test_sample_solutions[:,0], test_sample_solutions[:,1], c="red")
+    plt.scatter(test_f_list[:,0,0], -test_f_list[:,0,1], c=gradient, cmap=my_cmap)
+    tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), epoch)
+    write_test_hv(tb_writer, test_f_list[:,0,:], epoch, test_sample_solutions)
 
 @torch.no_grad()        
 def validate_one_epochv2(args, agent, phn, validator, validation_dataset, test_batch, test_sample_solutions, tb_writer, epoch):
@@ -223,7 +229,7 @@ def validate_one_epochv2(args, agent, phn, validator, validation_dataset, test_b
     # ray_list, param_dict_list = generate_params(phn, args.num_ray, agent.device, is_random=False)
     f_list = []
     for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc=f'Validation epoch {epoch}'):
-        logprob_list, batch_f_list, sum_entropies_list = solve_one_batchv2(agent, phn, ray_list, batch)
+        logprob_list, batch_f_list, sum_entropies_list, _ = solve_one_batchv2(agent, phn, ray_list, batch)
         f_list += [batch_f_list] 
     f_list = np.concatenate(f_list,axis=1)
     # print(f_list.shape)
@@ -256,7 +262,7 @@ def validate_one_epochv2(args, agent, phn, validator, validation_dataset, test_b
     combination_list = [[c,m] for c in colors_list for m in marker_list]
     # ray_list, param_dict_list = generate_params(phn, 50, agent.device)
     ray_list = generate_rays(50,phn.device,is_random=False)
-    logprobs_list, test_f_list, sum_entropies_list = solve_one_batchv2(agent, phn, ray_list, test_batch)
+    logprobs_list, test_f_list, sum_entropies_list, _ = solve_one_batchv2(agent, phn, ray_list, test_batch)
     plt.figure()
     for i in range(len(ray_list)):
         c = combination_list[i][0]
@@ -264,8 +270,21 @@ def validate_one_epochv2(args, agent, phn, validator, validation_dataset, test_b
         plt.scatter(test_f_list[i,0,0], -test_f_list[i,0,1], c=c, marker=m)
     for i in range(len(test_sample_solutions)):
         plt.scatter(test_sample_solutions[i,0], test_sample_solutions[i,1], c="red")
-    tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), validator.epoch)
-    
+    tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), epoch)
+    write_test_hv(tb_writer, test_f_list[:,0,:], epoch, test_sample_solutions)
+
+def write_test_hv(writer, f_list, epoch, sample_solutions=None):
+    # write the HV
+    # get nadir and ideal point first
+    all = np.concatenate([f_list, sample_solutions])
+    ideal_point = np.min(all, axis=0)
+    nadir_point = np.max(all, axis=0)
+    _N = normalize(f_list, ideal_point, nadir_point)
+    _hv = Hypervolume(np.array([1,1])).calc(_N)
+    writer.add_scalar('Test HV', _hv, epoch)
+    writer.flush()
+
+
 def write_training_phn_progress(writer, total_loss, cos_penalty):
     writer.add_scalar("Total Loss", total_loss)
     writer.add_scalar("Cos Penalty", cos_penalty)
@@ -274,7 +293,7 @@ def initialize(target_param,phn,opt,tb_writer):
     # r = random.random()
     ray = np.asanyarray([[0.5, 0.5]],dtype=float)
     ray = torch.from_numpy(ray).to(phn.device, dtype=torch.float32)
-    graph_embeddings_dummy = torch.fill((1,phn.num_neurons),0.5)
+    graph_embeddings_dummy = torch.full((1,phn.num_neurons),0.5)
     param_dict = phn(ray, graph_embeddings_dummy)
     v = (param_dict["v1"]).ravel()
     # fe1 = (param_dict["fe1_weight"]).ravel()

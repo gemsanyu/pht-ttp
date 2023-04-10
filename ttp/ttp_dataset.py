@@ -32,6 +32,7 @@ class TTPDataset(Dataset):
         super(TTPDataset, self).__init__()
 
         self.mode = mode
+        self.batch = None
         if dataset_name is None:
             self.num_samples = num_samples
             self.num_nodes_list = num_nodes_list
@@ -39,6 +40,7 @@ class TTPDataset(Dataset):
             self.item_correlation_list = item_correlation_list
             self.config_list = [(nn, nipc, ic) for nn in self.num_nodes_list for nipc in self.num_items_per_city_list for ic in self.item_correlation_list]
             self.num_configs = len(self.config_list)
+            self.batch = None
             self.prob = None
             # we pregenerate some values
             # becuz we wanna add dummy items to 
@@ -49,66 +51,29 @@ class TTPDataset(Dataset):
             max_num_items = max_nipc*(max_num_nodes-1)
             self.d_item_city_idx = generate_item_city_idx(max_num_nodes, max_nipc)
             self.d_item_city_mask = generate_item_city_mask(max_num_nodes, max_num_items, self.d_item_city_idx)
-            batch_list = []
+            self.batch_list = []
             for index in range(self.num_samples):
-
+                config_idx = index % len(self.config_list)
+                prob_idx = index // len(self.config_list) 
+                nn, nipc, ic = self.config_list[config_idx]
+                prob = read_prob(self.mode, nn, nipc, ic, prob_idx)
+                batch = get_batch_from_prob(prob, max_num_nodes, max_nipc, max_num_items)
+                self.batch_list += [batch]
         else:
             self.num_samples = 2
             self.dataset_path = dataset_name
-            self.prob = TTP(dataset_name=dataset_name)
-            self.num_nodes = self.prob.num_nodes
-            self.num_items_per_city = self.prob.num_items_per_city
-        
+            prob = TTP(dataset_name=dataset_name)
+            self.batch = get_batch_from_prob(prob, prob.num_nodes,prob.num_items_per_city, prob.num_items)
+            self.prob = prob
+
+            
     def __len__(self):
         return self.num_samples
 
     def __getitem__(self, index):
-        if self.prob is None:
-            # config = self.config_list[index%self.num_configs]
-            # nn, nipc, ic = config
-            # prob_idx = index//self.num_configs
-            # if self.mode=="validation":
-            #     prob = read_prob(self.mode,num_nodes=nn, num_items_per_city=nipc, item_correlation=ic, prob_idx=prob_idx)
-            # else:
-            #     capacity_factor = random.randint(1,10)
-            #     nn = random.choice(self.num_nodes_list)
-            #     nipc = random.choice(self.num_items_per_city_list)
-            #     ic = random.choice(self.item_correlation_list)    
-            #     prob = TTP(num_nodes=nn, num_items_per_city=nipc, item_correlation=ic, capacity_factor=capacity_factor, dataseed="eil76-n75")
-        else:
-            return self.batch
-            # prob = self.prob
-        coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W
-        profits, norm_profits = prob.profit_data.profits, prob.profit_data.norm_profits
-        weights, norm_weights = prob.weight_data.weights, prob.weight_data.norm_weights
-        min_v, max_v, renting_rate = prob.min_v, prob.max_v, prob.renting_rate
-        max_cap = prob.max_cap
-        item_city_idx, item_city_mask = prob.item_city_idx, prob.item_city_mask
-        best_profit_kp = prob.max_profit
-        best_route_length_tsp = prob.min_tour_length
-
-        num_nodes,_ = coords.shape
-        num_items = profits.shape[0]
-        if self.prob is not None:
-            #all are not dummy
-            is_not_dummy_mask = torch.ones((num_nodes+num_items,)).bool()
-            return coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp
-
-        # coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp
-        max_num_nodes = max(self.num_nodes_list)
-        max_nipc = max(self.num_items_per_city_list)
-        max_num_items = max_nipc*(max_num_nodes-1)
-        data_with_dummy = add_dummy_to_data(max_num_nodes, max_nipc, max_num_items, nipc, coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights)
-        d_coords, d_norm_coords, d_W, d_norm_W, d_profits, d_norm_profits, d_weights, d_norm_weights = data_with_dummy
-        d_item_city_idx = self.d_item_city_idx.clone()
-        d_item_city_mask = self.d_item_city_mask.clone()
-        d_idx = torch.arange(max_num_items)
-        is_not_dummy_item = d_item_city_idx <= (num_nodes - 1)
-        duplicate_idx = d_idx // max_num_nodes
-        is_not_dummy_item = torch.logical_and(is_not_dummy_item,(duplicate_idx +1) <= nipc)
-        is_not_dummy_nodes = torch.arange(max_num_nodes)<num_nodes
-        is_not_dummy_mask = torch.cat([is_not_dummy_item, is_not_dummy_nodes]).bool()
-        return d_coords, d_norm_coords, d_W, d_norm_W, d_profits, d_norm_profits, d_weights, d_norm_weights, min_v, max_v, max_cap, renting_rate, d_item_city_idx, d_item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp
+        if self.batch is None:
+            return self.batch_list[index]
+        return self.batch
     
 def get_batch_from_prob(prob:TTP, max_num_nodes, max_nipc, max_num_items):
     coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

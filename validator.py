@@ -89,6 +89,7 @@ class Validator:
             nadir_points = self.nadir_points[-1,i,np.newaxis,:]
             utopia_points = self.utopia_points[-1,i,np.newaxis,:]
             denom = nadir_points-utopia_points
+            denom[denom==0] = 1
             current_nd_solutions = (current_nd_solutions-utopia_points)/denom
             last_nd_solutions = (last_nd_solutions-utopia_points)/denom
             combined_nd = np.concatenate([current_nd_solutions, last_nd_solutions], axis=0)

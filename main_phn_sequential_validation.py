@@ -40,7 +40,7 @@ def train_one_batch(agent, phn, phn_opt, batch, writer, num_ray=16, ld=1, is_ini
 
 def train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize):
     phn.train()
-    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True)
+    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     for idx, batch in tqdm(enumerate(dataloader)):
         train_one_batch(agent, phn, phn_opt, batch, writer, args.num_ray, args.ld, is_initialize)
         
@@ -65,7 +65,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(2)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

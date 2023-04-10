@@ -46,10 +46,10 @@ def run(args):
     validator = load_validator(args)
     training_dataset = TTPDataset(num_samples=args.num_training_samples)
     validation_dataset = TTPDataset(num_samples=args.num_validation_samples)
-    # if last_epoch == 0:
-    #     init_phn_output(agent, phn, writer, max_step=1000)
-    #     validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1) 
-    #     save_phn(phn, phn_opt, -1, args.title)
+    if last_epoch == 0:
+        init_phn_output(agent, phn, writer, max_step=1000)
+        validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
+        save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):
         if epoch <=10:
             train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=True)

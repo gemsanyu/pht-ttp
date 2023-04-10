@@ -164,6 +164,7 @@ def compute_spread_loss(logprobs, f_list, param_dict_list):
     f_list = torch.from_numpy(f_list)
     distance_matrix = torch.cdist(f_list.transpose(0,1), f_list.transpose(0,1))
     batched_distance_per_ray = torch.transpose(distance_matrix.sum(dim=2),0,1)
+    batched_distance_per_ray = batched_distance_per_ray.to(logprobs.device)
     spread_loss = (logprobs*batched_distance_per_ray).mean()
     return spread_loss
 

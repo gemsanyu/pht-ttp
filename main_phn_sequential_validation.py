@@ -12,7 +12,7 @@ from utils import prepare_args
 from utils_moo import init_phn_output, validate_one_epoch, write_training_phn_progress, compute_loss
 from utils_moo import compute_spread_loss, generate_params, solve_one_batch, generate_rays
 from utils_moo import solve_one_batchv2, validate_one_epochv2
-from validator import load_validator
+from validator import load_validator, save_validator
     
 def train_one_batch(agent, phn, phn_opt, batch, writer, num_ray=16, ld=1, is_initialize=False):
     agent.train()
@@ -61,6 +61,7 @@ def run(args):
         if epoch % 5 == 0:
             validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, epoch) 
         save_phn(phn, phn_opt, epoch, args.title)
+        save_validator(validator, args.title)
 
 if __name__ == '__main__':
     args = prepare_args()

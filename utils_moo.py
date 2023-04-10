@@ -171,7 +171,7 @@ def compute_spread_loss(logprobs, f_list, param_dict_list):
 @torch.no_grad()        
 def validate_one_epoch(args, agent, phn, validator, validation_dataset, test_batch, test_sample_solutions, tb_writer, epoch):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
     
     ray_list, param_dict_list = generate_params(phn, args.num_ray, agent.device, is_random=False)
     f_list = []

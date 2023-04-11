@@ -1,5 +1,6 @@
 import os
 import pathlib
+import sys
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from agent.agent import Agent
+from arguments import get_parser
 from policy.normalization import normalize
 from policy.non_dominated_sorting import fast_non_dominated_sort
 from policy.hv import Hypervolume
@@ -15,6 +17,13 @@ from policy.utils import get_hv_contributions
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
+
+def prepare_args():
+    parser = get_parser()
+    args = parser.parse_args(sys.argv[1:])
+    args.device = torch.device(args.device)
+    return args
+
 
 class BatchProperty(NamedTuple):
     num_nodes: int

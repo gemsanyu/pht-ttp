@@ -30,7 +30,11 @@ def get_parser():
     parser.add_argument('--num-training-samples',
                         type=int,
                         default=1000,
-                        help="dataloader batch size")
+                        help="num instance for traininig 1 epoch")
+    parser.add_argument('--num-validation-samples',
+                        type=int,
+                        default=1000,
+                        help="num instance for validation 1 epoch")
     parser.add_argument('--max-grad-norm',
                         type=int,
                         default=1,
@@ -53,4 +57,8 @@ def get_parser():
                         type=int,
                         default=128,
                         help="ray hidden size")
+    parser.add_argument('--omega',
+                        type=int,
+                        default=10,
+                        help="max patience")
     return parser

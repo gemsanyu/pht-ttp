@@ -19,6 +19,7 @@ class TTPEnv():
                  renting_rate, 
                  item_city_idx,
                  item_city_mask,
+                 is_not_dummy_mask,
                  best_profit_kp,
                  best_route_length_tsp):
         self.batch_size, self.num_nodes, _ = coords.shape
@@ -38,6 +39,7 @@ class TTPEnv():
         self.renting_rate = renting_rate.numpy()
         self.item_city_idx = item_city_idx.numpy()
         self.item_city_mask = item_city_mask.numpy()
+        self.is_not_dummy_mask = is_not_dummy_mask.numpy()
         self.best_profit_kp = best_profit_kp.numpy()
         self.best_route_length_tsp = best_route_length_tsp.numpy()
         self.max_travel_time = 0
@@ -66,7 +68,8 @@ class TTPEnv():
         self.current_load = np.zeros((self.batch_size,))
         self.item_selection = np.zeros((self.batch_size, self.num_items), dtype=np.bool)
         self.tour_list = np.zeros((self.batch_size, self.num_nodes), dtype=np.int64)
-        self.num_visited_nodes = np.ones((self.batch_size,), dtype=np.int64)
+        # self.num_visited_nodes = np.ones((self.batch_size,), dtype=np.int64)
+        self.num_visited_nodes = self.num_nodes - np.sum(self.is_not_dummy_mask[:,self.num_items:], axis=-1)
         self.is_selected = np.zeros((self.batch_size, self.num_items+self.num_nodes))
         self.is_node_visited = np.zeros((self.batch_size, self.num_nodes), dtype=np.bool)
         self.is_node_visited[:, 0] = True
@@ -81,7 +84,7 @@ class TTPEnv():
     def begin(self):
         self.reset()
         node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
-        eligibility_mask = self.eligibility_mask
+        eligibility_mask = np.logical_and(self.eligibility_mask, self.is_not_dummy_mask)
         return self.static_features, node_dynamic_features, global_dynamic_features, eligibility_mask
         
         # weight, profit, density  
@@ -140,7 +143,8 @@ class TTPEnv():
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
         node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
-        return node_dynamic_features, global_dynamic_features, self.eligibility_mask
+        eligibility_mask = np.logical_and(self.eligibility_mask, self.is_not_dummy_mask)
+        return node_dynamic_features, global_dynamic_features, eligibility_mask
 
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
@@ -208,4 +212,4 @@ class TTPEnv():
         total_profits = selected_profits.sum(axis=-1)
 
         total_cost = total_profits - tour_lengths*self.renting_rate
-        return torch.from_numpy(self.tour_list), torch.from_numpy(self.item_selection), torch.from_numpy(tour_lengths), torch.from_numpy(total_profits), torch.from_numpy(total_cost)
+        return self.tour_list, self.item_selection,tour_lengths, total_profits, total_cost

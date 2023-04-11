@@ -9,8 +9,8 @@ from agent.graph_encoder import GraphAttentionEncoder
 
 CPU_DEVICE = torch.device("cpu")
 
-class Agent(torch.jit.ScriptModule):
-# class Agent(torch.nn.Module):
+# class Agent(torch.jit.ScriptModule):
+class Agent(torch.nn.Module):
     def __init__(self,
                  num_static_features: int,
                  num_dynamic_features: int,
@@ -52,7 +52,7 @@ class Agent(torch.jit.ScriptModule):
         self.to(self.device)
 
     # num_step = 1
-    @torch.jit.script_method    
+    # @torch.jit.script_method    
     def forward(self, 
                 item_embeddings: torch.Tensor,
                 fixed_context: torch.Tensor,
@@ -67,12 +67,12 @@ class Agent(torch.jit.ScriptModule):
                 ):
         batch_size = item_embeddings.shape[0]
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
-        if param_dict is not None:
-            projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
-            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
-        else:
-            projected_current_state = self.project_current_state(current_state)
-            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
+        # if param_dict is not None:
+        #     projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
+        #     glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
+        # else:
+        projected_current_state = self.project_current_state(current_state)
+        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
         glimpse_V = glimpse_V_static + glimpse_V_dynamic
@@ -102,14 +102,14 @@ class Agent(torch.jit.ScriptModule):
         selected_idx, logp, entropy = self.select(probs)
         return selected_idx, logp, entropy
 
-    @torch.jit.script_method
+    # @torch.jit.script_method
     def _make_heads(self, x: torch.Tensor)->torch.Tensor:
         x = x.unsqueeze(2).view(x.size(0), x.size(1), self.n_heads, self.key_size)
         x = x.permute(2,0,1,3)
         return x
     
 
-    @torch.jit.ignore
+    # @torch.jit.ignore
     def select(self, probs):
         '''
         ### Select next to be executed.

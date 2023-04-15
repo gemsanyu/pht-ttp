@@ -66,7 +66,7 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
     # print(hv_d_list)
     # print(norm_obj*hv_d_list)
     logprob_list = logprob_list.unsqueeze(2)
-    loss_per_obj = logprob_list*norm_obj
+    loss_per_obj = logprob_list*A
     final_loss_per_obj = loss_per_obj*hv_d_list
     final_loss_per_instance = final_loss_per_obj.sum(dim=2)
     final_loss_per_ray = final_loss_per_instance.mean(dim=1)
@@ -191,7 +191,7 @@ def compute_spread_loss(logprobs, f_list, param_dict_list):
 @torch.no_grad()        
 def validate_one_epoch(args, agent, phn, validator, validation_dataset, test_batch, test_sample_solutions, tb_writer, epoch):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4, pin_memory=True)
     
     ray_list, param_dict_list = generate_params(phn, 50, agent.device, is_random=False)
     f_list = []

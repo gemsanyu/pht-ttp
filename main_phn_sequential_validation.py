@@ -41,7 +41,7 @@ def train_one_batch(agent, phn, phn_opt, batch, writer, num_ray=16, ld=1, is_ini
 
 def train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize):
     phn.train()
-    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
+    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4, pin_memory=True)
     for idx, batch in tqdm(enumerate(dataloader)):
         train_one_batch(agent, phn, phn_opt, batch, writer, args.num_ray, args.ld, is_initialize)
         
@@ -55,7 +55,7 @@ def run(args):
         validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1) 
         save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):
-        if epoch <=10:
+        if epoch <=0:
             train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=True)
         else:
             train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=False)

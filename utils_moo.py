@@ -37,19 +37,36 @@ def get_hv_d(batch_f_list):
 
 def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
     device = logprob_list.device
-    A = batch_f_list-greedy_batch_f_list
+    # A = batch_f_list-greedy_batch_f_list
+    A = batch_f_list
     nadir = np.max(A, axis=0, keepdims=True)
     utopia = np.min(A, axis=0, keepdims=True)
     denom = (nadir-utopia)
     denom[denom==0] = 1e-8
     norm_obj = (A-utopia)/denom
-    hv_d_list = get_hv_d(A.transpose((1,0,2))).transpose(1,0)
+    # print(norm_obj)
+    hv_d_list = get_hv_d(norm_obj.transpose((1,0,2))).transpose(1,0)
     # compute loss now
+    pop_size, batch_size, _ = batch_f_list.shape
+    # for bi in range(batch_size):
+    #     print("------")
+    #     for i in range(pop_size):
+    #         print(A[i, bi], norm_obj[i,bi], hv_d_list[i, bi])
+
+    # print(A)
+    # print(hv_d_list)
     hv_d_list = hv_d_list.to(device)
     norm_obj = torch.from_numpy(norm_obj).to(device)
     A = torch.from_numpy(A).to(device)
+    # print(A)
+    # print(hv_d_list)
+    # print(A*hv_d_list)
+    # print('----------------------')
+    # print(norm_obj)
+    # print(hv_d_list)
+    # print(norm_obj*hv_d_list)
     logprob_list = logprob_list.unsqueeze(2)
-    loss_per_obj = logprob_list*A
+    loss_per_obj = logprob_list*norm_obj
     final_loss_per_obj = loss_per_obj*hv_d_list
     final_loss_per_instance = final_loss_per_obj.sum(dim=2)
     final_loss_per_ray = final_loss_per_instance.mean(dim=1)
@@ -68,6 +85,7 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
     cos_penalty_loss = logprob_list*cos_penalty
     cos_penalty_loss_per_ray = cos_penalty_loss.mean(dim=0)
     total_cos_penalty_loss = cos_penalty_loss_per_ray.sum()
+    # exit()
     return final_loss, total_cos_penalty_loss
 
 def update_phn(agent, phn, opt, final_loss):
@@ -173,9 +191,9 @@ def compute_spread_loss(logprobs, f_list, param_dict_list):
 @torch.no_grad()        
 def validate_one_epoch(args, agent, phn, validator, validation_dataset, test_batch, test_sample_solutions, tb_writer, epoch):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=4)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
     
-    ray_list, param_dict_list = generate_params(phn, args.num_ray, agent.device, is_random=False)
+    ray_list, param_dict_list = generate_params(phn, 50, agent.device, is_random=False)
     f_list = []
     for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc=f'Validation epoch {epoch}'):
         logprob_list, batch_f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, batch)
@@ -296,13 +314,10 @@ def initialize(target_param,phn,opt,tb_writer):
     # r = random.random()
     ray = np.asanyarray([[0.5, 0.5]],dtype=float)
     ray = torch.from_numpy(ray).to(phn.device, dtype=torch.float32)
-    graph_embeddings_dummy = torch.full((1,phn.num_neurons),0.5)
-    param_dict = phn(ray, graph_embeddings_dummy)
-    v = (param_dict["v1"]).ravel()
-    # fe1 = (param_dict["fe1_weight"]).ravel()
-    # qe1 = (param_dict["qe1_weight"]).ravel()
-    param = torch.cat([v])
-    # param=v
+    param_dict = phn(ray)
+    po_weight = (param_dict["po_weight"]).ravel()
+    # param = torch.cat([v])
+    param=po_weight
     loss = torch.norm(target_param-param)
     opt.zero_grad(set_to_none=True)
     tb_writer.add_scalar("Initialization loss", loss.cpu().item())
@@ -311,20 +326,13 @@ def initialize(target_param,phn,opt,tb_writer):
     return loss.cpu().item()
 
 def init_phn_output(agent, phn, tb_writer, max_step=1000):
-    v,fe1,qe1 = None,None,None
+    po_weight = None
     for name, param in agent.named_parameters():
-        if name == "pointer.attention_layer.v":
-            v = param.data.ravel()
-        elif name == "pointer.attention_layer.features_embedder.weight":
-            fe1 = param.data.ravel()
-        elif name == "pointer.attention_layer.query_embedder.weight":
-            qe1 = param.data.ravel()
+        if name == "project_out.weight":
+            po_weight = param.data.ravel()
         
-    v = v.detach().clone()
-    # fe1 = fe1.detach().clone()
-    # qe1 = qe1.detach().clone()
-    target_param = torch.cat([v])
-    # target_param=v
+    po_weight = po_weight.detach().clone()
+    target_param = po_weight
     opt_init = torch.optim.Adam(phn.parameters(), lr=1e-4)
     for i in range(max_step):
         loss = initialize(target_param,phn,opt_init,tb_writer)

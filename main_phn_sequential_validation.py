@@ -29,6 +29,7 @@ def train_one_batch(agent, phn, phn_opt, batch, writer, num_ray=16, ld=1, is_ini
     if is_initialize:
         # total_loss = -0.1*spread_loss
         total_loss = 0
+        ld=100
     spread_loss = compute_spread_loss(logprob_list, f_list, param_dict_list)
     total_loss -= 0.1*spread_loss
     total_loss += ld*cos_penalty_loss
@@ -40,7 +41,7 @@ def train_one_batch(agent, phn, phn_opt, batch, writer, num_ray=16, ld=1, is_ini
 
 def train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize):
     phn.train()
-    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
     for idx, batch in tqdm(enumerate(dataloader)):
         train_one_batch(agent, phn, phn_opt, batch, writer, args.num_ray, args.ld, is_initialize)
         
@@ -49,17 +50,17 @@ def run(args):
     validator = load_validator(args)
     training_dataset = TTPDataset(num_samples=args.num_training_samples)
     validation_dataset = TTPDataset(num_samples=args.num_validation_samples)
-    # if last_epoch == 0:
-    #     init_phn_output(agent, phn, writer, max_step=1000)
-    #     validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
-    #     save_phn(phn, phn_opt, -1, args.title)
+    if last_epoch == 0:
+        init_phn_output(agent, phn, writer, max_step=1000)
+        validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1) 
+        save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):
         if epoch <=10:
             train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=True)
         else:
             train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=False)
-        if epoch % 5 == 0:
-            validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, epoch) 
+        # if epoch % 5 == 0:
+        validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, epoch) 
         save_phn(phn, phn_opt, epoch, args.title)
         save_validator(validator, args.title)
 

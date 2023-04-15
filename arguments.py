@@ -50,7 +50,7 @@ def get_parser():
                         default=128,
                         help="number of rays in training")
     parser.add_argument('--ld',
-                        type=int,
+                        type=float,
                         default=4,
                         help="lambda for cosine penalty")
     parser.add_argument('--ray-hidden-size',

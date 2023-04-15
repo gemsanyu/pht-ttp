@@ -55,10 +55,17 @@ class Validator:
         if self.nd_solutions_list is None:
             self.nd_solutions_list = [nd_solutions_list]
         else:
-            self.nd_solutions_list += [nd_solutions_list]
+            last_nd_solutions_list = self.nd_solutions_list[-1]
+            new_nd_solutions_list = []
+            for i in range(len(last_nd_solutions_list)):
+                all_nd_solutions = np.concatenate([last_nd_solutions_list[i], nd_solutions_list[i]])
+                nondom_idx = fast_non_dominated_sort(all_nd_solutions)[0]
+                new_nd_solutions = all_nd_solutions[nondom_idx]
+                new_nd_solutions_list += [new_nd_solutions]
+            self.nd_solutions_list += [new_nd_solutions_list]
         if len(self.nd_solutions_list) > self.omega:
             self.nd_solutions_list = self.nd_solutions_list[-self.omega:]
-        self.update_running_igd()
+        self.update_running_igd(nd_solutions_list)
         
     def insert_new_ref_points(self, new_nadir_points, new_utopia_points):
         new_nadir_points = new_nadir_points.copy()
@@ -78,25 +85,30 @@ class Validator:
             self.utopia_points = self.utopia_points[-self.omega:]
         self.update_delta_ref_points()
 
-    def update_running_igd(self):
-        if len(self.nd_solutions_list) == 1 or self.nd_solutions_list is None:
+    def update_running_igd(self, new_nd_solutions_list):
+        if len(self.nd_solutions_list) <= 5 or self.nd_solutions_list is None:
             return
         num_problems = len(self.nd_solutions_list[0])
         running_igd_list = []
         for i in range(num_problems):
             current_nd_solutions = self.nd_solutions_list[-1][i]
-            last_nd_solutions = self.nd_solutions_list[-2][i]
-            nadir_points = self.nadir_points[-1,i,np.newaxis,:]
-            utopia_points = self.utopia_points[-1,i,np.newaxis,:]
+            new_nd_solutions = new_nd_solutions_list[i]
+            all_nd_solutions = np.concatenate([current_nd_solutions, new_nd_solutions])
+            nadir_points = np.max(all_nd_solutions, axis=0, keepdims=True)
+            utopia_points = np.min(all_nd_solutions, axis=0, keepdims=True)
+            # denom = nadir_points - utopia_points
+            # last_nd_solutions = self.nd_solutions_list[-2][i]
+            # nadir_points = self.nadir_points[-1,i,np.newaxis,:]
+            # utopia_points = self.utopia_points[-1,i,np.newaxis,:]
             denom = nadir_points-utopia_points
             denom[denom==0] = 1
             current_nd_solutions = (current_nd_solutions-utopia_points)/denom
-            last_nd_solutions = (last_nd_solutions-utopia_points)/denom
-            combined_nd = np.concatenate([current_nd_solutions, last_nd_solutions], axis=0)
-            nondom_idx = fast_non_dominated_sort(combined_nd)[0]
-            combined_nd = combined_nd[nondom_idx]
-            igd_getter = IGD(pf=combined_nd)
-            running_igd = igd_getter._do(last_nd_solutions)
+            new_nd_solutions = (new_nd_solutions-utopia_points)/denom
+            # combined_nd = np.concatenate([current_nd_solutions, last_nd_solutions], axis=0)
+            # nondom_idx = fast_non_dominated_sort(combined_nd)[0]
+            # combined_nd = combined_nd[nondom_idx]
+            igd_getter = IGD(pf=current_nd_solutions)
+            running_igd = igd_getter._do(new_nd_solutions)
             running_igd_list += [running_igd]
         running_igd_list = np.asanyarray([running_igd_list])
         if self.running_igd is None:

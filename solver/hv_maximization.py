@@ -26,15 +26,18 @@ class HvMaximization(object):
 
         # non-dom sorting to create multiple fronts
         hv_subfront_indices = fastNonDominatedSort(mo_obj_val)
-        dyn_ref_point =  1.1 * np.max(mo_obj_val, axis=1)
-        for i_obj in range(0,n_mo_obj):
-            dyn_ref_point[i_obj] = np.maximum(self.ref_point[i_obj],dyn_ref_point[i_obj])
+        # dyn_ref_point =  1.1 * np.max(mo_obj_val, axis=1)
+        # for i_obj in range(0,n_mo_obj):
+        #     dyn_ref_point[i_obj] = np.maximum(self.ref_point[i_obj],dyn_ref_point[i_obj])
+        dyn_ref_point = self.ref_point*1.1
         number_of_fronts = np.max(hv_subfront_indices) + 1 # +1 because of 0 indexing
         
         obj_space_multifront_hv_gradient = np.zeros((n_mo_obj,n_mo_sol))
         for i_fronts in range(0,number_of_fronts):
             # compute HV gradients for current front
-            temp_grad_array = grad_multi_sweep_with_duplicate_handling(mo_obj_val[:, (hv_subfront_indices == i_fronts) ],dyn_ref_point)
+            # print("FRONT-",i_fronts)
+            # print(mo_obj_val[:, (hv_subfront_indices == i_fronts)])
+            temp_grad_array = grad_multi_sweep_with_duplicate_handling(mo_obj_val[:, (hv_subfront_indices == i_fronts)],dyn_ref_point)
             obj_space_multifront_hv_gradient[:, (hv_subfront_indices == i_fronts) ] = temp_grad_array
 
         # normalize the hv_gradient in obj space (||dHV/dY|| == 1)

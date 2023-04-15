@@ -139,11 +139,12 @@ def grad_multi_sweep(mo_obj_val,ref_point):
     
 
     P, U, Z = compute_subsets(mo_obj_val,ref_point)
+    # print("BBBB")
+    # print(mo_obj_val)
+    # print(P)
     ##### 
     if not (len(U) == 0):
         # raise ValueError("Partial derivatives might be only one-sided in indice" + str(U))
-        print("Partial derivatives might be only one-sided in indices" + str(U))
-        print(mo_obj_val[:,U])
         hv_grad[:,U] = 0
     
     for k in range(0,n_obj):
@@ -159,9 +160,12 @@ def grad_multi_sweep(mo_obj_val,ref_point):
         sorted_P = np.delete(sorted_P,k,0)
         # initialize queue by turning array of columns into list of columns
         Q = sorted_P.T.tolist() # it should be possible to delete this row, Q is overwritten in the next line
-        Q = list()
-        for i in range(sorted_P.shape[1]):
-            Q.append(tuple(sorted_P[:,i]))
+        # Q = list()
+        # print(Q)
+        # print(Q)
+        # for i in range(sorted_P.shape[1]):
+        #     Q.append(tuple(sorted_P[:,i]))
+        # print(Q)
         queue_index = len(P) # this initialization is actually index of last queue entry +1. The +1 is convenient because the while loop will always update the index by -1, so it all matches up in the end 
         T = list()
         while (len(Q) > 0):
@@ -182,7 +186,6 @@ def grad_multi_sweep(mo_obj_val,ref_point):
             # mo_sol_index is the index of q in mo_obj_val
             mo_sol_index = P[sort_order[queue_index]]
             hv_grad[k,mo_sol_index] = hv_contribution
-            
             ## add q to T and remove points dominated by q
             # initialize T by q in first iteration
             if len(T) == 0:

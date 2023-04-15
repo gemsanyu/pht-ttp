@@ -26,10 +26,9 @@ class HvMaximization(object):
 
         # non-dom sorting to create multiple fronts
         hv_subfront_indices = fastNonDominatedSort(mo_obj_val)
-        # dyn_ref_point =  1.1 * np.max(mo_obj_val, axis=1)
-        # for i_obj in range(0,n_mo_obj):
-        #     dyn_ref_point[i_obj] = np.maximum(self.ref_point[i_obj],dyn_ref_point[i_obj])
-        dyn_ref_point = self.ref_point*1.1
+        dyn_ref_point =  1.1 * np.max(mo_obj_val, axis=1)
+        for i_obj in range(0,n_mo_obj):
+            dyn_ref_point[i_obj] = np.maximum(self.ref_point[i_obj],dyn_ref_point[i_obj])
         number_of_fronts = np.max(hv_subfront_indices) + 1 # +1 because of 0 indexing
         
         obj_space_multifront_hv_gradient = np.zeros((n_mo_obj,n_mo_sol))

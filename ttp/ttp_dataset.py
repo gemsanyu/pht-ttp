@@ -1,5 +1,6 @@
 import pathlib
 import pickle
+import platform
 import random
 from typing import List
 import torch
@@ -31,7 +32,9 @@ class TTPDataset(Dataset):
                  dataset_name=None
             ) -> None:
         super(TTPDataset, self).__init__()
-
+        plt = platform.system()
+        if plt == 'Linux':
+            pathlib.WindowsPath = pathlib.PosixPath
         self.mode = mode
         self.batch = None
         if dataset_name is None:

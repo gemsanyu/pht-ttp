@@ -182,11 +182,18 @@ def update(agent, agent_opt, loss):
     agent_opt.step()
 
 
-def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, checkpoint_path):
+def save(agent: Agent, agent_opt:torch.optim.Optimizer, critic: Agent, critic_total_cost_list, title, epoch, is_best=False):
+    checkpoint_root = "checkpoints"
+    checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = checkpoint_dir/(title+".pt")
+    if is_best:
+        checkpoint_path = checkpoint_dir/(title+".pt_best")
     checkpoint = {
         "agent_state_dict":agent.state_dict(),
         "agent_opt_state_dict":agent_opt.state_dict(),  
-        "validation_cost":validation_cost,
+        "critic_state_dict":critic.state_dict(),
+        "critic_total_cost_list":critic_total_cost_list,
         "epoch":epoch,
     }
     # save twice to prevent failed saving,,, damn
@@ -194,15 +201,6 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
-    # saving best checkpoint
-    # best_checkpoint_path = checkpoint_path.parent /(checkpoint_path.name + "_best")
-    # if not os.path.isfile(best_checkpoint_path.absolute()):
-    #     torch.save(checkpoint, best_checkpoint_path)
-    # else:
-    #     best_checkpoint =  torch.load(best_checkpoint_path.absolute())
-    #     best_validation_cost = best_checkpoint["validation_cost"]
-    #     if best_validation_cost < validation_cost:
-    #         torch.save(checkpoint, best_checkpoint_path.absolute())
 
 def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     static_features = torch.from_numpy(static_features).to(agent.device)
@@ -218,27 +216,28 @@ def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     return static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static
 
 
-def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, logprob, writer):
+def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, logprobs, sum_entropies, epoch, writer):
     # env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
-    writer.add_scalar("Training Tour Length", tour_length)
-    writer.add_scalar("Training Total Profit", total_profit)
-    writer.add_scalar("Training Total Cost", total_cost)
-    writer.add_scalar("Training Agent Loss", agent_loss)
-    writer.add_scalar("Training Entropy Loss", entropy_loss)
-    writer.add_scalar("Training NLL", -logprob)
-    # writer.add_scalar("Training Critic Exp Moving Average"+env_title, critic_cost)
+    writer.add_scalar("Training Average Tour Length", tour_length, epoch)
+    writer.add_scalar("Training Average Total Profit", total_profit, epoch)
+    writer.add_scalar("Training Average Total Cost", total_cost, epoch)
+    writer.add_scalar("Training Average Agent Loss", agent_loss, epoch)
+    writer.add_scalar("Training Average Entropy Loss", entropy_loss, epoch)
+    writer.add_scalar("Training NLL", -logprobs, epoch)
+    writer.add_scalar("Training Average Sum of Entropies", sum_entropies, epoch)
     writer.flush()
 
-def write_validation_progress(tour_length, total_profit, total_cost, logprob, writer):
-    writer.add_scalar("Validation Tour Length", tour_length)
-    writer.add_scalar("Validation Total Profit", total_profit)
-    writer.add_scalar("Validation Total Cost", total_cost)
-    writer.add_scalar("Validation NLL", -logprob)
+def write_validation_progress(tour_length, total_profit, total_cost, mean_entropies, logprob, epoch, writer):
+    writer.add_scalar("Validation Tour Length", tour_length, epoch)
+    writer.add_scalar("Validation Total Profit", total_profit, epoch)
+    writer.add_scalar("Validation Total Cost", total_cost, epoch)
+    writer.add_scalar("Validation Entropies", mean_entropies, epoch)
+    writer.add_scalar("Validation NLL", -logprob, epoch)
     writer.flush()
 
-def write_test_progress(tour_length, total_profit, logprob, writer):
+def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test Tour Length", tour_length)
     writer.add_scalar("Test Total Profit", total_profit)
-    # writer.add_scalar("Test Total Cost", total_cost)
+    writer.add_scalar("Test Total Cost", total_cost)
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()

@@ -46,9 +46,11 @@ def setup(args):
         print("CHECKPOINT NOT FOUND! new run?")
 
     last_epoch = 0
+    crit_total_cost_list = None
     if checkpoint is not None:
         agent.load_state_dict(checkpoint["agent_state_dict"])
         critic.load_state_dict(checkpoint["critic_state_dict"])
+        crit_total_cost_list = checkpoint["critic_total_cost_list"]
         agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
         last_epoch = checkpoint["epoch"]
 
@@ -58,4 +60,4 @@ def setup(args):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp)
         
-    return agent, agent_opt, critic, last_epoch, writer, checkpoint_path, test_env
+    return agent, agent_opt, critic, crit_total_cost_list, last_epoch, writer, test_env

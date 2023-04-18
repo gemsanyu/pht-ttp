@@ -26,6 +26,7 @@ class TTPDataset(Dataset):
                  num_nodes_list:List[int] = [20,30],
                  num_items_per_city_list:List[int] = [1,3,5],
                  item_correlation_list:List[int]=[0,1,2],
+                 capacity_factor_list:List[int]=[1,2,3,4,5,6,7,8,9,10],
                  mode="training",
                  dataset_name=None
             ) -> None:
@@ -38,7 +39,8 @@ class TTPDataset(Dataset):
             self.num_nodes_list = num_nodes_list
             self.num_items_per_city_list = num_items_per_city_list
             self.item_correlation_list = item_correlation_list
-            self.config_list = [(nn, nipc, ic) for nn in self.num_nodes_list for nipc in self.num_items_per_city_list for ic in self.item_correlation_list]
+            self.capacity_factor_list = capacity_factor_list
+            self.config_list = [(nn, nipc, ic, cf) for nn in self.num_nodes_list for nipc in self.num_items_per_city_list for ic in self.item_correlation_list for cf in capacity_factor_list]
             self.num_configs = len(self.config_list)
             self.batch = None
             self.prob = None
@@ -55,8 +57,8 @@ class TTPDataset(Dataset):
             for index in range(self.num_samples):
                 config_idx = index % len(self.config_list)
                 prob_idx = index // len(self.config_list) 
-                nn, nipc, ic = self.config_list[config_idx]
-                prob = read_prob(self.mode, nn, nipc, ic, prob_idx)
+                nn, nipc, ic, cf = self.config_list[config_idx]
+                prob = read_prob(self.mode, nn, nipc, ic, cf, prob_idx)
                 batch = get_batch_from_prob(prob, max_num_nodes, max_nipc, max_num_items)
                 self.batch_list += [batch]
         else:
@@ -181,12 +183,12 @@ def prob_list_to_env(prob_list):
     return env
 
 
-def read_prob(mode="training",num_nodes=None, num_items_per_city=None, item_correlation=None, prob_idx=None, dataset_path=None) -> TTP:
+def read_prob(mode="training",num_nodes=None, num_items_per_city=None, item_correlation=None, capacity_factor=None, prob_idx=None, dataset_path=None) -> TTP:
     if dataset_path is None:
         data_root = "data_full" 
         data_dir = pathlib.Path(".")/data_root/mode
         data_dir.mkdir(parents=True, exist_ok=True)
-        dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_"+str(prob_idx)
+        dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_cf_"+str(capacity_factor)+"_"+str(prob_idx)
         dataset_path = data_dir/(dataset_name+".pt")
     with open(dataset_path.absolute(), 'rb') as handle:
         prob = pickle.load(handle)

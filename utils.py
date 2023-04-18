@@ -153,40 +153,33 @@ def solve_decode_only(agent:Agent,
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def compute_loss(total_costs, critic_costs, logprobs, sum_entropies):
-    advantage = (total_costs - critic_costs).to(logprobs.device)
-    advantage = (advantage-advantage.mean())/(1e-8+advantage.std())
-    agent_loss = -((advantage.detach())*logprobs).mean()
-    entropy_loss = -sum_entropies.mean()
-    return agent_loss, entropy_loss
+def standardize(A):
+    return (A-A.mean())/(1e-8+A.std())
 
-def compute_multi_loss(remaining_profits, tour_lengths, logprobs):
-    remaining_profits = remaining_profits.to(logprobs.device)
-    tour_lengths = tour_lengths.to(logprobs.device)
-    profit_loss = ((remaining_profits.float())*logprobs).mean() # maximize hence the -
-    tour_length_loss = (tour_lengths*logprobs).mean()
-    return profit_loss, tour_length_loss
+def compute_single_loss(total_costs, critic_total_costs, logprobs, sum_entropies):
+    device = logprobs.device
+    # profit_adv = (critic_total_profits-total_profits) # want to increase
+    # tour_length_adv = (tour_lengths-critic_tour_lengths) # want to decrease
+    # profit_adv = standardize(profit_adv)
+    # tour_length_adv = standardize(tour_length_adv)
+    # profit_adv = torch.from_numpy(profit_adv).to(device)
+    # tour_length_adv = torch.from_numpy(tour_length_adv).to(device)
+    # profit_loss = (profit_adv*logprobs).mean()
+    # tour_length_loss = (tour_length_adv*logprobs).mean()
+    # agent_loss = 0.5*(profit_loss+tour_length_loss)
+    # just the same as:
+    # agent_loss = (logprobs*(0*profit_adv+1*tour_length_adv)).mean()
+    adv = critic_total_costs-total_costs # want to minimize
+    # adv = normalize(adv)
+    agent_loss = (logprobs*torch.from_numpy(adv).to(device)).mean()
+    entropy_loss = -sum_entropies.mean()
+    return agent_loss, entropy_loss, adv
 
 def update(agent, agent_opt, loss):
     agent_opt.zero_grad(set_to_none=True)
     loss.backward()
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
-
-def update_phn(phn, phn_opt, loss):
-    phn_opt.zero_grad(set_to_none=True)
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
-    phn_opt.step()
-
-def evaluate(agent, batch):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
-    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
-    agent.eval()
-    with torch.no_grad():
-        tour_list, item_selection, tour_length, total_profit, total_cost, _, _ = solve(agent, env)
-
-    return tour_list, item_selection, tour_length.item(), total_profit.item(), total_cost.item()
 
 
 def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, checkpoint_path):
@@ -202,14 +195,14 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
     # saving best checkpoint
-    best_checkpoint_path = checkpoint_path.parent /(checkpoint_path.name + "_best")
-    if not os.path.isfile(best_checkpoint_path.absolute()):
-        torch.save(checkpoint, best_checkpoint_path)
-    else:
-        best_checkpoint =  torch.load(best_checkpoint_path.absolute())
-        best_validation_cost = best_checkpoint["validation_cost"]
-        if best_validation_cost < validation_cost:
-            torch.save(checkpoint, best_checkpoint_path.absolute())
+    # best_checkpoint_path = checkpoint_path.parent /(checkpoint_path.name + "_best")
+    # if not os.path.isfile(best_checkpoint_path.absolute()):
+    #     torch.save(checkpoint, best_checkpoint_path)
+    # else:
+    #     best_checkpoint =  torch.load(best_checkpoint_path.absolute())
+    #     best_validation_cost = best_checkpoint["validation_cost"]
+    #     if best_validation_cost < validation_cost:
+    #         torch.save(checkpoint, best_checkpoint_path.absolute())
 
 def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     static_features = torch.from_numpy(static_features).to(agent.device)
@@ -224,32 +217,16 @@ def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     glimpse_V_static = agent._make_heads(glimpse_V_static)
     return static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static
 
-def save_phn(phn, phn_opt, epoch, title, best=False):
-    checkpoint_root = "checkpoints"
-    checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_path = checkpoint_dir/(title+".pt")
-    if best:
-        checkpoint_path = checkpoint_dir/(title+"_best.pt")
-    checkpoint = {
-        "phn_state_dict":phn.state_dict(),
-        "phn_opt_state_dict":phn_opt.state_dict(),  
-        "epoch":epoch,
-    }
-    # save twice to prevent failed saving,,, damn
-    torch.save(checkpoint, checkpoint_path.absolute())
-    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
-    torch.save(checkpoint, checkpoint_backup_path.absolute())
 
-def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, num_nodes, num_items, writer):
-    env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
-    writer.add_scalar("Training Tour Length"+env_title, tour_length)
-    writer.add_scalar("Training Total Profit"+env_title, total_profit)
-    writer.add_scalar("Training Total Cost"+env_title, total_cost)
-    writer.add_scalar("Training Agent Loss"+env_title, agent_loss)
-    writer.add_scalar("Training Entropy Loss"+env_title, entropy_loss)
-    writer.add_scalar("Training NLL"+env_title, -logprob)
-    writer.add_scalar("Training Critic Exp Moving Average"+env_title, critic_cost)
+def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, logprob, writer):
+    # env_title = " nn "+str(num_nodes)+" ni "+str(num_items)
+    writer.add_scalar("Training Tour Length", tour_length)
+    writer.add_scalar("Training Total Profit", total_profit)
+    writer.add_scalar("Training Total Cost", total_cost)
+    writer.add_scalar("Training Agent Loss", agent_loss)
+    writer.add_scalar("Training Entropy Loss", entropy_loss)
+    writer.add_scalar("Training NLL", -logprob)
+    # writer.add_scalar("Training Critic Exp Moving Average"+env_title, critic_cost)
     writer.flush()
 
 def write_validation_progress(tour_length, total_profit, total_cost, logprob, writer):
@@ -259,71 +236,9 @@ def write_validation_progress(tour_length, total_profit, total_cost, logprob, wr
     writer.add_scalar("Validation NLL", -logprob)
     writer.flush()
 
-def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
+def write_test_progress(tour_length, total_profit, logprob, writer):
     writer.add_scalar("Test Tour Length", tour_length)
     writer.add_scalar("Test Total Profit", total_profit)
-    writer.add_scalar("Test Total Cost", total_cost)
+    # writer.add_scalar("Test Total Cost", total_cost)
     writer.add_scalar("Test NLL", -logprob)
-    writer.flush()
-
-def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None, nondominated_only=False):
-    plt.figure()
-    _f_list = f_list.clone().numpy()
-    _f_list[:,1] = -_f_list[:,1]
-    if sample_solutions is not None:
-        _ss = sample_solutions.clone().numpy()
-        _ss[:,1] = -_ss[:,1]
-        _all =  np.concatenate([_f_list,_ss], axis=0)
-    else:
-        _all = _f_list
-    _min,_max = np.min(_all, axis=0), np.max(_all, axis=0)
-    _min,_max = _min[np.newaxis,:], _max[np.newaxis,:]
-    _N  = (_f_list-_min)/((_max-_min)+1e-8)
-    reference_point = np.array([1.1,1.1])
-    hv_getter = Hypervolume(reference_point)
-    total_hv = hv_getter.calc(_N)
-    nondom_idx = fast_non_dominated_sort(_f_list)[0]
-    if nondominated_only:
-        plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
-    else:
-        plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
-    
-    if sample_solutions is not None:
-        plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
-    writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)
-    writer.add_scalar("Test HV "+dataset_name, total_hv, epoch)
-    writer.flush()
-
-def write_training_phn_progress(writer, f_list, ray_list, cos_penalty_list):
-    
-    num_sol, batch_size, _ = f_list.shape
-    # write the HV
-    _N = f_list.numpy()
-    mean_hv = 0
-    for i in range(batch_size):
-        _hv = Hypervolume(np.array([1,1])).calc(_N[:, i, :])
-        mean_hv += _hv
-    mean_hv /= batch_size
-    writer.add_scalar('Train HV', mean_hv)
-    # write hv contribution per ray
-    mean_hvc = None
-    for i in range(batch_size):
-        hv_contributions = get_hv_contributions(f_list[:, i, :])
-        if mean_hvc is None:
-            mean_hvc = hv_contributions
-        else:
-            mean_hvc += hv_contributions
-    mean_hvc/= batch_size
-    hv_contribution_dict = {}
-    for i,ray in enumerate(ray_list):
-        hv_contribution_dict["ray-"+str(i)]=mean_hvc[i]
-    writer.add_scalars("Train HV Contribution", hv_contribution_dict)
-
-    # write penalty total and per solutions
-    cos_penalty_ray = cos_penalty_list.sum(dim=1)
-    cos_penalty_dict ={}
-    for i,ray in enumerate(ray_list):
-        cos_penalty_dict["ray-"+str(i)]=cos_penalty_ray[i]
-    writer.add_scalars("Train Cos Penalty", cos_penalty_dict)
-    writer.add_scalar("Train  Total Cos Penalty", cos_penalty_list.sum())
     writer.flush()

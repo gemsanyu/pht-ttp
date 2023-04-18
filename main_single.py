@@ -30,7 +30,7 @@ def train_one_epoch(agent, critic, agent_opt, train_dataset, writer, entropy_los
             critic_forward_results = solve(critic, env)
             _, _, critic_tour_lengths, critic_total_profits, critic_total_costs, _, _ = critic_forward_results
         agent_loss, entropy_loss, adv = compute_single_loss(total_costs, critic_total_costs, logprobs, sum_entropies)
-        writer.add_scalar("Profit Adv", adv.mean())
+        writer.add_scalar("Advantage", adv.mean())
         # writer.add_scalar("Tour Length Adv", tour_length_adv.mean())
         loss = agent_loss + entropy_loss_alpha*entropy_loss
         update(agent, agent_opt, loss)

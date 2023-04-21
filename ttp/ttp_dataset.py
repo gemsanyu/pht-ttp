@@ -114,8 +114,8 @@ def add_dummy_to_data(max_num_nodes, max_nipc, max_num_items, nipc, coords, norm
     
     #coords and W
     c_pad, w_pad = (0,0,0,num_dummy_nodes), (0,num_dummy_nodes,0,num_dummy_nodes)
-    d_coords, d_norm_coords = pad(coords,c_pad), pad(norm_coords,c_pad)
-    d_W, d_norm_W = pad(W,w_pad), pad(norm_W, w_pad)
+    d_coords, d_norm_coords = pad(coords,c_pad,value=1.1), pad(norm_coords,c_pad,value=1.1)
+    d_W, d_norm_W = pad(W,w_pad,value=1.1), pad(norm_W, w_pad,value=1.1)
     # profits and weights
     pw_pad = (0,num_dummy_items)
     d_profits, d_norm_profits = pad(profits, pw_pad), pad(norm_profits, pw_pad)

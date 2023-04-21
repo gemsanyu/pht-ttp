@@ -119,7 +119,7 @@ def add_dummy_to_data(max_num_nodes, max_nipc, max_num_items, nipc, coords, norm
     # profits and weights
     pw_pad = (0,num_dummy_items)
     d_profits, d_norm_profits = pad(profits, pw_pad), pad(norm_profits, pw_pad)
-    d_weights, d_norm_weights = pad(weights, pw_pad,value=1), pad(norm_weights, pw_pad, value=1)
+    d_weights, d_norm_weights = pad(weights, pw_pad,value=1e-5), pad(norm_weights, pw_pad, value=1e-5)
 
     # # what is not dummy?
     # # for each non_dummy nodes, num_items items is not dummy

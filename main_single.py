@@ -33,11 +33,12 @@ def train_one_epoch(agent, critic, agent_opt, train_dataset, epoch, writer, entr
         coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp = batch
         env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp)
         forward_results = solve(agent, env)
+        max_total_profits = np.sum(env.profits, axis=1)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = forward_results
         with torch.no_grad():
             critic_forward_results = solve(critic, env)
             _, _, critic_tour_lengths, critic_total_profits, critic_total_costs, _, _ = critic_forward_results
-        agent_loss, entropy_loss, adv = compute_single_loss(total_costs, critic_total_costs, logprobs, sum_entropies)
+        agent_loss, entropy_loss, adv = compute_single_loss(total_costs/max_total_profits, critic_total_costs/max_total_profits, logprobs, sum_entropies)
         sum_entropies_list += [sum_entropies.detach().cpu().numpy()]
         agent_loss_list += [agent_loss.detach().cpu().numpy()[np.newaxis]]
         tour_lengths_list += [tour_lengths]
@@ -74,8 +75,8 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
         tour_length_list += [tour_lengths]
         total_profit_list += [total_profits]
         total_costs_list += [total_costs]
-        sum_entropies_list += [sum_entropies]
-        logprob_list += [logprobs]
+        sum_entropies_list += [sum_entropies.detach().cpu().numpy()]
+        logprob_list += [logprobs.detach().cpu().numpy()]
     # if there is no saved critic cost list then generate it/ first time
     if crit_total_cost_list is None:
         crit_total_costs_list = []
@@ -98,12 +99,12 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     mean_total_profit = total_profit_list.mean()
     mean_total_cost = total_costs_list.mean()
     mean_entropies = sum_entropies_list.mean()
-    mean_logprob = torch.cat(logprob_list).mean()
+    mean_logprob = np.concatenate(logprob_list).mean()
     write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_entropies, mean_logprob, epoch, writer)
     
     #check if agent better than critic now?
     res = wilcoxon(total_costs_list, crit_total_costs_list, alternative="greater")
-    print("Validation pvalue:", res.pvalue)
+    print("---------------------------Validation pvalue:", res.pvalue)
     is_improving=False
     if res.pvalue < 0.05:
         is_improving = True
@@ -115,7 +116,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     return is_improving, crit_total_cost_list
 
 def run(args):
-    patience=10
+    patience=50000
     not_improving_count = 0
     agent, agent_opt, critic, crit_total_cost_list, last_epoch, writer, test_env = setup(args)
     training_dataset = TTPDataset(args.num_training_samples, mode="training")

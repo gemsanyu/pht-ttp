@@ -1,102 +1,173 @@
+import copy
 import os
 import random
+import subprocess
 import sys
 
 import numpy as np
+from scipy.stats import wilcoxon
 import torch
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-
-from arguments import get_parser
 from setup import setup
-from solver import EPOSolver
-from ttp.ttp_dataset import TTPDataset
+from ttp.ttp_dataset import TTPDataset, get_dataset_list
 from ttp.ttp_env import TTPEnv
-from utils import solve, compute_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
+from utils import compute_single_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
+from utils import solve, prepare_args, write_test_progress, update_bp_only
 
-CPU_DEVICE = torch.device("cpu")
-MASTER = 0
-EVALUATOR = 1
 
-def prepare_args():
-    parser = get_parser()
-    args = parser.parse_args(sys.argv[1:])
-    args.device = torch.device(args.device)
-    return args
-
-def train_one_epoch(agent, agent_opt, train_dataset, writer, critic_alpha=0.8, entropy_loss_alpha=0.05):
+def train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer, entropy_loss_alpha=0.05):
     agent.train()
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
-    critic_costs = None
-    for batch_idx, batch in tqdm(enumerate(train_dataloader), desc="step", position=1):
-        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
-        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        if critic_costs is None:
-            critic_costs = total_costs.mean()
-        else:
-            critic_costs = critic_alpha*critic_costs + (1-critic_alpha)*total_costs.mean()
-        agent_loss, entropy_loss = compute_loss(total_costs, critic_costs, logprobs, sum_entropies)
-        loss = agent_loss + entropy_loss_alpha*entropy_loss
-        update(agent, agent_opt, loss)
-        write_training_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), agent_loss.detach(), entropy_loss.detach(), critic_costs, logprobs.detach().mean(), env.num_nodes, env.num_items, writer)
+    critic.eval()
+    sum_entropies_list = []
+    agent_loss_list = []
+    tour_lengths_list = []
+    total_profits_list = []
+    total_costs_list = []
+    entropy_loss_list = []
+    logprobs_list = []
+    batch_size_per_dataset = int(args.batch_size/len(train_dataset_list))
+    train_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset)) for train_dataset in train_dataset_list]#, num_workers=4, pin_memory=True, shuffle=True)]
+    # iterate until dataset empty, don't know elegant way to iterate yet
+    is_done=False
+    while not is_done:
+        for dl_it in tqdm(train_dataloader_list, desc="Training"):
+            try:
+                batch_idx, batch = next(dl_it)    
+                coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp = batch
+                env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
+                forward_results = solve(agent, env)
+                tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = forward_results
+                with torch.no_grad():
+                    critic_forward_results = solve(critic, env)
+                    _, _, critic_tour_lengths, critic_total_profits, critic_total_costs, _, _ = critic_forward_results
+                agent_loss, entropy_loss, adv = compute_single_loss(total_costs, critic_total_costs, logprobs, sum_entropies)
+                sum_entropies_list += [sum_entropies.detach().cpu().numpy()]
+                agent_loss_list += [agent_loss.detach().cpu().numpy()[np.newaxis]]
+                tour_lengths_list += [tour_lengths]
+                total_profits_list += [total_profits]
+                total_costs_list += [total_costs]
+                entropy_loss_list += [entropy_loss.detach().cpu().numpy()[np.newaxis]]
+                logprobs_list += [logprobs.detach().cpu().numpy()]
+                loss = agent_loss + entropy_loss_alpha*entropy_loss
+                loss.backward()
+            except:
+                is_done=True
+                break
+        if not is_done:
+            update_bp_only(agent, agent_opt)
+            
+    sum_entropies_list = np.concatenate(sum_entropies_list)
+    agent_loss_list = np.concatenate(agent_loss_list)
+    tour_lengths_list = np.concatenate(tour_lengths_list)
+    total_profits_list = np.concatenate(total_profits_list)
+    total_costs_list = np.concatenate(total_costs_list)
+    entropy_loss_list = np.concatenate(entropy_loss_list)
+    logprobs_list = np.concatenate(logprobs_list)
+    write_training_progress(tour_lengths_list.mean(), total_profits_list.mean(), total_costs_list.mean(), agent_loss_list.mean(), entropy_loss_list.mean(), logprobs_list.mean(), sum_entropies_list.mean(), epoch, writer)
 
 @torch.no_grad()
-def validation_one_epoch(agent, validation_dataset, writer):
+def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset_list, test_env, epoch, writer):
     agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size, num_workers=4, pin_memory=True)
+    critic.eval()
+    batch_size_per_dataset = int(args.batch_size/len(validation_dataset_list))
+    validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
     tour_length_list = []
     total_profit_list = []
-    total_cost_list = []
+    total_costs_list = []
+    sum_entropies_list = []
     logprob_list = []
-    for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc="step", position=1):
-        coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
-        env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-        tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
-        tour_length_list += [tour_lengths]
-        total_profit_list += [total_profits]
-        total_cost_list += [total_costs]
-        logprob_list += [logprobs]
-    mean_tour_length = torch.cat(tour_length_list).mean()
-    mean_total_profit = torch.cat(total_profit_list).mean()
-    mean_total_cost = torch.cat(total_cost_list).mean()
-    mean_logprob = torch.cat(logprob_list).mean()
-    write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_logprob, writer)
-    return mean_total_cost
-
-
-@torch.no_grad()
-def test_one_epoch(agent, test_env, writer):
-    agent.eval()
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
-    write_test_progress(tour_length, total_profit, total_cost, logprob, writer)    
+    is_done=False
+    while not is_done:
+        for dl_it in tqdm(validation_dataloader_list, desc="Validation"):
+            try:
+                batch_idx, batch = next(dl_it)
+                coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
+                env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
+                _, _, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
+                tour_length_list += [tour_lengths]
+                total_profit_list += [total_profits]
+                total_costs_list += [total_costs]
+                sum_entropies_list += [sum_entropies]
+                logprob_list += [logprobs]
+            except:
+                is_done=True
+                break
         
+    # if there is no saved critic cost list then generate it/ first time
+    if crit_total_cost_list is None:
+        crit_total_cost_list = []
+        validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
+        is_done=False
+        while not is_done:
+            for dl_it in tqdm(validation_dataloader_list, desc="Crit Validation Generate"):
+                try:    
+                    batch_idx, batch = next(dl_it)
+                    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp = batch
+                    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
+                    _, _, crit_tour_lengths, crit_total_profits, crit_total_costs, _, _ = solve(critic, env)
+                    crit_total_cost_list += [crit_total_costs]
+                except:
+                    is_done=True
+                    break
+            # crit_tour_length_list += [crit_tour_lengths]
+            # crit_total_profit_list += [crit_total_profits]
+        crit_total_cost_list = np.concatenate(crit_total_cost_list)
+    total_costs_list = np.concatenate(total_costs_list)
+    tour_length_list = np.concatenate(tour_length_list)
+    total_profit_list = np.concatenate(total_profit_list)
+    sum_entropies_list = np.concatenate(sum_entropies_list)
+    # crit_tour_length_list = np.concatenate(crit_tour_length_list) 
+    # crit_total_profit_list = np.concatenate(crit_total_profit_list) 
+    mean_tour_length = tour_length_list.mean()
+    mean_total_profit = total_profit_list.mean()
+    mean_total_cost = total_costs_list.mean()
+    mean_entropies = sum_entropies_list.mean()
+    mean_logprob = torch.cat(logprob_list).mean()
+    print(len(total_costs_list), len(crit_total_cost_list))
+    write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_entropies, mean_logprob, epoch, writer)
+    
+    #check if agent better than critic now?
+    res = wilcoxon(total_costs_list, crit_total_cost_list, alternative="greater")
+    print("-----------------Validation pvalue:", res.pvalue)
+    is_improving=False
+    if res.pvalue < 0.05:
+        is_improving = True
+        critic.load_state_dict(copy.deepcopy(agent.state_dict()))
+        crit_total_cost_list = total_costs_list
+    #test?
+    _, _, tour_lengths, total_profits, total_costs, _, _ = solve(agent, test_env)
+    write_test_progress(tour_lengths.mean(), total_profits.mean(), total_costs.mean(), logprobs.mean(), writer)
+    return is_improving, crit_total_cost_list
 
 def run(args):
-    agent, agent_opt, last_epoch, writer, checkpoint_path, test_env = setup(args)
-    validation_size = int(0.1*args.num_training_samples)
-    training_size = args.num_training_samples - validation_size
-    num_nodes_list = [50]
-    num_items_per_city_list = [1,3,5]
-    config_list = [(num_nodes, num_items_per_city) for num_nodes in num_nodes_list for num_items_per_city in num_items_per_city_list]
-    num_configs = len(num_nodes_list)*len(num_items_per_city_list)
+    patience=100
+    not_improving_count = 0
+    agent, agent_opt, critic, crit_total_cost_list, last_epoch, writer, test_env = setup(args)
+    nn_list = [20, 30]
+    nipc_list = [1,3,5]
+    len_types = len(nn_list)*len(nipc_list)
+    train_num_samples_per_dataset = int(args.num_training_samples/len_types)
+    validation_num_samples_per_dataset = int(args.num_validation_samples/len_types)
+    train_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
+    validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
+
     for epoch in range(last_epoch, args.max_epoch):
-        config_it = epoch%num_configs
-        if config_it == 0:
-            random.shuffle(config_list)
-        num_nodes, num_items_per_city = config_list[config_it]
-        print("EPOCH:", epoch, "NN:", num_nodes, "NIC:", num_items_per_city)
-        dataset = TTPDataset(args.num_training_samples, num_nodes, num_items_per_city)
-        train_dataset, validation_dataset = random_split(dataset, [training_size, validation_size])
-        train_one_epoch(agent, agent_opt, train_dataset, writer)
-        validation_cost = validation_one_epoch(agent, validation_dataset, writer)
-        test_one_epoch(agent, test_env, writer)
-        save(agent, agent_opt, validation_cost, epoch, checkpoint_path)
+        train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer)
+        is_improving, crit_total_cost_list  = validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset_list, test_env, epoch, writer)
+        save(agent, agent_opt, critic, crit_total_cost_list, args.title, epoch )
+        if is_improving:
+            save(agent, agent_opt, critic, crit_total_cost_list, args.title, epoch, is_best=True)
+            not_improving_count = 0
+        else:
+            not_improving_count += 1
+        if not_improving_count == patience:
+            break 
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(os.cpu_count())
+    torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

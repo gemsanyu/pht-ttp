@@ -19,7 +19,17 @@ def setup(args):
                   pointer_num_layers=args.pointer_layers,
                   pointer_num_neurons=args.encoder_size,
                   dropout=args.dropout,
-                  n_glimpses=args.n_glimpses)   
+                  n_glimpses=args.n_glimpses) 
+    critic = Agent(device=args.device,
+                  num_static_features=3,
+                  num_dynamic_features=4,
+                  static_encoder_size=args.encoder_size,
+                  dynamic_encoder_size=args.encoder_size,
+                  decoder_encoder_size=args.encoder_size,
+                  pointer_num_layers=args.pointer_layers,
+                  pointer_num_neurons=args.encoder_size,
+                  dropout=args.dropout,
+                  n_glimpses=args.n_glimpses)    
     agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
@@ -39,16 +49,19 @@ def setup(args):
         print("CHECKPOINT NOT FOUND! new run?")
 
     last_epoch = 0
+    critic_total_cost_list = None
     if checkpoint is not None:
         agent.load_state_dict(checkpoint["agent_state_dict"])
+        critic.load_state_dict(checkpoint["critic_state_dict"])
+        critic_total_cost_list = checkpoint["critic_total_cost_list"]
         agent_opt.load_state_dict(checkpoint["agent_opt_state_dict"])
         last_epoch = checkpoint["epoch"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     test_batch = next(iter(test_dataloader))
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
-    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
         
 
-    return agent, agent_opt, last_epoch, writer, checkpoint_path, test_env
+    return agent, agent_opt, critic, critic_total_cost_list, last_epoch, writer, test_env

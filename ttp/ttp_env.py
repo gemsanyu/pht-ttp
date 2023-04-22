@@ -19,7 +19,6 @@ class TTPEnv():
                  renting_rate, 
                  item_city_idx,
                  item_city_mask,
-                 is_not_dummy_mask,
                  best_profit_kp,
                  best_route_length_tsp):
         self.batch_size, self.num_nodes, _ = coords.shape
@@ -39,7 +38,6 @@ class TTPEnv():
         self.renting_rate = renting_rate.numpy()
         self.item_city_idx = item_city_idx.numpy()
         self.item_city_mask = item_city_mask.numpy()
-        self.is_not_dummy_mask = is_not_dummy_mask.numpy()
         self.best_profit_kp = best_profit_kp.numpy()
         self.best_route_length_tsp = best_route_length_tsp.numpy()
         self.max_travel_time = 0
@@ -68,9 +66,7 @@ class TTPEnv():
         self.current_load = np.zeros((self.batch_size,))
         self.item_selection = np.zeros((self.batch_size, self.num_items), dtype=np.bool)
         self.tour_list = np.zeros((self.batch_size, self.num_nodes), dtype=np.int64)
-        # self.num_visited_nodes = np.ones((self.batch_size,), dtype=np.int64)
-        self.num_visited_nodes = self.num_nodes - np.sum(self.is_not_dummy_mask[:,self.num_items:], axis=-1)
-        # self.num_visited_nodes[self.num_visited_nodes==0]=1
+        self.num_visited_nodes = np.ones((self.batch_size,), dtype=np.int64)
         self.is_selected = np.zeros((self.batch_size, self.num_items+self.num_nodes))
         self.is_node_visited = np.zeros((self.batch_size, self.num_nodes), dtype=np.bool)
         self.is_node_visited[:, 0] = True
@@ -85,7 +81,7 @@ class TTPEnv():
     def begin(self):
         self.reset()
         dynamic_features = self.get_dynamic_features()
-        eligibility_mask = np.logical_and(self.eligibility_mask, self.is_not_dummy_mask)
+        eligibility_mask = self.eligibility_mask
         return self.static_features, dynamic_features, eligibility_mask
         
         # weight, profit, density  
@@ -95,10 +91,27 @@ class TTPEnv():
         static_features[:, :, 0] = self.norm_weights
         static_features[:, :, 1] = self.norm_profits
         static_features[:, :, 2] = self.norm_profits/self.norm_weights
-
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
+        static_features = np.nan_to_num(static_features, nan=0)
+        weights_per_city = self.norm_weights[:,np.newaxis,:]
+        weights_per_city = np.repeat(weights_per_city, repeats=self.num_nodes, axis=1)
+        weights_per_city = weights_per_city*self.item_city_mask
+        profits_per_city = self.norm_profits[:,np.newaxis,:]
+        profits_per_city = np.repeat(profits_per_city, repeats=self.num_nodes, axis=1)
+        profits_per_city = profits_per_city*self.item_city_mask
+        density_per_city = profits_per_city/weights_per_city
+        density_per_city = np.nan_to_num(density_per_city, nan=0)
+        weights_per_city = np.average(weights_per_city, axis=2, keepdims=True)
+        profits_per_city = np.average(profits_per_city, axis=2, keepdims=True)
+        density_per_city = np.average(density_per_city, axis=2, keepdims=True)
+        # print(self.item_city_mask.shape)
+        # print(density_per_city)
+        dummy_static_features = np.concatenate([weights_per_city,profits_per_city,density_per_city], axis=2)
+        # dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
+        # print(dummy_static_features.shape)
+        # exit()
         # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
         static_features = np.concatenate((static_features, dummy_static_features), axis=1)
+        # static_features = np.nan_to_num(static_features, nan=0)
         return static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
@@ -143,7 +156,7 @@ class TTPEnv():
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
         dynamic_features = self.get_dynamic_features()
-        return dynamic_features, np.logical_and(self.eligibility_mask, self.is_not_dummy_mask)
+        return dynamic_features, self.eligibility_mask
 
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection

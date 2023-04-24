@@ -181,6 +181,13 @@ def update(agent, agent_opt, loss):
     torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
     agent_opt.step()
 
+    
+def update_bp_only(agent, agent_opt):
+    torch.nn.utils.clip_grad_norm_(agent.parameters(), max_norm=1)
+    agent_opt.step()
+    agent_opt.zero_grad(set_to_none=True)
+    
+
 
 def save(agent: Agent, agent_opt:torch.optim.Optimizer, critic: Agent, critic_total_cost_list, title, epoch, is_best=False):
     checkpoint_root = "checkpoints"

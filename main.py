@@ -28,7 +28,7 @@ def train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer,
     entropy_loss_list = []
     logprobs_list = []
     batch_size_per_dataset = int(args.batch_size/len(train_dataset_list))
-    train_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset)) for train_dataset in train_dataset_list]#, num_workers=4, pin_memory=True, shuffle=True)]
+    train_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset, shuffle=True, pin_memory=True)) for train_dataset in train_dataset_list]#, num_workers=4, pin_memory=True, shuffle=True)]
     # iterate until dataset empty, don't know elegant way to iterate yet
     is_done=False
     while not is_done:
@@ -72,7 +72,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     agent.eval()
     critic.eval()
     batch_size_per_dataset = int(args.batch_size/len(validation_dataset_list))
-    validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
+    validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
     tour_length_list = []
     total_profit_list = []
     total_costs_list = []
@@ -89,7 +89,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
                 tour_length_list += [tour_lengths]
                 total_profit_list += [total_profits]
                 total_costs_list += [total_costs]
-                sum_entropies_list += [sum_entropies]
+                sum_entropies_list += [sum_entropies.detach().cpu().numpy()]
                 logprob_list += [logprobs]
             except StopIteration:
                 is_done=True
@@ -98,7 +98,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     # if there is no saved critic cost list then generate it/ first time
     if crit_total_cost_list is None:
         crit_total_cost_list = []
-        validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
+        validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, pin_memory=True, shuffle=False)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
         is_done=False
         while not is_done:
             for dl_it in tqdm(validation_dataloader_list, desc="Crit Validation Generate"):
@@ -153,7 +153,7 @@ def run(args):
     train_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
     validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
 
-    for epoch in range(last_epoch, args.max_epoch):
+    for epoch in tqdm(range(last_epoch, args.max_epoch), desc="EPOCH:"):
         train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer)
         is_improving, crit_total_cost_list  = validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset_list, test_env, epoch, writer)
         save(agent, agent_opt, critic, crit_total_cost_list, args.title, epoch )
@@ -167,7 +167,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(1)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

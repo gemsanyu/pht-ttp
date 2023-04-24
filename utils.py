@@ -47,7 +47,7 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
         next_pointer_hidden_states = last_pointer_hidden_states
         item_dynamic_embeddings = agent.item_dynamic_encoder(dynamic_features[:,:num_items,:])
         node_dynamic_embeddings = agent.node_dynamic_encoder(dynamic_features[:,num_items:,:])
-        dynamic_embeddings = torch.concatenate([item_dynamic_embeddings, node_dynamic_embeddings], dim=1)
+        dynamic_embeddings = torch.cat([item_dynamic_embeddings, node_dynamic_embeddings], dim=1)
         # dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
         # if param_dict is not None:
         #     active_param_dict = {"v1":param_dict["v1"][active_idx,:,:]}

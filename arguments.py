@@ -5,7 +5,7 @@ def get_parser():
     # GENERAL
     parser.add_argument('--dataset-name',
                         type=str,
-                        default="a280-n279",
+                        default="eil76-n75",
                         help="dataset's name for real testing")
     parser.add_argument('--title',
                         type=str,
@@ -15,15 +15,6 @@ def get_parser():
                         type=str,
                         default='cpu',
                         help='device to be used cpu or cuda(gpu)')
-    parser.add_argument('--num-items-per-city',
-                        nargs='+',
-                        type=int,
-                        default=[1,3,5],
-                        help='number of items per city')
-    parser.add_argument('--num-nodes',
-                        type=int,
-                        default=50,
-                        help='num nodes/num cities')
     parser.add_argument('--max-epoch',
                         type=int,
                         default=100000,
@@ -39,8 +30,11 @@ def get_parser():
     parser.add_argument('--num-training-samples',
                         type=int,
                         default=1000,
-                        help="dataloader batch size")
-    
+                        help="num training instances")
+    parser.add_argument('--num-validation-samples',
+                        type=int,
+                        default=1000,
+                        help="num validation instances")
     # Agent
     parser.add_argument('--max-grad-norm',
                         type=int,
@@ -52,7 +46,7 @@ def get_parser():
                         help="learning rate")
     parser.add_argument('--encoder-size',
                         type=int,
-                        default=64,
+                        default=128,
                         help='Encoder layer\'s size.')
     parser.add_argument('--pointer-layers',
                         type=int,

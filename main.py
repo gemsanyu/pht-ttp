@@ -154,7 +154,7 @@ def run(args):
     a = (args.weight_idx-1.)/(args.total_weight-1.)
     b = 1-a
     ray = torch.tensor([a,b], device=args.device)
-    nn_list = [20,30,40,50]
+    nn_list = [10,20,30,40,50]
     nipc_list = [1,3,5,10]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)

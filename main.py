@@ -153,7 +153,7 @@ def run(args):
     agent, agent_opt, critic, last_epoch, writer, test_env, crit_ws_cost_list  = setup(args)
     a = (args.weight_idx-1.)/(args.total_weight-1.)
     b = 1-a
-    ray = torch.tensor([a,b], device=args.device)
+    ray = np.asanyarray([a,b], dtype=np.float32)
     nn_list = [10,20,30,40,50]
     nipc_list = [1,3,5,10]
     len_types = len(nn_list)*len(nipc_list)

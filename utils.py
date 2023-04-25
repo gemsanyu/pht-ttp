@@ -143,8 +143,8 @@ def compute_multi_loss(total_profits, travel_costs, critic_total_profits, critic
     crit_ws_cost = ray[0]*critic_total_profits - ray[1]*critic_travel_costs
     # profit_adv = critic_total_profits-total_profits
     # travel_adv = travel_costs-critic_travel_costs
-    advantage = (crit_ws_cost-ws_cost).to(logprobs.device)
-    # advantage = torch.from_numpy(advantage).to(logprobs.device)
+    advantage = crit_ws_cost-ws_cost
+    advantage = torch.from_numpy(advantage).to(logprobs.device)
     agent_loss = (advantage*logprobs).mean()
     entropy_loss = -sum_entropies.mean()
     return agent_loss, entropy_loss

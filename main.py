@@ -103,7 +103,7 @@ def validation_one_epoch(agent, critic, ray, crit_ws_cost_list, validation_datas
     # if there is no saved critic cost list then generate it/ first time
     if crit_ws_cost_list is None:
         crit_ws_cost_list = []
-        validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
+        validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, pin_memory=True, shuffle=False)) for validation_dataset in validation_dataset_list]#, num_workers=4, pin_memory=True, shuffle=False)]
         is_done=False
         while not is_done:
             for dl_it in tqdm(validation_dataloader_list, desc="Crit Validation Generate"):
@@ -148,7 +148,7 @@ def validation_one_epoch(agent, critic, ray, crit_ws_cost_list, validation_datas
     return is_improving, crit_ws_cost_list
 
 def run(args):
-    patience=100
+    patience=50
     not_improving_count = 0
     agent, agent_opt, critic, last_epoch, writer, test_env, crit_ws_cost_list  = setup(args)
     a = (args.weight_idx-1.)/(args.total_weight-1.)

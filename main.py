@@ -7,13 +7,13 @@ import sys
 import numpy as np
 from scipy.stats import wilcoxon
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from setup import setup
 from ttp.ttp_dataset import TTPDataset, get_dataset_list
 from ttp.ttp_env import TTPEnv
-from utils import compute_single_loss, update, write_training_progress, write_validation_progress, write_test_progress, save
+from utils import compute_single_loss, write_training_progress, write_validation_progress, write_test_progress, save
 from utils import solve, prepare_args, write_test_progress, update_bp_only
 
 
@@ -52,7 +52,7 @@ def train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer,
                 logprobs_list += [logprobs.detach().cpu().numpy()]
                 loss = agent_loss + entropy_loss_alpha*entropy_loss
                 loss.backward()
-            except:
+            except StopIteration:
                 is_done=True
                 break
         if not is_done:
@@ -91,7 +91,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
                 total_costs_list += [total_costs]
                 sum_entropies_list += [sum_entropies]
                 logprob_list += [logprobs]
-            except:
+            except StopIteration:
                 is_done=True
                 break
         
@@ -108,7 +108,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
                     env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
                     _, _, crit_tour_lengths, crit_total_profits, crit_total_costs, _, _ = solve(critic, env)
                     crit_total_cost_list += [crit_total_costs]
-                except:
+                except StopIteration:
                     is_done=True
                     break
             # crit_tour_length_list += [crit_tour_lengths]
@@ -125,7 +125,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     mean_total_cost = total_costs_list.mean()
     mean_entropies = sum_entropies_list.mean()
     mean_logprob = torch.cat(logprob_list).mean()
-    print(len(total_costs_list), len(crit_total_cost_list))
+    # print(len(total_costs_list), len(crit_total_cost_list))
     write_validation_progress(mean_tour_length, mean_total_profit, mean_total_cost, mean_entropies, mean_logprob, epoch, writer)
     
     #check if agent better than critic now?
@@ -142,11 +142,11 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     return is_improving, crit_total_cost_list
 
 def run(args):
-    patience=100
+    patience=20
     not_improving_count = 0
     agent, agent_opt, critic, crit_total_cost_list, last_epoch, writer, test_env = setup(args)
-    nn_list = [20, 30]
-    nipc_list = [1,3,5]
+    nn_list = [10,20,30,40,50]
+    nipc_list = [1,3,5,10]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)
     validation_num_samples_per_dataset = int(args.num_validation_samples/len_types)

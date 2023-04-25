@@ -91,10 +91,27 @@ class TTPEnv():
         static_features[:, :, 0] = self.norm_weights
         static_features[:, :, 1] = self.norm_profits
         static_features[:, :, 2] = self.norm_profits/self.norm_weights
-
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
+        static_features = np.nan_to_num(static_features, nan=0)
+        weights_per_city = self.norm_weights[:,np.newaxis,:]
+        weights_per_city = np.repeat(weights_per_city, repeats=self.num_nodes, axis=1)
+        weights_per_city = weights_per_city*self.item_city_mask
+        profits_per_city = self.norm_profits[:,np.newaxis,:]
+        profits_per_city = np.repeat(profits_per_city, repeats=self.num_nodes, axis=1)
+        profits_per_city = profits_per_city*self.item_city_mask
+        density_per_city = profits_per_city/weights_per_city
+        density_per_city = np.nan_to_num(density_per_city, nan=0)
+        weights_per_city = np.average(weights_per_city, axis=2, keepdims=True)
+        profits_per_city = np.average(profits_per_city, axis=2, keepdims=True)
+        density_per_city = np.average(density_per_city, axis=2, keepdims=True)
+        # print(self.item_city_mask.shape)
+        # print(density_per_city)
+        dummy_static_features = np.concatenate([weights_per_city,profits_per_city,density_per_city], axis=2)
+        # dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
+        # print(dummy_static_features.shape)
+        # exit()
         # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
         static_features = np.concatenate((static_features, dummy_static_features), axis=1)
+        # static_features = np.nan_to_num(static_features, nan=0)
         return static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
@@ -158,6 +175,7 @@ class TTPEnv():
         # check if the selected item's location is not the current location too
         selected_item_location = self.item_city_idx[active_idx, selected_item]
         is_diff_location = self.current_location[active_idx] != selected_item_location
+        # print(selected_item)
         if np.any(is_diff_location):
             self.visit_node(active_idx[is_diff_location], selected_item_location[is_diff_location])
 
@@ -175,7 +193,13 @@ class TTPEnv():
         self.current_location[active_idx] = selected_node
 
         # save it to tour list
+        # print(self.num_visited_nodes)
+        # print(self.tour_list.shape, active_idx,self.num_visited_nodes[active_idx], selected_node )
+        # print(self.eligibility_mask[active_idx])
+        # print(self.is_not_dummy_mask[active_idx])
+        # print("-----------------------------")
         self.tour_list[active_idx, self.num_visited_nodes[active_idx]] = selected_node
+        
         self.num_visited_nodes[active_idx] += 1
 
         #check if all nodes are visited, if yes then make the dummy item for first city feasibe
@@ -205,6 +229,6 @@ class TTPEnv():
         # total profit
         selected_profits = self.item_selection*profits
         total_profits = selected_profits.sum(axis=-1)
-
-        total_cost = total_profits - tour_lengths*self.renting_rate
-        return torch.from_numpy(self.tour_list), torch.from_numpy(self.item_selection), torch.from_numpy(tour_lengths), torch.from_numpy(total_profits), torch.from_numpy(total_cost)
+        travel_cost = tour_lengths*self.renting_rate
+        total_cost = total_profits - travel_cost
+        return self.tour_list, self.item_selection, tour_lengths, total_profits, travel_cost, total_cost

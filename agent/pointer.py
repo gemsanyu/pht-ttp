@@ -7,8 +7,7 @@ import torch.nn.functional as F
 from agent.attention import Attention
 
 
-# class Pointer(nn.Module):
-class Pointer(T.jit.ScriptModule):
+class Pointer(nn.Module):
     def __init__(
             self,
             num_neurons: int,
@@ -58,7 +57,6 @@ class Pointer(T.jit.ScriptModule):
 
         self.to(device)
 
-    @T.jit.script_method
     def forward(self,
                 features: T.Tensor,
                 decoder_input: T.Tensor,
@@ -94,8 +92,8 @@ class Pointer(T.jit.ScriptModule):
         if param_dict is not None:
             att_param_dict = {
                                   "v":param_dict["v1"],
-                                  "fe_weight":param_dict["fe1_weight"],
-                                  "qe_weight":param_dict["qe1_weight"],
+                                #   "fe_weight":param_dict["fe1_weight"],
+                                #   "qe_weight":param_dict["qe1_weight"],
                                  }
         else:
             att_param_dict = None

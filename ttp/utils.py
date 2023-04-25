@@ -1,3 +1,5 @@
+import pathlib
+import pickle
 from typing import NamedTuple, Union
 
 import torch
@@ -71,16 +73,28 @@ def normalize_coords(coords, W=None):
     return norm_coords, norm_W, scale
 
 
+def generate_item_city_idx(num_nodes, num_items_per_city):
+    item_city_idx = torch.arange(num_nodes-1) + 1
+    item_city_idx = item_city_idx.repeat(num_items_per_city)
+    item_city_idx = item_city_idx.expand((num_nodes-1)*num_items_per_city,)
+    return item_city_idx
+
+def generate_item_city_mask(num_nodes, num_items, item_city_idx):
+    item_city_mask = torch.arange(num_nodes).expand(num_items, num_nodes).transpose(1, 0)
+    item_city_mask = item_city_mask == item_city_idx.unsqueeze(0)
+    item_city_mask = item_city_mask.bool()
+    return item_city_mask.bool()
+
 # get renting rate by solving both knapsack and TSP
 def get_renting_rate(W, weights, profits, capacity):
     # solve the knapsack first
-    optimal_profit = solve_knapsack(weights, profits, capacity)
+    optimal_profit, item_selection = solve_knapsack(weights, profits, capacity)
     # solve the tsp
     route_list, optimal_tour_length = solve_tsp(W)
     renting_rate = float(optimal_profit)/float(optimal_tour_length)
     return optimal_tour_length, optimal_profit, renting_rate
 
-def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,WeightData,int,int,float,float,torch.Tensor]:
+def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,WeightData,int,int,float,float,float]:
     coords = None
     weights = None
     profits = None
@@ -144,3 +158,13 @@ def read_data(data_path, device=CPU_DEVICE) -> Union[LocationData,ProfitData,Wei
     weight_data = WeightData(weights, norm_weights, weight_scale)                
     item_city_idx = item_city_idx
     return location_data, profit_data, weight_data, item_city_idx, num_nodes, num_items, renting_rate, min_v, max_v, max_cap
+
+def save_prob(problem, num_nodes, num_items_per_city, prob_idx):
+    data_root = "data_full"
+    data_dir = pathlib.Path(".")/data_root/"training"/"sop"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_"+str(prob_idx)
+    dataset_path = data_dir/(dataset_name+".pt")
+
+    with open(dataset_path.absolute(), "wb") as handle:
+        pickle.dump(problem, handle, protocol=pickle.HIGHEST_PROTOCOL)

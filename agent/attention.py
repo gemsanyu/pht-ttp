@@ -5,8 +5,8 @@ import torch as T
 import torch.nn as nn
 from torch.nn import functional as F
 
-class Attention(T.jit.ScriptModule):
-# class Attention(nn.Module):
+
+class Attention(nn.Module):
     def __init__(self, num_neurons: int, device: T.device, use_tanh:bool=False, tanh_clip:Optional[int]=10):
         """
         ### Calculates attention over the input nodes given the current state.
@@ -35,7 +35,6 @@ class Attention(T.jit.ScriptModule):
         self.use_tanh = use_tanh
         self.to(device)
 
-    @T.jit.script_method
     def forward(
             self,
             features: T.Tensor,
@@ -58,13 +57,19 @@ class Attention(T.jit.ScriptModule):
             projected_query = self.query_embedder(query)
             v = self.v.expand(batch_size, 1, self.num_neurons)
         else:
-            fe_weight, qe_weight = param_dict["fe_weight"], param_dict["qe_weight"]
-            projected_features = F.linear(features, fe_weight)
-            projected_query = F.linear(query, qe_weight)
+            # fe_weight, qe_weight = param_dict["fe_weight"], param_dict["qe_weight"]
+            # projected_features = F.linear(features, fe_weight)
+            # qe_weight = param_dict["qe_weight"]
+            # projected_query = F.linear(query, qe_weight)
+            projected_features = self.features_embedder(features)
+            projected_query = self.query_embedder(query)
             v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
+            # v = param_dict["v"]
+        
         hidden =(projected_features+projected_query).tanh()
         hidden = hidden.permute(0,2,1)
         u = T.bmm(v,hidden)
+
         if self.use_tanh:
             logits = self.tanh_clip*u.tanh()
         else:

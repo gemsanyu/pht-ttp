@@ -21,8 +21,8 @@ Encoder input: last customers static features
 """
 CPU_DEVICE = T.device("cpu")
 
-class Agent(T.jit.ScriptModule):
-# class Agent(nn.Module):
+# class Agent(T.jit.ScriptModule):
+class Agent(nn.Module):
     def __init__(
             self,
             device: CPU_DEVICE,
@@ -58,11 +58,13 @@ class Agent(T.jit.ScriptModule):
         self.num_dynamic_features = num_dynamic_features
 
         self.item_static_encoder = nn.Linear(self.num_static_features, static_encoder_size)
-        self.dynamic_encoder = nn.Linear(self.num_dynamic_features, dynamic_encoder_size)
+        self.item_dynamic_encoder = nn.Linear(self.num_dynamic_features, dynamic_encoder_size)
+        self.node_dynamic_encoder = nn.Linear(self.num_dynamic_features, dynamic_encoder_size)
         self.depot_init_embed = nn.parameter.Parameter(T.Tensor(size=(1,1,static_encoder_size)))
         self.depot_init_embed.data.uniform_(-1, 1)
-        self.node_init_embed = nn.parameter.Parameter(T.Tensor(size=(1,1,static_encoder_size)))
-        self.node_init_embed.data.uniform_(-1, 1)
+        self.node_encoder=nn.Linear(self.num_static_features, static_encoder_size)
+        # self.node_init_embed = nn.parameter.Parameter(T.Tensor(size=(1,1,static_encoder_size)))
+        # self.node_init_embed.data.uniform_(-1, 1)
         self.total_num_features = self.num_static_features + self.num_dynamic_features
         self.decoder_input_encoder = nn.Linear(static_encoder_size, decoder_encoder_size)
         self.pointer = Pointer(pointer_num_neurons, pointer_num_layers, device=self.device, dropout=dropout, n_glimpses=n_glimpses)
@@ -71,7 +73,7 @@ class Agent(T.jit.ScriptModule):
         self.softmax = nn.Softmax(dim=2)
         self.to(self.device)
 
-    @T.jit.script_method   
+    # @T.jit.script_method   
     def forward(self, 
                 last_pointer_hidden_states: T.Tensor, 
                 static_embeddings: T.Tensor, 
@@ -87,7 +89,7 @@ class Agent(T.jit.ScriptModule):
 
         Return: logprobs, selected_vecs, and selected_custs
         '''
-        batch_size, num_items, _ = static_embeddings.shape
+        batch_size, _, _ = static_embeddings.shape
         eligibility_mask = eligibility_mask.view(batch_size, 1, -1)
         decoder_input = self.decoder_input_encoder(previous_embeddings)
         features = T.cat((static_embeddings, dynamic_embeddings), dim=-1)
@@ -96,7 +98,7 @@ class Agent(T.jit.ScriptModule):
         probs = self.softmax(logits)
         return next_pointer_hidden_state, logits, probs
 
-    @T.jit.ignore
+    # @T.jit.ignore
     def select(self, probs: T.Tensor) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
         '''
         ### Select next operation to be executed.

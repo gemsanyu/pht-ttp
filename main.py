@@ -148,7 +148,7 @@ def validation_one_epoch(agent, critic, ray, crit_ws_cost_list, validation_datas
     return is_improving, crit_ws_cost_list
 
 def run(args):
-    patience=50
+    patience=20
     not_improving_count = 0
     agent, agent_opt, critic, last_epoch, writer, test_env, crit_ws_cost_list  = setup(args)
     a = (args.weight_idx-1.)/(args.total_weight-1.)

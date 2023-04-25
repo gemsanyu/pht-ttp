@@ -51,7 +51,7 @@ def train_one_epoch(agent, critic, agent_opt, ray, train_dataset_list, epoch, wr
                 logprobs_list += [logprobs.detach().cpu().numpy()]
                 loss = agent_loss + entropy_loss_alpha*entropy_loss
                 loss.backward()
-            except:
+            except StopIteration:
                 is_done=True
                 break
         if not is_done:
@@ -96,7 +96,7 @@ def validation_one_epoch(agent, critic, ray, crit_ws_cost_list, validation_datas
                 ws_cost_list += [ws_cost]
                 sum_entropies_list += [sum_entropies.detach().cpu().numpy()]
                 logprob_list += [logprobs]
-            except:
+            except StopIteration:
                 is_done=True
                 break
         
@@ -114,7 +114,7 @@ def validation_one_epoch(agent, critic, ray, crit_ws_cost_list, validation_datas
                     _, _, crit_tour_lengths, crit_total_profits, crit_travel_costs, crit_total_costs, _, _ = solve(critic, env)
                     crit_ws_cost = ray[0]*crit_total_profits - ray[1]*crit_travel_costs
                     crit_ws_cost_list += [crit_ws_cost]
-                except:
+                except StopIteration:
                     is_done=True
                     break
         crit_ws_cost_list = np.concatenate(crit_ws_cost_list)

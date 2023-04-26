@@ -2,9 +2,8 @@ import argparse
 from multiprocessing import Pool
 import pathlib
 import pickle
-import random
 import sys
-from typing import Optional, List
+from typing import List
 
 from ttp.ttp import TTP
 
@@ -13,7 +12,7 @@ def get_args():
     parser.add_argument('--dataseed',
                         type=str,
                         nargs="?",
-                        default="eil76-n75",
+                        default="eil76_n225_uncorr_05",
                         help="dataset's name for real testing")
 
     parser.add_argument('--num-dataset',
@@ -24,7 +23,7 @@ def get_args():
     parser.add_argument('--num-nodes-list',
                         type=int,
                         nargs="+",
-                        default=[20,30],
+                        default=[50],
                         help="num of nodes in dataset")
 
     parser.add_argument('--num-items-per-city',

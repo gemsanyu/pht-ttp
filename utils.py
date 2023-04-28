@@ -25,6 +25,7 @@ def encode(agent, static_features, num_nodes, num_items, batch_size):
     return static_embeddings
 
 def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
+    env.reset()
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
@@ -48,9 +49,6 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
         item_dynamic_embeddings = agent.item_dynamic_encoder(dynamic_features[:,:num_items,:])
         node_dynamic_embeddings = agent.node_dynamic_encoder(dynamic_features[:,num_items:,:])
         dynamic_embeddings = torch.cat([item_dynamic_embeddings, node_dynamic_embeddings], dim=1)
-        # dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
-        # if param_dict is not None:
-        #     active_param_dict = {"v1":param_dict["v1"][active_idx,:,:]}
         forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states

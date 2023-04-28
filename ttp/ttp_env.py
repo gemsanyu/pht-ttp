@@ -146,6 +146,9 @@ class TTPEnv():
 
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
+        # print("--------------",self.num_items, self.num_nodes)
+        # print(active_idx, selected_idx)
+        # print(self.eligibility_mask[active_idx,selected_idx])
         active_idx = active_idx.cpu().numpy()
         selected_idx = selected_idx.cpu().numpy()
         is_taking_item = selected_idx < self.num_items
@@ -154,7 +157,7 @@ class TTPEnv():
         is_visiting_node_only = np.logical_not(is_taking_item)
         if np.any(is_visiting_node_only):
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
-
+        
         dynamic_features = self.get_dynamic_features()
         return dynamic_features, self.eligibility_mask
 
@@ -180,6 +183,8 @@ class TTPEnv():
             self.visit_node(active_idx[is_diff_location], selected_item_location[is_diff_location])
 
     def visit_node(self, active_idx, selected_node):
+        # print(self.tour_list[active_idx], selected_node)
+        # print(self.eligibility_mask[active_idx])
         # set is selected
         self.is_selected[active_idx, selected_node+self.num_items] = True
         # set dummy item for the selected location is infeasible
@@ -199,7 +204,8 @@ class TTPEnv():
         # print(self.is_not_dummy_mask[active_idx])
         # print("-----------------------------")
         self.tour_list[active_idx, self.num_visited_nodes[active_idx]] = selected_node
-        
+
+
         self.num_visited_nodes[active_idx] += 1
 
         #check if all nodes are visited, if yes then make the dummy item for first city feasibe

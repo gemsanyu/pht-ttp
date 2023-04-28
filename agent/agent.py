@@ -109,9 +109,17 @@ class Agent(nn.Module):
 
         Return: index of operations, log of probabilities
         '''
+        batch_size, _, _ = probs.shape
+        batch_idx = T.arange(batch_size, device=self.device)
         if self.training:
+            # print(probs)
             dist = T.distributions.Categorical(probs)
             selected_idx = dist.sample()
+            # print(probs[batch_idx,0,selected_idx[:,0]])
+            probs_selected = probs[batch_idx,0,selected_idx[:,0]]
+            while T.any(probs_selected==0):
+                selected_idx = dist.sample()
+                probs_selected = probs[batch_idx,0,selected_idx[:,0]]
             logprob = dist.log_prob(selected_idx)
             entropy = dist.entropy()
             entropy = entropy.squeeze(1)        

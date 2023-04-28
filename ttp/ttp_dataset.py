@@ -35,6 +35,8 @@ class TTPDataset(Dataset):
         plt = platform.system()
         if plt == 'Linux':
             pathlib.WindowsPath = pathlib.PosixPath
+        elif plt == 'Windows':
+            pathlib.PosixPath = pathlib.WindowsPath
         self.mode = mode
         self.batch = None
         if dataset_name is None:

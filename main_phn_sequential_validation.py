@@ -1,71 +1,202 @@
+import copy
 import random
 
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from scipy.stats import wilcoxon
 
+from policy.hv import Hypervolume
+from policy.non_dominated_sorting import fast_non_dominated_sort
 from setup_phn import setup_phn
-from ttp.ttp_dataset import TTPDataset
-from utils import update_phn, save_phn
+from ttp.ttp_dataset import get_dataset_list
 from utils import prepare_args
-from utils_moo import init_phn_output, validate_one_epoch, write_training_phn_progress, compute_loss
+from utils_moo import init_phn_output
+from utils_moo import compute_loss, write_training_phn_progress
 from utils_moo import compute_spread_loss, generate_params, solve_one_batch, generate_rays
-from utils_moo import solve_one_batchv2, validate_one_epochv2
-from validator import load_validator, save_validator
+from utils_moo import update_phn_bp_only, save_phn, write_test_hv
     
-def train_one_batch(agent, phn, phn_opt, batch, writer, num_ray=16, ld=1, is_initialize=False):
+def compute_loss_one_batch(agent, phn, critic_phn, batch, num_ray=16):
     agent.train()
-    # ray_list = generate_rays(num_ray, phn.device)
-    ray_list, param_dict_list = generate_params(phn, num_ray, phn.device)
+    ray_list = generate_rays(num_ray, phn.device, is_random=True)
+    param_dict_list = generate_params(phn, ray_list)
+    critic_param_dict_list = generate_params(critic_phn, ray_list)
     logprob_list, f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, batch)
-    # logprob_list, f_list, sum_entropies_list, param_dict_list = solve_one_batchv2(agent, phn, ray_list, batch)
     with torch.no_grad():
         agent.eval()
-        _, greedy_f_list, _ = solve_one_batch(agent, param_dict_list, batch)
-        # _, greedy_f_list, _, _ = solve_one_batchv2(agent, phn, ray_list, batch)
+        _, greedy_f_list, _ = solve_one_batch(agent, critic_param_dict_list, batch)
     loss_obj, cos_penalty_loss = compute_loss(logprob_list, f_list, greedy_f_list,ray_list)
-    total_loss = loss_obj
-    if is_initialize:
-        # total_loss = -0.1*spread_loss
-        total_loss = 0
     spread_loss = compute_spread_loss(logprob_list, f_list, param_dict_list)
-    total_loss -= 0.1*spread_loss
-    total_loss += ld*cos_penalty_loss
     
-    update_phn(phn, phn_opt, total_loss)
-    agent.zero_grad(set_to_none=True)
-    phn.zero_grad(set_to_none=True)
-    write_training_phn_progress(writer, loss_obj.detach().cpu(), cos_penalty_loss.detach().cpu())
-
-def train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize):
+    return loss_obj, cos_penalty_loss, spread_loss
+    
+def train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dataset_list, is_initialize=False):
     phn.train()
-    dataloader = DataLoader(training_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
-    for idx, batch in tqdm(enumerate(dataloader)):
-        train_one_batch(agent, phn, phn_opt, batch, writer, args.num_ray, args.ld, is_initialize)
-        
+    batch_size_per_dataset = int(args.batch_size/len(training_dataset_list))
+    training_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset, shuffle=True, pin_memory=True)) for train_dataset in training_dataset_list]
+    is_done=False
+    loss_obj_list = []
+    cos_penalty_loss_list = []
+    spread_loss_list = []
+    while not is_done:
+        for dl_it in tqdm(training_dataloader_list, desc="Training"):
+            try:
+                batch_idx, batch = next(dl_it)
+                loss_obj, cos_penalty_loss, spread_loss = compute_loss_one_batch(agent, phn, critic_phn, batch, args.num_ray)
+                total_loss = loss_obj
+                if is_initialize:
+                    total_loss = 0
+                total_loss -= 0.1*spread_loss
+                total_loss += args.ld*cos_penalty_loss
+                total_loss.backward()
+                loss_obj_list += [loss_obj.detach().cpu().numpy()]
+                cos_penalty_loss_list += [cos_penalty_loss.detach().cpu().numpy()]
+                spread_loss_list += [spread_loss.detach().cpu().numpy()]
+            except StopIteration:
+                is_done=True
+                break 
+        update_phn_bp_only(agent, phn, phn_opt)
+    loss_obj_list = np.asanyarray(loss_obj_list)
+    cos_penalty_loss_list = np.asanyarray(cos_penalty_loss_list)
+    spread_loss_list = np.asanyarray(spread_loss_list)
+    write_training_phn_progress(writer, loss_obj_list.mean(), cos_penalty_loss_list.mean())
+
+
+@torch.no_grad()        
+def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_dataset_list, test_batch, test_sample_solutions, tb_writer, epoch):
+    agent.eval()
+    batch_size_per_dataset = int(args.batch_size/len(validation_dataset_list))
+    validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]
+    #evaluate agent
+    ray_list = generate_rays(args.num_ray, args.device, is_random=False)
+    param_dict_list = generate_params(phn, ray_list)
+    f_list = []
+    is_done=False
+    while not is_done:
+        for dl_it in tqdm(validation_dataloader_list, desc="Validation"):
+            try:
+                batch_idx, batch = next(dl_it)
+                logprob_list, batch_f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, batch)
+                f_list += [batch_f_list] 
+            except StopIteration:
+                is_done=True
+                break
+    f_list = np.concatenate(f_list,axis=1)
+
+    #get critic solution list if not exist already
+    if critic_solution_list is None:
+        critic_solution_list = []
+        validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]
+        crit_param_dict_list = generate_params(critic_phn, ray_list)
+        is_done=False
+        while not is_done:
+            for dl_it in tqdm(validation_dataloader_list, desc="Generate Critic Solution"):
+                try:
+                    batch_idx, batch = next(dl_it)
+                    _, crit_batch_f_list, _ = solve_one_batch(agent, crit_param_dict_list, batch)
+                    critic_solution_list += [crit_batch_f_list] 
+                except StopIteration:
+                    is_done=True
+                    break
+        critic_solution_list = np.concatenate(critic_solution_list,axis=1)
+
+    # now compare the agent's solutions hv with the critics
+    # use wilcoxon signed rank
+    _, num_validation_instances, _ = f_list.shape
+    hv_list = []
+    critic_hv_list = []
+    for i in range(num_validation_instances):
+        agent_f = f_list[:,i,:]
+        critic_f = critic_solution_list[:,i,:]
+        combined_f = np.concatenate([agent_f, critic_f], axis=0)
+        nondom_f_idx = fast_non_dominated_sort(combined_f)[0]
+        nondom_f = combined_f[nondom_f_idx,:]
+        utopia_points = np.min(nondom_f, axis=0)
+        nadir_points = np.max(nondom_f, axis=0)
+        diff = nadir_points-utopia_points
+        diff[diff==0] = 1
+        norm_agent_f = (agent_f-utopia_points)/diff
+        norm_critic_f = (critic_f-utopia_points)/diff
+        agent_hv = Hypervolume(np.array([1.1,1.1])).calc(norm_agent_f)
+        critic_hv = Hypervolume(np.array([1.1,1.1])).calc(norm_critic_f)
+        hv_list += [agent_hv]
+        critic_hv_list += [critic_hv]
+    hv_list = np.asanyarray(hv_list)
+    critic_hv_list = np.asanyarray(critic_hv_list)
+    res = wilcoxon(hv_list, critic_hv_list, alternative="greater")
+    is_improving=False
+    if res.pvalue < 0.05:
+        is_improving = True
+    if hv_list.mean() > critic_hv_list.mean():
+        is_improving = True
+    print("-----------------Validation pvalue:", res.pvalue, " ", is_improving)
+    
+    if is_improving:
+        critic_phn.load_state_dict(copy.deepcopy(phn.state_dict()))
+        critic_solution_list = f_list
+    tb_writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
+    tb_writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
+    tb_writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
+
+    # Scatter plot with gradient colors
+    ray_list = generate_rays(50, args.device, is_random=False)
+    param_dict_list = generate_params(phn, ray_list)
+    logprobs_list, test_f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, test_batch)
+    # Define the light and dark blue colors
+    light_blue = mcolors.CSS4_COLORS['lightblue']
+    dark_blue = mcolors.CSS4_COLORS['darkblue']
+
+    # Create a linear gradient from light blue to dark blue
+    gradient = np.linspace(0,1,len(param_dict_list))
+    colors = np.vstack((mcolors.to_rgba(light_blue), mcolors.to_rgba(dark_blue)))
+    my_cmap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors, N=len(param_dict_list))
+
+    plt.figure()
+    plt.scatter(test_sample_solutions[:,0], -test_sample_solutions[:,1], c="red")
+    plt.scatter(test_f_list[:,0,0], test_f_list[:,0,1], c=gradient, cmap=my_cmap)
+    tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), epoch)
+    write_test_hv(tb_writer, test_f_list[:,0,:], epoch, test_sample_solutions)
+    return is_improving, critic_solution_list
+
+
 def run(args):
-    agent, phn, phn_opt, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
-    validator = load_validator(args)
-    training_dataset = TTPDataset(num_samples=args.num_training_samples)
-    validation_dataset = TTPDataset(num_samples=args.num_validation_samples)
-    # if last_epoch == 0:
-    #     init_phn_output(agent, phn, writer, max_step=1000)
+    patience = 50
+    not_improving_count = 0
+    agent, phn, phn_opt, critic_phn, critic_solution_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
+    nn_list = [10,20,30,40,50]
+    nipc_list = [1,3,5,10]
+    len_types = len(nn_list)*len(nipc_list)
+    train_num_samples_per_dataset = int(args.num_training_samples/len_types)
+    validation_num_samples_per_dataset = int(args.num_validation_samples/len_types)
+    training_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
+    validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
+
+    
+    if last_epoch == 0:
+        init_phn_output(agent, phn, writer, max_step=1000)
     #     validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
     #     save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):
-        if epoch <=10:
-            train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=True)
+        if epoch <=0:
+            train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dataset_list, is_initialize=True)
         else:
-            train_one_epoch(args, agent, phn, phn_opt, writer, training_dataset, is_initialize=False)
-        if epoch % 5 == 0:
-            validate_one_epoch(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, epoch) 
-        save_phn(phn, phn_opt, epoch, args.title)
-        save_validator(validator, args.title)
+            train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dataset_list, is_initialize=False)
+        is_improving, critic_solution_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_dataset_list, test_batch, test_sample_solutions, writer, epoch) 
+        save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, args.title)
+        if is_improving:
+            save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, args.title, is_best=True)
+            not_improving_count = 0
+        else:
+            not_improving_count += 1
+        if not_improving_count == patience:
+            break
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

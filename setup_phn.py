@@ -1,4 +1,5 @@
-import os.path
+import copy
+import os
 import pathlib
 
 import torch
@@ -24,6 +25,10 @@ def setup_phn(args, load_best=False):
     phn = PHN(ray_hidden_size=args.ray_hidden_size, 
             num_neurons=args.encoder_size, 
             device=args.device)
+    critic_phn = PHN(ray_hidden_size=args.ray_hidden_size, 
+            num_neurons=args.encoder_size, 
+            device=args.device)
+    # critic_phn.load_state_dict(copy.deepcopy(phn.state_dict()))
     phn_opt = torch.optim.AdamW(phn.parameters(), lr=args.lr)
 
     summary_root = "runs"
@@ -49,13 +54,16 @@ def setup_phn(args, load_best=False):
         print("CHECKPOINT NOT FOUND! new run?")
 
     last_epoch = 0
+    critic_solution_list = None
     if checkpoint is not None:
         phn.load_state_dict(checkpoint["phn_state_dict"])
         phn_opt.load_state_dict(checkpoint["phn_opt_state_dict"])
+        critic_phn.load_state_dict(checkpoint["critic_phn"])
+        critic_solution_list = checkpoint["critic_solution_list"]
         last_epoch = checkpoint["epoch"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     test_batch = next(iter(test_dataloader))
 
-    return agent, phn, phn_opt, last_epoch, writer, test_batch, test_dataset.prob.sample_solutions
+    return agent, phn, phn_opt, critic_phn, critic_solution_list, last_epoch, writer, test_batch, test_dataset.prob.sample_solutions

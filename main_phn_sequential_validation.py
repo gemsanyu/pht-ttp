@@ -166,8 +166,8 @@ def run(args):
     patience = 50
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
-    nn_list = [10,20,30,40,50]
-    nipc_list = [1,3,5,10]
+    nn_list = [10,20,30]
+    nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)
     validation_num_samples_per_dataset = int(args.num_validation_samples/len_types)

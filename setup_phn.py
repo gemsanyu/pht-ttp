@@ -58,7 +58,7 @@ def setup_phn(args, load_best=False):
     if checkpoint is not None:
         phn.load_state_dict(checkpoint["phn_state_dict"])
         phn_opt.load_state_dict(checkpoint["phn_opt_state_dict"])
-        critic_phn.load_state_dict(checkpoint["critic_phn"])
+        critic_phn.load_state_dict(checkpoint["critic_phn_state_dict"])
         critic_solution_list = checkpoint["critic_solution_list"]
         last_epoch = checkpoint["epoch"]
 

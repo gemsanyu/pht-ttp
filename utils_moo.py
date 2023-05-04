@@ -255,7 +255,7 @@ def init_phn_output(agent, phn, tb_writer, max_step=1000):
         if loss < 1e-3:
             break
 
-def save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list,, epoch, title, is_best=False):
+def save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, title, is_best=False):
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)

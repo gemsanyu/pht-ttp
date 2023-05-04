@@ -100,11 +100,11 @@ python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_bo
 python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_08
 python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_09
 python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_bounded-strongly-corr_10
-python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_01 &
-python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_02 & 
-python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_03 &
-python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_04 & 
-python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_05 &
+python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_01
+python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_02 
+python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_03
+python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_04 
+python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_05
 python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_06
 python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_07
 python test.py --title PN-DRLMOA --total-weight 100 --dataset-name ch150_n745_uncorr-similar-weights_08

@@ -25,7 +25,7 @@ def prepare_args():
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
     agent.eval()
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve(agent, test_env)
+    tour_list, item_selection, tour_length, total_profit, travel_cost, total_cost, logprob, sum_entropies = solve(agent, test_env)
     node_order_str = ""
     for i in tour_list[0]:
         node_order_str+= str(i.item()) + " "
@@ -90,7 +90,7 @@ def run(args):
 if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(os.cpu_count())
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

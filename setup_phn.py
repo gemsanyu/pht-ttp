@@ -55,15 +55,19 @@ def setup_phn(args, load_best=False):
 
     last_epoch = 0
     critic_solution_list = None
+    training_nondom_list = None
+    validation_nondom_list = None
     if checkpoint is not None:
         phn.load_state_dict(checkpoint["phn_state_dict"])
         phn_opt.load_state_dict(checkpoint["phn_opt_state_dict"])
         critic_phn.load_state_dict(checkpoint["critic_phn_state_dict"])
         critic_solution_list = checkpoint["critic_solution_list"]
+        training_nondom_list = checkpoint["training_nondom_list"]
+        validation_nondom_list = checkpoint["validation_nondom_list"]
         last_epoch = checkpoint["epoch"]
 
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
-    test_batch = next(iter(test_dataloader))
+    _, test_batch = next(iter(test_dataloader))
 
-    return agent, phn, phn_opt, critic_phn, critic_solution_list, last_epoch, writer, test_batch, test_dataset.prob.sample_solutions
+    return agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_dataset.prob.sample_solutions

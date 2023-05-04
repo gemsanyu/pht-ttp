@@ -19,21 +19,22 @@ from utils_moo import compute_loss, write_training_phn_progress
 from utils_moo import compute_spread_loss, generate_params, solve_one_batch, generate_rays
 from utils_moo import update_phn_bp_only, save_phn, write_test_hv
     
-def compute_loss_one_batch(agent, phn, critic_phn, batch, num_ray=16):
+def compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list, num_ray=16):
     agent.train()
     ray_list = generate_rays(num_ray, phn.device, is_random=True)
     param_dict_list = generate_params(phn, ray_list)
     critic_param_dict_list = generate_params(critic_phn, ray_list)
+    index_list, batch = batch
     logprob_list, f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, batch)
     with torch.no_grad():
         agent.eval()
         _, greedy_f_list, _ = solve_one_batch(agent, critic_param_dict_list, batch)
-    loss_obj, cos_penalty_loss = compute_loss(logprob_list, f_list, greedy_f_list,ray_list)
-    spread_loss = compute_spread_loss(logprob_list, f_list, param_dict_list)
+    loss_obj, cos_penalty_loss, training_nondom_list = compute_loss(logprob_list, f_list, greedy_f_list, index_list, training_nondom_list, ray_list)
+    spread_loss = compute_spread_loss(logprob_list, f_list)
     
-    return loss_obj, cos_penalty_loss, spread_loss
+    return loss_obj, cos_penalty_loss, spread_loss, training_nondom_list
     
-def train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dataset_list, is_initialize=False):
+def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=False):
     phn.train()
     batch_size_per_dataset = int(args.batch_size/len(training_dataset_list))
     training_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset, shuffle=True, pin_memory=True)) for train_dataset in training_dataset_list]
@@ -41,11 +42,13 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dat
     loss_obj_list = []
     cos_penalty_loss_list = []
     spread_loss_list = []
+    if training_nondom_list is None:
+        training_nondom_list = [[None for _ in range(len(training_dataset_list[i]))] for i in range(len(training_dataloader_list))]
     while not is_done:
-        for dl_it in tqdm(training_dataloader_list, desc="Training"):
+        for i, dl_it in tqdm(enumerate(training_dataloader_list), desc="Training"):
             try:
                 batch_idx, batch = next(dl_it)
-                loss_obj, cos_penalty_loss, spread_loss = compute_loss_one_batch(agent, phn, critic_phn, batch, args.num_ray)
+                loss_obj, cos_penalty_loss, spread_loss, training_nondom_list[i] = compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list[i], args.num_ray)
                 total_loss = loss_obj
                 if is_initialize:
                     total_loss = 0
@@ -63,13 +66,14 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dat
     cos_penalty_loss_list = np.asanyarray(cos_penalty_loss_list)
     spread_loss_list = np.asanyarray(spread_loss_list)
     write_training_phn_progress(writer, loss_obj_list.mean(), cos_penalty_loss_list.mean())
-
+    return training_nondom_list
 
 @torch.no_grad()        
-def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_dataset_list, test_batch, test_sample_solutions, tb_writer, epoch):
+def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, tb_writer, epoch):
     agent.eval()
     batch_size_per_dataset = int(args.batch_size/len(validation_dataset_list))
     validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]
+    
     #evaluate agent
     ray_list = generate_rays(args.num_ray, args.device, is_random=False)
     param_dict_list = generate_params(phn, ray_list)
@@ -79,6 +83,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
         for dl_it in tqdm(validation_dataloader_list, desc="Validation"):
             try:
                 batch_idx, batch = next(dl_it)
+                index_list, batch = batch
                 logprob_list, batch_f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, batch)
                 f_list += [batch_f_list] 
             except StopIteration:
@@ -96,6 +101,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
             for dl_it in tqdm(validation_dataloader_list, desc="Generate Critic Solution"):
                 try:
                     batch_idx, batch = next(dl_it)
+                    index_list, batch = batch
                     _, crit_batch_f_list, _ = solve_one_batch(agent, crit_param_dict_list, batch)
                     critic_solution_list += [crit_batch_f_list] 
                 except StopIteration:
@@ -106,14 +112,20 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
     # now compare the agent's solutions hv with the critics
     # use wilcoxon signed rank
     _, num_validation_instances, _ = f_list.shape
+    if validation_nondom_list is None:
+        validation_nondom_list = [None for _ in range(num_validation_instances)]
     hv_list = []
     critic_hv_list = []
     for i in range(num_validation_instances):
         agent_f = f_list[:,i,:]
         critic_f = critic_solution_list[:,i,:]
+        old_nondom_f = validation_nondom_list[i]
         combined_f = np.concatenate([agent_f, critic_f], axis=0)
+        if old_nondom_f is not None:
+            combined_f = np.concatenate([combined_f, old_nondom_f], axis=0)
         nondom_f_idx = fast_non_dominated_sort(combined_f)[0]
         nondom_f = combined_f[nondom_f_idx,:]
+        validation_nondom_list[i] = nondom_f
         utopia_points = np.min(nondom_f, axis=0)
         nadir_points = np.max(nondom_f, axis=0)
         diff = nadir_points-utopia_points
@@ -130,8 +142,8 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
     is_improving=False
     if res.pvalue < 0.05:
         is_improving = True
-    if hv_list.mean() > critic_hv_list.mean():
-        is_improving = True
+    # if hv_list.mean() > critic_hv_list.mean():
+    #     is_improving = True
     print("-----------------Validation pvalue:", res.pvalue, " ", is_improving)
     
     if is_improving:
@@ -159,13 +171,13 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
     plt.scatter(test_f_list[:,0,0], test_f_list[:,0,1], c=gradient, cmap=my_cmap)
     tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), epoch)
     write_test_hv(tb_writer, test_f_list[:,0,:], epoch, test_sample_solutions)
-    return is_improving, critic_solution_list
+    return is_improving, critic_solution_list, validation_nondom_list
 
 
 def run(args):
     patience = 50
     not_improving_count = 0
-    agent, phn, phn_opt, critic_phn, critic_solution_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
+    agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
     nn_list = [10,20,30]
     nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
@@ -181,13 +193,13 @@ def run(args):
     #     save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):
         if epoch <=0:
-            train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dataset_list, is_initialize=True)
+            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=True)
         else:
-            train_one_epoch(args, agent, phn, phn_opt, critic_phn,  writer, training_dataset_list, is_initialize=False)
-        is_improving, critic_solution_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_dataset_list, test_batch, test_sample_solutions, writer, epoch) 
+            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=False)
+        is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, epoch) 
         save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, args.title)
         if is_improving:
-            save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, args.title, is_best=True)
+            save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, args.title, is_best=True)
             not_improving_count = 0
         else:
             not_improving_count += 1

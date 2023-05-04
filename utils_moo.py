@@ -35,20 +35,26 @@ def get_hv_d(batch_f_list):
     hv_d_list = torch.cat(hv_d_list, dim=0)
     return hv_d_list
 
-def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
+def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, index_list, training_nondom_list, ray_list):
     device = logprob_list.device
-    combined_f = np.concatenate([batch_f_list, greedy_batch_f_list], axis=0)
-    _,num_instances,_ = combined_f.shape
+    # combined_f = np.concatenate([batch_f_list, greedy_batch_f_list], axis=0)
+    _,num_instances,_ = batch_f_list.shape
     nadir = []
     utopia= []
     for i in range(num_instances):
-        f = combined_f[:,i,:]
-        nondom_f_idx = fast_non_dominated_sort(f)[0]
-        nondom_f = f[nondom_f_idx, :]
+        old_nondom_f = training_nondom_list[index_list[i]]
+        f_list = batch_f_list[:,i,:]
+        crit_f_list = greedy_batch_f_list[:,i,:]
+        combined_f = np.concatenate([f_list, crit_f_list])
+        if old_nondom_f is not None:
+            combined_f = np.concatenate([combined_f, old_nondom_f])
+        nondom_f_idx = fast_non_dominated_sort(combined_f)[0]
+        nondom_f = combined_f[nondom_f_idx, :]
         max_f = np.max(nondom_f, axis=0, keepdims=True)
         min_f = np.min(nondom_f, axis=0, keepdims=True)
         nadir += [max_f]
         utopia += [min_f]
+        training_nondom_list[index_list[i]] = nondom_f
     nadir = np.concatenate(nadir, axis=0)
     nadir = nadir[np.newaxis,:,:]
     utopia = np.concatenate(utopia, axis=0)
@@ -95,7 +101,7 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
     cos_penalty_loss = logprob_list*A_cos
     cos_penalty_loss_per_ray = cos_penalty_loss.mean(dim=0)
     total_cos_penalty_loss = cos_penalty_loss_per_ray.sum()
-    return final_loss, total_cos_penalty_loss
+    return final_loss, total_cos_penalty_loss, training_nondom_list
 
 def update_phn(agent, phn, opt, final_loss):
     agent.zero_grad(set_to_none=True)
@@ -185,7 +191,7 @@ def solve_one_batch(agent, param_dict_list, batch):
     f_list, logprobs_list, sum_entropies_list = decode_one_batch(agent, param_dict_list, train_env, static_embeddings)
     return logprobs_list, f_list, sum_entropies_list
 
-def compute_spread_loss(logprobs, f_list, critic_f_list):
+def compute_spread_loss(logprobs, f_list):
     # param_list = [param_dict["v1"].ravel().unsqueeze(0) for param_dict in param_dict_list]
     # param_list = torch.cat(param_list).unsqueeze(0)
     f_list = torch.from_numpy(f_list)
@@ -249,7 +255,7 @@ def init_phn_output(agent, phn, tb_writer, max_step=1000):
         if loss < 1e-3:
             break
 
-def save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, title, is_best=False):
+def save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list,, epoch, title, is_best=False):
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -261,6 +267,8 @@ def save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, title, is_be
         "phn_opt_state_dict":phn_opt.state_dict(),
         "critic_phn_state_dict":critic_phn.state_dict(),
         "critic_solution_list":critic_solution_list,
+        "training_nondom_list":training_nondom_list, 
+        "validation_nondom_list": validation_nondom_list,
         "epoch":epoch,
     }
     # save twice to prevent failed saving,,, damn

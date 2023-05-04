@@ -97,7 +97,7 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, index_list, tr
     # cos_penalty = (1-cosine_similarity(norm_obj, ray_list, dim=2).unsqueeze(2))
     cos_penalty = cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2)
     critic_cos_penalty = cosine_similarity(greedy_batch_f_list, ray_list, dim=2).unsqueeze(2)
-    A_cos = critic_cos_penalty - cos_penalty
+    A_cos = cos_penalty
     cos_penalty_loss = logprob_list*A_cos
     cos_penalty_loss_per_ray = cos_penalty_loss.mean(dim=0)
     total_cos_penalty_loss = cos_penalty_loss_per_ray.sum()

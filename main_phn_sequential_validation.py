@@ -197,7 +197,7 @@ def run(args):
         else:
             training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=False)
         is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, epoch) 
-        save_phn(phn, phn_opt, critic_phn, critic_solution_list, epoch, args.title)
+        save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, args.title)
         if is_improving:
             save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, args.title, is_best=True)
             not_improving_count = 0

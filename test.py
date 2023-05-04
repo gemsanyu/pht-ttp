@@ -32,7 +32,7 @@ def test_one_epoch(agent, test_env, x_file, y_file):
     num_nodes, num_items, batch_size = test_env.num_nodes, test_env.num_items, test_env.batch_size
     encode_output = encode(agent, static_features, num_nodes, num_items, batch_size)
     static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static = encode_output
-    tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, fixed_context,glimpse_K_static, glimpse_V_static, logits_K_static)
+    tour_list, item_selection, tour_length, total_profit, travel_cost, total_cost, logprob, sum_entropies = solve_decode_only(agent, test_env, static_embeddings, fixed_context,glimpse_K_static, glimpse_V_static, logits_K_static)
     node_order_str = ""
     for i in tour_list[0]:
         node_order_str+= str(i.item()) + " "

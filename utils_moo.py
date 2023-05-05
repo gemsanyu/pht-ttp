@@ -35,36 +35,39 @@ def get_hv_d(batch_f_list):
     hv_d_list = torch.cat(hv_d_list, dim=0)
     return hv_d_list
 
-def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
+def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, index_list, training_nondom_list, ray_list):
     device = logprob_list.device
-    # A = batch_f_list-greedy_batch_f_list
-    A = batch_f_list
-    nadir = np.max(A, axis=0, keepdims=True)
-    utopia = np.min(A, axis=0, keepdims=True)
+    _,num_instances,_ = batch_f_list.shape
+    nadir = []
+    utopia= []
+    for i in range(num_instances):
+        old_nondom_f = training_nondom_list[index_list[i]]
+        f_list = batch_f_list[:,i,:]
+        crit_f_list = greedy_batch_f_list[:,i,:]
+        combined_f = np.concatenate([f_list, crit_f_list])
+        if old_nondom_f is not None:
+            combined_f = np.concatenate([combined_f, old_nondom_f])
+        nondom_f_idx = fast_non_dominated_sort(combined_f)[0]
+        nondom_f = combined_f[nondom_f_idx, :]
+        max_f = np.max(nondom_f, axis=0, keepdims=True)
+        min_f = np.min(nondom_f, axis=0, keepdims=True)
+        nadir += [max_f]
+        utopia += [min_f]
+        training_nondom_list[index_list[i]] = nondom_f
+    nadir = np.concatenate(nadir, axis=0)
+    nadir = nadir[np.newaxis,:,:]
+    utopia = np.concatenate(utopia, axis=0)
+    utopia = utopia[np.newaxis,:,:]
     denom = (nadir-utopia)
-    denom[denom==0] = 1e-8
-    norm_obj = (A-utopia)/denom
-    # print(norm_obj)
-    hv_d_list = get_hv_d(norm_obj.transpose((1,0,2))).transpose(1,0)
+    denom[denom==0] = 1
+    batch_f_list = (batch_f_list-utopia)/denom
+    greedy_batch_f_list = (greedy_batch_f_list-utopia)/denom
+    A = batch_f_list-greedy_batch_f_list
+    
+    hv_d_list = get_hv_d(A.transpose((1,0,2))).transpose(1,0)
     # compute loss now
-    pop_size, batch_size, _ = batch_f_list.shape
-    # for bi in range(batch_size):
-    #     print("------")
-    #     for i in range(pop_size):
-    #         print(A[i, bi], norm_obj[i,bi], hv_d_list[i, bi])
-
-    # print(A)
-    # print(hv_d_list)
     hv_d_list = hv_d_list.to(device)
-    norm_obj = torch.from_numpy(norm_obj).to(device)
     A = torch.from_numpy(A).to(device)
-    # print(A)
-    # print(hv_d_list)
-    # print(A*hv_d_list)
-    # print('----------------------')
-    # print(norm_obj)
-    # print(hv_d_list)
-    # print(norm_obj*hv_d_list)
     logprob_list = logprob_list.unsqueeze(2)
     loss_per_obj = logprob_list*A
     final_loss_per_obj = loss_per_obj*hv_d_list
@@ -72,21 +75,19 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, ray_list):
     final_loss_per_ray = final_loss_per_instance.mean(dim=1)
     final_loss = final_loss_per_ray.sum()
     
-    nadir = np.max(batch_f_list, axis=0, keepdims=True)
-    utopia = np.min(batch_f_list, axis=0, keepdims=True)
-    denom = (nadir-utopia)
-    denom[denom==0] = 1e-8
-    norm_obj = (batch_f_list-utopia)/denom
     
-    norm_obj = torch.from_numpy(norm_obj).to(device)
-    ray_list = ray_list.unsqueeze(1).expand_as(norm_obj)
+    batch_f_list = torch.from_numpy(batch_f_list).to(device)
+    greedy_batch_f_list = torch.from_numpy(greedy_batch_f_list).to(device)
+    ray_list = ray_list.unsqueeze(1).expand_as(batch_f_list)
     # print(logprob_list.shape, cosine_similarity(batch_f_list, ray_list, dim=2).shape)
-    cos_penalty = (1-cosine_similarity(norm_obj, ray_list, dim=2).unsqueeze(2))
-    cos_penalty_loss = logprob_list*cos_penalty
+    cos_penalty = (1-cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2))
+    # cos_penalty = cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2)
+    # critic_cos_penalty = cosine_similarity(greedy_batch_f_list, ray_list, dim=2).unsqueeze(2)
+    A_cos = cos_penalty
+    cos_penalty_loss = logprob_list*A_cos
     cos_penalty_loss_per_ray = cos_penalty_loss.mean(dim=0)
     total_cos_penalty_loss = cos_penalty_loss_per_ray.sum()
-    # exit()
-    return final_loss, total_cos_penalty_loss
+    return final_loss, total_cos_penalty_loss, training_nondom_list
 
 def update_phn(agent, phn, opt, final_loss):
     agent.zero_grad(set_to_none=True)
@@ -95,6 +96,14 @@ def update_phn(agent, phn, opt, final_loss):
     final_loss.backward()
     torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
     opt.step()
+
+def update_phn_bp_only(agent, phn, opt):
+    torch.nn.utils.clip_grad_norm_(phn.parameters(), max_norm=1)
+    opt.step()
+    agent.zero_grad(set_to_none=True)
+    phn.zero_grad(set_to_none=True)
+    opt.zero_grad(set_to_none=True)
+    
 
 def generate_rays(num_ray, device, is_random=True):
     ray_list = []
@@ -143,13 +152,6 @@ def decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed
     f_list = np.concatenate((travel_time_list[:,:,np.newaxis],inv_total_profit_list[:,:,np.newaxis]), axis=-1)
     return logprobs_list, f_list,  sum_entropies_list
 
-def generate_paramsv2(phn, ray_list, static_embeddings):
-    param_dict_list = []
-    graph_embeddings = static_embeddings.mean(dim=1)
-    for ray in ray_list:
-        param_dict = phn(ray, graph_embeddings)
-        param_dict_list += [param_dict]
-    return param_dict_list
 
 
 def solve_one_batch(agent, param_dict_list, batch):
@@ -164,19 +166,6 @@ def solve_one_batch(agent, param_dict_list, batch):
     logprobs_list, f_list, sum_entropies_list = decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static)
     return logprobs_list, f_list, sum_entropies_list
 
-
-def solve_one_batchv2(agent, phn, ray_list, batch):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp = batch
-    train_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp)
-    static_features, dynamic_features, eligibility_mask = train_env.begin()
-    num_nodes, num_items, batch_size = train_env.num_nodes, train_env.num_items, train_env.batch_size
-    static_embeddings = encode(agent, static_features, num_nodes, num_items, batch_size)
-
-    param_dict_list = generate_paramsv2(phn, ray_list, static_embeddings)
-
-    # sample rollout
-    f_list, logprobs_list, sum_entropies_list = decode_one_batch(agent, param_dict_list, train_env, static_embeddings)
-    return logprobs_list, f_list, sum_entropies_list, param_dict_list
 
 def compute_spread_loss(logprobs, f_list, param_dict_list):
     # param_list = [param_dict["v1"].ravel().unsqueeze(0) for param_dict in param_dict_list]
@@ -241,58 +230,6 @@ def validate_one_epoch(args, agent, phn, validator, validation_dataset, test_bat
     tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), epoch)
     write_test_hv(tb_writer, test_f_list[:,0,:], epoch, test_sample_solutions)
 
-@torch.no_grad()        
-def validate_one_epochv2(args, agent, phn, validator, validation_dataset, test_batch, test_sample_solutions, tb_writer, epoch):
-    agent.eval()
-    validation_dataloader = DataLoader(validation_dataset, batch_size=args.batch_size)
-    
-    ray_list = generate_rays(args.num_ray, phn.device, is_random=False)
-    # ray_list, param_dict_list = generate_params(phn, args.num_ray, agent.device, is_random=False)
-    f_list = []
-    for batch_idx, batch in tqdm(enumerate(validation_dataloader), desc=f'Validation epoch {epoch}'):
-        logprob_list, batch_f_list, sum_entropies_list, _ = solve_one_batchv2(agent, phn, ray_list, batch)
-        f_list += [batch_f_list] 
-    f_list = np.concatenate(f_list,axis=1)
-    # print(f_list.shape)
-    f_list = f_list.transpose((1,0,2))
-    # print(f_list.shape)
-    # exit()
-    nadir_points = np.max(f_list, axis=1)
-    utopia_points = np.min(f_list, axis=1)
-    validator.insert_new_ref_points(nadir_points, utopia_points)
-
-    nd_solutions_list = []
-    for i in range(len(validation_dataset)):
-        nondom_idx = fast_non_dominated_sort(f_list[i,:,:])[0]
-        nd_solutions = f_list[i, nondom_idx, :]
-        nd_solutions_list += [nd_solutions]
-    validator.insert_new_nd_solutions(nd_solutions_list)
-    validator.epoch +=1
-
-    last_mean_running_igd = validator.get_last_mean_running_igd()
-    if last_mean_running_igd is not None:
-        tb_writer.add_scalar("Mean Running IGD", last_mean_running_igd, validator.epoch)
-    last_mean_delta_nadir, last_mean_delta_utopia = validator.get_last_delta_refpoints()
-    if last_mean_delta_nadir is not None:
-        tb_writer.add_scalar("Mean Delta Nadir", last_mean_delta_nadir, validator.epoch)
-        tb_writer.add_scalar("Mean Delta Utopia", last_mean_delta_utopia, validator.epoch)
-
-    # test
-    marker_list = [".","o","v","^","<",">","1","2","3","4"]
-    colors_list = [key for key in mcolors.TABLEAU_COLORS.keys()]
-    combination_list = [[c,m] for c in colors_list for m in marker_list]
-    # ray_list, param_dict_list = generate_params(phn, 50, agent.device)
-    ray_list = generate_rays(50,phn.device,is_random=False)
-    logprobs_list, test_f_list, sum_entropies_list, _ = solve_one_batchv2(agent, phn, ray_list, test_batch)
-    plt.figure()
-    for i in range(len(ray_list)):
-        c = combination_list[i][0]
-        m = combination_list[i][1]
-        plt.scatter(test_f_list[i,0,0], -test_f_list[i,0,1], c=c, marker=m)
-    for i in range(len(test_sample_solutions)):
-        plt.scatter(test_sample_solutions[i,0], test_sample_solutions[i,1], c="red")
-    tb_writer.add_figure("Solutions "+args.dataset_name, plt.gcf(), epoch)
-    write_test_hv(tb_writer, test_f_list[:,0,:], epoch, test_sample_solutions)
 
 def write_test_hv(writer, f_list, epoch, sample_solutions=None):
     # write the HV
@@ -305,10 +242,11 @@ def write_test_hv(writer, f_list, epoch, sample_solutions=None):
     writer.add_scalar('Test HV', _hv, epoch)
     writer.flush()
 
+def write_training_phn_progress(writer, loss_obj, cos_penalty_loss, spread_loss, epoch):
+    writer.add_scalar("HV Loss", loss_obj, epoch)
+    writer.add_scalar("Cos Penalty Loss", cos_penalty_loss, epoch)
+    writer.add_scalar("Spread Loss", spread_loss, epoch)
 
-def write_training_phn_progress(writer, total_loss, cos_penalty):
-    writer.add_scalar("Total Loss", total_loss)
-    writer.add_scalar("Cos Penalty", cos_penalty)
 
 def initialize(target_param,phn,opt,tb_writer):
     # r = random.random()

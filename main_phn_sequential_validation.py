@@ -34,7 +34,7 @@ def compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list, 
     
     return loss_obj, cos_penalty_loss, spread_loss, training_nondom_list
     
-def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=False):
+def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=False):
     phn.train()
     batch_size_per_dataset = int(args.batch_size/len(training_dataset_list))
     training_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset, shuffle=True, pin_memory=True)) for train_dataset in training_dataset_list]
@@ -65,7 +65,7 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
     loss_obj_list = np.asanyarray(loss_obj_list)
     cos_penalty_loss_list = np.asanyarray(cos_penalty_loss_list)
     spread_loss_list = np.asanyarray(spread_loss_list)
-    write_training_phn_progress(writer, loss_obj_list.mean(), cos_penalty_loss_list.mean())
+    write_training_phn_progress(writer, loss_obj_list.mean(), cos_penalty_loss_list.mean(), spread_loss_list.mean(), epoch)
     return training_nondom_list
 
 @torch.no_grad()        
@@ -193,9 +193,9 @@ def run(args):
     #     save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):
         if epoch <=0:
-            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=True)
+            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=True)
         else:
-            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, is_initialize=False)
+            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=False)
         is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, epoch) 
         save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, args.title)
         if is_improving:

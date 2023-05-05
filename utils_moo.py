@@ -196,9 +196,10 @@ def compute_spread_loss(logprobs, f_list):
     # param_list = torch.cat(param_list).unsqueeze(0)
     f_list = torch.from_numpy(f_list)
     distance_matrix = torch.cdist(f_list.transpose(0,1), f_list.transpose(0,1))
-    batched_distance_per_ray = torch.transpose(distance_matrix.sum(dim=2),0,1)
-    batched_distance_per_ray = batched_distance_per_ray.to(logprobs.device)
-    spread_loss = (logprobs*batched_distance_per_ray).mean()
+    _, batched_min_distance_per_ray = distance_matrix.min(dim=2)
+    batched_min_distance_per_ray = torch.transpose(batched_min_distance_per_ray,0,1)
+    batched_min_distance_per_ray = batched_min_distance_per_ray.to(logprobs.device)
+    spread_loss = (logprobs*batched_min_distance_per_ray).mean()
     return spread_loss
 
 def write_test_hv(writer, f_list, epoch, sample_solutions=None):
@@ -213,9 +214,10 @@ def write_test_hv(writer, f_list, epoch, sample_solutions=None):
     writer.flush()
 
 
-def write_training_phn_progress(writer, loss_obj, cos_penalty_loss):
-    writer.add_scalar("HV Loss", loss_obj)
-    writer.add_scalar("Cos Penalty Loss", cos_penalty_loss)
+def write_training_phn_progress(writer, loss_obj, cos_penalty_loss, spread_loss, epoch):
+    writer.add_scalar("HV Loss", loss_obj, epoch)
+    writer.add_scalar("Cos Penalty Loss", cos_penalty_loss, epoch)
+    writer.add_scalar("Spread Loss", spread_loss, epoch)
 
 def initialize(target_param,phn,opt,tb_writer):
     # r = random.random()

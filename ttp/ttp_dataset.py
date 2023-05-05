@@ -74,8 +74,8 @@ class TTPDataset(Dataset):
 
     def __getitem__(self, index):
         if self.batch is None:
-            return self.batch_list[index]
-        return self.batch
+            return index, self.batch_list[index]
+        return 0, self.batch
     
 def get_batch_from_prob(prob:TTP):
     coords, norm_coords, W, norm_W = prob.location_data.coords, prob.location_data.norm_coords, prob.location_data.W, prob.location_data.norm_W

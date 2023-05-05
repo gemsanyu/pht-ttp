@@ -339,17 +339,23 @@ def init_phn_output(agent, phn, tb_writer, max_step=1000):
         if loss < 1e-3:
             break
 
-def save_phn(phn, epoch, title):
+def save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, title, is_best=False):
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir/(title+".pt")
+    if is_best:
+        checkpoint_path = checkpoint_dir/(title+".pt_best")
     checkpoint = {
         "phn_state_dict":phn.state_dict(),
+        "phn_opt_state_dict":phn_opt.state_dict(),
+        "critic_phn_state_dict":critic_phn.state_dict(),
+        "critic_solution_list":critic_solution_list,
+        "training_nondom_list":training_nondom_list, 
+        "validation_nondom_list": validation_nondom_list,
         "epoch":epoch,
     }
     # save twice to prevent failed saving,,, damn
     torch.save(checkpoint, checkpoint_path.absolute())
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
-

@@ -23,10 +23,11 @@ def setup_phn(args, load_best=False):
             num_neurons=128,
             num_dynamic_features=4,
             device=args.device)
+    critic_phn = PHN(ray_hidden_size=args.ray_hidden_size, 
+            num_neurons=128,
+            num_dynamic_features=4,
+            device=args.device)
     phn_opt = torch.optim.Adam(phn.parameters(), lr=args.lr)
-    n_params = 0
-    for p in phn.parameters():
-        n_params += p.numel()  
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
@@ -51,15 +52,12 @@ def setup_phn(args, load_best=False):
         print("CHECKPOINT NOT FOUND! new run?")
 
     last_epoch = 0
+    critic_solution_list = None
+    training_nondom_list = None
+    validation_nondom_list = None
     if checkpoint is not None:
         phn.load_state_dict(checkpoint["phn_state_dict"])
         opt_state_dict = checkpoint["phn_opt_state_dict"]
-        state = opt_state_dict["state"]
-        for k,v in state.items():
-            if isinstance(state[k]["step"], torch.Tensor):
-                state[k]["step"] = state[k]["step"].cpu()
-        # in some pytorch version, cpu state of optimizer is loaded to gpu
-        # and it causes errors
         phn_opt.load_state_dict(checkpoint["phn_opt_state_dict"])
         last_epoch = checkpoint["epoch"]
 

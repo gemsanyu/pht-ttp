@@ -125,13 +125,20 @@ def generate_rays(num_ray, device, is_random=True):
     return ray_list
 
 
-def generate_params(phn, num_ray, device, is_random=True):
+def generate_params_and_rays(phn, num_ray, device, is_random=True):
     ray_list = generate_rays(num_ray, device, is_random)
     param_dict_list = []
     for ray in ray_list:
         param_dict = phn(ray)
         param_dict_list += [param_dict]
     return ray_list, param_dict_list
+
+def generate_params(phn, ray_list):
+    param_dict_list = []
+    for ray in ray_list:
+        param_dict = phn(ray)
+        param_dict_list += [param_dict]
+    return param_dict_list
 
 
 def decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static):
@@ -155,8 +162,8 @@ def decode_one_batch(agent, param_dict_list, train_env, static_embeddings, fixed
 
 
 def solve_one_batch(agent, param_dict_list, batch):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp = batch
-    train_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, is_not_dummy_mask, best_profit_kp, best_route_length_tsp)
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
+    train_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     static_features = train_env.get_static_features()    
     num_nodes, num_items, batch_size = train_env.num_nodes, train_env.num_items, train_env.batch_size
     encode_output = encode(agent, static_features, num_nodes, num_items, batch_size)
@@ -167,7 +174,7 @@ def solve_one_batch(agent, param_dict_list, batch):
     return logprobs_list, f_list, sum_entropies_list
 
 
-def compute_spread_loss(logprobs, f_list, param_dict_list):
+def compute_spread_loss(logprobs, f_list):
     # param_list = [param_dict["v1"].ravel().unsqueeze(0) for param_dict in param_dict_list]
     # param_list = torch.cat(param_list).unsqueeze(0)
     f_list = torch.from_numpy(f_list)

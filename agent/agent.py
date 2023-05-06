@@ -67,12 +67,12 @@ class Agent(torch.nn.Module):
                 ):
         batch_size = item_embeddings.shape[0]
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
-        # if param_dict is not None:
-        #     projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
-        #     glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
-        # else:
-        projected_current_state = self.project_current_state(current_state)
-        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
+        if param_dict is not None:
+            projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
+            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
+        else:
+            projected_current_state = self.project_current_state(current_state)
+            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
         glimpse_V = glimpse_V_static + glimpse_V_dynamic
@@ -119,9 +119,17 @@ class Agent(torch.nn.Module):
 
         Return: index of operations, log of probabilities
         '''
+        batch_size, _ = probs.shape
+        batch_idx = torch.arange(batch_size, device=self.device)
+        
         if self.training:
             dist = torch.distributions.Categorical(probs)
             op = dist.sample()
+            probs_selected = probs[batch_idx,op[:]]
+            
+            while torch.any(probs_selected==0):
+                op = dist.sample()
+                probs_selected = probs[batch_idx,op[:]]
             logprob = dist.log_prob(op)
             entropy = dist.entropy()
         else:

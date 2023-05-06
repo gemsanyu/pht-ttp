@@ -44,9 +44,6 @@ def setup_phn(args, load_best=False):
     agent_checkpoint_path = checkpoint_dir/(args.title+"_agent.pt")
 
     agent_checkpoint = torch.load(agent_checkpoint_path.absolute(), map_location=args.device)
-    for key in agent_checkpoint.keys():
-        print(key)
-    exit()
     agent.load_state_dict(agent_checkpoint["agent_state_dict"])
     checkpoint = None
     if os.path.isfile(checkpoint_path.absolute()):

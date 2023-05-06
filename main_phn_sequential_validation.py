@@ -52,7 +52,7 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
                 total_loss = loss_obj
                 if is_initialize:
                     total_loss = 0
-                total_loss -= 0.1*spread_loss
+                total_loss -= 0.01*spread_loss
                 total_loss += args.ld*cos_penalty_loss
                 total_loss.backward()
                 loss_obj_list += [loss_obj.detach().cpu().numpy()]
@@ -178,7 +178,7 @@ def run(args):
     patience = 50
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
-    nn_list = [20,30]
+    nn_list = [10,20,30]
     nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)

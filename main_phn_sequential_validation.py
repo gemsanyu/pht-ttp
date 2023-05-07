@@ -21,6 +21,7 @@ from utils_moo import update_phn_bp_only, save_phn, write_test_hv
     
 def compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list, num_ray=16):
     agent.train()
+    agent.gae.eval()
     ray_list = generate_rays(num_ray, phn.device, is_random=True)
     param_dict_list = generate_params(phn, ray_list)
     critic_param_dict_list = generate_params(critic_phn, ray_list)

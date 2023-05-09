@@ -3,4 +3,4 @@ runs*
 *__pycache__*
 data/*
 logs/*
-data_full/training/
+data_full/training*

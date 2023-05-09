@@ -25,36 +25,6 @@ def prepare_args():
     return args
 
 
-class BatchProperty(NamedTuple):
-    num_nodes: int
-    num_items_per_city: int
-    num_clusters: int
-    item_correlation: int
-    capacity_factor: int
-
-
-def get_batch_properties(num_nodes_list, num_items_per_city_list):
-    """
-        training dataset information for each batch
-        1 batch will represent 1 possible problem configuration
-        including num of node clusters, capacity factor, item correlation
-        num_nodes, num_items_per_city_list
-    """
-    batch_properties = []
-    capacity_factor_list = [i+1 for i in range(10)]
-    num_clusters_list = [1]
-    item_correlation_list = [i for i in range(3)]
-
-    for num_nodes in num_nodes_list:
-        for num_items_per_city in num_items_per_city_list:
-            for capacity_factor in capacity_factor_list:
-                for num_clusters in num_clusters_list:
-                    for item_correlation in item_correlation_list:
-                        batch_property = BatchProperty(num_nodes, num_items_per_city,
-                                                       num_clusters, item_correlation,
-                                                       capacity_factor)
-                        batch_properties += [batch_property]
-    return batch_properties
 
 def solve(agent: Agent, env: TTPEnv, param_dict=None):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -67,7 +37,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     # compute fixed static embeddings and graph embeddings once for reusage
     item_init_embed = agent.item_init_embedder(static_features[:, :env.num_items, :])
     depot_init_embed = agent.depot_init_embed.expand(size=(env.batch_size,1,-1))
-    node_init_embed = agent.node_init_embed.expand(size=(env.batch_size,env.num_nodes-1,-1))
+    node_init_embed = agent.node_init_embed(static_features[:,env.num_items+1:,:])
     init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
     static_embeddings, graph_embeddings = agent.gae(init_embed)
     fixed_context = agent.project_fixed_context(graph_embeddings)
@@ -213,7 +183,7 @@ def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     static_features = torch.from_numpy(static_features).to(agent.device)
     item_init_embed = agent.item_init_embedder(static_features[:, :num_items, :])
     depot_init_embed = agent.depot_init_embed.expand(size=(batch_size,1,-1))
-    node_init_embed = agent.node_init_embed.expand(size=(batch_size,num_nodes-1,-1))
+    node_init_embed = agent.node_init_embed(static_features[:,num_items+1:,:])
     init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
     static_embeddings, graph_embeddings = agent.gae(init_embed)
     fixed_context = agent.project_fixed_context(graph_embeddings)

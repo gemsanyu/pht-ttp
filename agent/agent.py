@@ -41,8 +41,7 @@ class Agent(torch.nn.Module):
         self.item_init_embedder = Linear(3, embed_dim)
         self.depot_init_embed = Parameter(torch.Tensor(size=(1,1,embed_dim)))
         self.depot_init_embed.data.uniform_(-1, 1)
-        self.node_init_embed = Parameter(torch.Tensor(size=(1,1,embed_dim)))
-        self.node_init_embed.data.uniform_(-1, 1)
+        self.node_init_embed = Linear(3, embed_dim)
         self.project_embeddings = Linear(embed_dim, 3*embed_dim, bias=False)
         self.project_fixed_context = Linear(embed_dim, embed_dim, bias=False)
         current_state_dim = embed_dim + self.num_global_dynamic_features

@@ -35,6 +35,7 @@ def train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer,
         for dl_it in tqdm(train_dataloader_list, desc="Training"):
             try:
                 batch_idx, batch = next(dl_it)    
+                _, batch = batch
                 coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp = batch
                 env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
                 forward_results = solve(agent, env)
@@ -83,6 +84,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
         for dl_it in tqdm(validation_dataloader_list, desc="Validation"):
             try:
                 batch_idx, batch = next(dl_it)
+                _, batch = batch
                 coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
                 env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
                 _, _, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve(agent, env)
@@ -104,6 +106,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
             for dl_it in tqdm(validation_dataloader_list, desc="Crit Validation Generate"):
                 try:    
                     batch_idx, batch = next(dl_it)
+                    _, batch = batch
                     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp = batch
                     env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask,  best_profit_kp, best_route_length_tsp)
                     _, _, crit_tour_lengths, crit_total_profits, crit_total_costs, _, _ = solve(critic, env)

@@ -92,9 +92,21 @@ class TTPEnv():
         static_features[:, :, 0] = self.norm_weights
         static_features[:, :, 1] = self.norm_profits
         static_features[:, :, 2] = self.norm_profits/self.norm_weights
-
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
+        static_features = np.nan_to_num(static_features, nan=0)
+        weights_per_city = self.norm_weights[:,np.newaxis,:]
+        weights_per_city = np.repeat(weights_per_city, repeats=self.num_nodes, axis=1)
+        weights_per_city = weights_per_city*self.item_city_mask
+        profits_per_city = self.norm_profits[:,np.newaxis,:]
+        profits_per_city = np.repeat(profits_per_city, repeats=self.num_nodes, axis=1)
+        profits_per_city = profits_per_city*self.item_city_mask
+        density_per_city = profits_per_city/weights_per_city
+        density_per_city = np.nan_to_num(density_per_city, nan=0)
+        weights_per_city = np.average(weights_per_city, axis=2, keepdims=True)
+        profits_per_city = np.average(profits_per_city, axis=2, keepdims=True)
+        density_per_city = np.average(density_per_city, axis=2, keepdims=True)
+        # dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
         # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
+        dummy_static_features = np.concatenate([weights_per_city,profits_per_city,density_per_city], axis=2)
         static_features = np.concatenate((static_features, dummy_static_features), axis=1)
         return static_features
 

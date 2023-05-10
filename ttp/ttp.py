@@ -7,6 +7,7 @@ import torch
 
 from ttp.utils import get_renting_rate, normalize, normalize_coords, read_data
 from ttp.utils import LocationData, ProfitData, WeightData
+from ttp.utils import generate_item_city_idx, generate_item_city_mask
 
 CPU_DEVICE = torch.device('cpu')
 
@@ -103,11 +104,9 @@ class TTP(object):
         self.item_city_idx = item_city_idx
         self.num_items = (self.num_nodes-1)*self.num_items_per_city
 
-        self.item_city_mask = torch.arange(self.num_nodes, device=self.device).expand(self.num_items, self.num_nodes).transpose(1, 0)
-        self.item_city_mask = self.item_city_mask == self.item_city_idx.unsqueeze(0)
-        self.item_city_mask = self.item_city_mask.bool()
-        self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
-        # self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
+        self.item_city_mask = generate_item_city_mask(self.num_nodes, self.num_items, self.item_city_idx)
+        # self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
+        self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
         self.min_tour_length = torch.tensor(self.min_tour_length, dtype=torch.float32)
         self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
 
@@ -250,9 +249,7 @@ def generate_items(num_nodes, num_items_per_city, item_correlation, device=CPU_D
         weights = torch.randint(low=1000, high=1010, size=item_size, device=device).float()
 
     # repeated arange(num_items_per_city) per batch
-    item_city_idx = torch.arange(num_nodes-1, device=device) + 1
-    item_city_idx = item_city_idx.repeat(num_items_per_city)
-    item_city_idx = item_city_idx.expand((num_nodes-1)*num_items_per_city,)
+    item_city_idx = generate_item_city_idx(num_nodes, num_items_per_city)
     return profits, weights, item_city_idx
 
 def get_max_travel_time(num_nodes, W, min_v, device=CPU_DEVICE):

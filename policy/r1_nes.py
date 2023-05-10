@@ -25,6 +25,7 @@ class R1_NES(Policy):
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*2*stdv-stdv
         self.ld = ld
+        self.norm_dist = torch.distributions.Normal(0,1)
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -53,11 +54,12 @@ class R1_NES(Policy):
         for name, param in att_params:
             if name == "v":
                 v1 = param.data.ravel()
-            if name == "features_embedder.weight":
-                fe1_weight = param.data.ravel()
-            if name == "query_embedder.weight":
-                qe1_weight = param.data.ravel()
-        mu = torch.cat([v1,fe1_weight,qe1_weight])
+            # if name == "features_embedder.weight":
+            #     fe1_weight = param.data.ravel()
+            # if name == "query_embedder.weight":
+            #     qe1_weight = param.data.ravel()
+        # mu = torch.cat([v1,fe1_weight,qe1_weight])
+        mu = torch.cat([v1])
         self.mu = mu.unsqueeze(0)
 
 

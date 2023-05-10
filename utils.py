@@ -1,5 +1,6 @@
 import os
 import pathlib
+import sys
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
@@ -7,12 +8,19 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+from arguments import get_parser
 from agent.agent import Agent
 from policy.hv import Hypervolume
+from policy.normalization import normalize
 from policy.non_dominated_sorting import fast_non_dominated_sort
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
+def prepare_args():
+    parser = get_parser()
+    args = parser.parse_args(sys.argv[1:])
+    args.device = torch.device(args.device)
+    return args
 
 def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -59,7 +67,8 @@ def encode(agent, static_features, num_nodes, num_items, batch_size):
     static_features =  torch.from_numpy(static_features).to(agent.device)
     item_static_embeddings = agent.item_static_encoder(static_features[:,:num_items,:])
     depot_static_embeddings = agent.depot_init_embed.expand((batch_size,1,-1))
-    node_static_embeddings = agent.node_init_embed.expand((batch_size, num_nodes-1, -1))
+    # node_static_embeddings = agent.node_init_embed.expand((batch_size, num_nodes-1, -1))
+    node_static_embeddings = agent.node_encoder(static_features[:,num_items+1:,:])
     static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings], dim=1)
     return static_embeddings
 
@@ -68,6 +77,7 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
     static_features, dynamic_features, eligibility_mask = env.begin()
+    num_items = env.num_items
     dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
     eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
     prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
@@ -82,7 +92,9 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
             previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :]
             previous_embeddings = previous_embeddings.unsqueeze(1)
         next_pointer_hidden_states = last_pointer_hidden_states
-        dynamic_embeddings = agent.dynamic_encoder(dynamic_features)
+        item_dynamic_embeddings = agent.item_dynamic_encoder(dynamic_features[:,:num_items,:])
+        node_dynamic_embeddings = agent.node_dynamic_encoder(dynamic_features[:,num_items:,:])
+        dynamic_embeddings = torch.cat([item_dynamic_embeddings, node_dynamic_embeddings], dim=1)
         forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
@@ -114,16 +126,6 @@ def update(agent, agent_opt, loss):
     agent_opt.step()
 
 
-def evaluate(agent, batch):
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask = batch
-    env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask)
-    agent.eval()
-    with torch.no_grad():
-        tour_list, item_selection, tour_length, total_profit, total_cost, _, _ = solve(agent, env)
-
-    return tour_list, item_selection, tour_length.item(), total_profit.item(), total_cost.item()
-
-
 def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, checkpoint_path):
     checkpoint = {
         "agent_state_dict":agent.state_dict(),
@@ -146,18 +148,8 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
-def save_phn(phn, phn_opt, epoch, checkpoint_path):
-    checkpoint = {
-        "phn_state_dict":phn.state_dict(),
-        "phn_opt_state_dict":phn_opt.state_dict(),  
-        "epoch":epoch,
-    }
-    # save twice to prevent failed saving,,, damn
-    torch.save(checkpoint, checkpoint_path.absolute())
-    checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
-    torch.save(checkpoint, checkpoint_backup_path.absolute())
 
-def save_nes(policy, epoch, title, best=False):
+def save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, title, best=False):
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -169,11 +161,25 @@ def save_nes(policy, epoch, title, best=False):
     checkpoint = {
         "policy":policy,  
         "epoch":epoch,
+        "training_nondom_list": training_nondom_list,
+        "validation_nondom_list":validation_nondom_list,
+        "best_f_list":best_f_list
     }
     # save twice to prevent failed saving,,, damn
     torch.save(checkpoint, checkpoint_path.absolute())
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
+
+def write_test_hv(writer, f_list, epoch, sample_solutions=None):
+    # write the HV
+    # get nadir and ideal point first
+    all = np.concatenate([f_list, sample_solutions])
+    ideal_point = np.min(all, axis=0)
+    nadir_point = np.max(all, axis=0)
+    _N = normalize(f_list, ideal_point, nadir_point)
+    _hv = Hypervolume(np.array([1,1])).calc(_N)
+    writer.add_scalar('Test HV', _hv, epoch)
+    writer.flush()
 
 def write_training_progress(tour_length, total_profit, total_cost, agent_loss, entropy_loss, critic_cost, logprob, num_nodes, num_items, writer):
     env_title = " nn "+str(num_nodes)+" ni "+str(num_items)

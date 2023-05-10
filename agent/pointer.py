@@ -92,8 +92,8 @@ class Pointer(nn.Module):
         if param_dict is not None:
             att_param_dict = {
                                   "v":param_dict["v1"],
-                                  "fe_weight":param_dict["fe1_weight"],
-                                  "qe_weight":param_dict["qe1_weight"],
+                                #   "fe_weight":param_dict["fe1_weight"],
+                                #   "qe_weight":param_dict["qe1_weight"],
                                  }
         else:
             att_param_dict = None

@@ -176,12 +176,12 @@ def get_score_hv_contributions(f_list, negative_hv, nondom_archive=None, referen
     if nondom_archive is not None:
         f_list = combine_with_nondom(f_list, nondom_archive)
     num_sample, _ = f_list.shape
-    f_list = f_list.numpy()
+    # f_list = f_list.numpy()
     # count hypervolume, first nondom sort then count, assign penalty hv too
     hv_contributions = np.full(shape=(num_sample,),fill_value=negative_hv, dtype=np.float32)
     nondom_idx = fast_non_dominated_sort(f_list)[0]
-    norm_f_list = normalize(f_list)
-    hv_contributions[nondom_idx] = get_hv_contributions(norm_f_list[nondom_idx], reference_point=None)
+    # norm_f_list = normalize(f_list)
+    hv_contributions[nondom_idx] = get_hv_contributions(f_list[nondom_idx], reference_point=None)
     hv_contributions = torch.from_numpy(hv_contributions).float()
     # hv_contributions = (1-novelty_w)+hv_contributions + novelty_w*novelty_score
 

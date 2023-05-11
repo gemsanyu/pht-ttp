@@ -75,7 +75,7 @@ class Agent(torch.nn.Module):
         projected_current_state = self.project_current_state(current_state)
         projected_item_state = self.project_item_state(node_dynamic_features[:, :num_items, :])
         projected_node_state = self.project_node_state(node_dynamic_features[:, num_items:, :])
-        projected_item_node_state = torch.concatenate([projected_item_state, projected_node_state], dim=1)
+        projected_item_node_state = torch.cat([projected_item_state, projected_node_state], dim=1)
         glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = projected_item_node_state.chunk(3, dim=-1)
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)

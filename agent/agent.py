@@ -46,6 +46,7 @@ class Agent(torch.nn.Module):
         self.project_fixed_context = Linear(embed_dim, embed_dim, bias=False)
         current_state_dim = embed_dim + self.num_global_dynamic_features
         self.project_current_state = Linear(current_state_dim, embed_dim, bias=False)
+        self.project_item_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_node_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_out = Linear(embed_dim, embed_dim, bias=False)
         self.to(self.device)
@@ -53,6 +54,7 @@ class Agent(torch.nn.Module):
     # num_step = 1
     # @torch.jit.script_method    
     def forward(self, 
+                num_items: int,
                 item_embeddings: torch.Tensor,
                 fixed_context: torch.Tensor,
                 prev_item_embeddings: torch.Tensor,
@@ -71,7 +73,10 @@ class Agent(torch.nn.Module):
 #            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
 #        else:
         projected_current_state = self.project_current_state(current_state)
-        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
+        projected_item_state = self.project_item_state(node_dynamic_features[:, :num_items, :])
+        projected_node_state = self.project_node_state(node_dynamic_features[:, num_items:, :])
+        projected_item_node_state = torch.concatenate([projected_item_state, projected_node_state], dim=1)
+        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = projected_item_node_state.chunk(3, dim=-1)
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
         glimpse_V = glimpse_V_static + glimpse_V_dynamic

@@ -55,7 +55,8 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
+        selected_idx, logp, entropy = agent(env.num_items,
+                                   static_embeddings[is_not_finished],
                                    fixed_context[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],
@@ -100,7 +101,8 @@ def solve_decode_only(agent:Agent,
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
+        selected_idx, logp, entropy = agent(env.num_items,
+                                   static_embeddings[is_not_finished],
                                    fixed_context[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],

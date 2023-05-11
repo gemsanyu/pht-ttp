@@ -7,17 +7,17 @@ import math
 
 class SkipConnection(nn.Module):
 # class SkipConnection(torch.jit.ScriptModule):
-    def __init__(self, norm_module, module):
+    def __init__(self, module):
         super(SkipConnection, self).__init__()
-        self.norm_module = norm_module
+        # self.norm_module = norm_module
         self.module = module
 
     # @torch.jit.script_method
     def forward(self, input:torch.Tensor):
-        x = self.norm_module(input)
-        y = self.module(x)
-        return input + y
-        # return input + self.module(input)
+        # x = self.norm_module(input)
+        # y = self.module(x)
+        # return input + y
+        return input + self.module(input)
 
 
 # class MultiHeadAttention(torch.jit.ScriptModule):
@@ -165,21 +165,21 @@ class MultiHeadAttentionLayer(nn.Sequential):
     ):
         super(MultiHeadAttentionLayer, self).__init__(
             SkipConnection(
-                Normalization(embed_dim),
                 MultiHeadAttention(
                     n_heads,
                     input_dim=embed_dim,
                     embed_dim=embed_dim
                 )
             ),
+            Normalization(embed_dim),
             SkipConnection(
-                Normalization(embed_dim),
                 nn.Sequential(
                     nn.Linear(embed_dim, feed_forward_hidden),
                     nn.ReLU(),
                     nn.Linear(feed_forward_hidden, embed_dim)
                 ) if feed_forward_hidden > 0 else nn.Linear(embed_dim, embed_dim)
             )
+            Normalization(embed_dim)
         )
 
 

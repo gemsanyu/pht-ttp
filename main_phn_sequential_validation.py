@@ -192,6 +192,7 @@ def run(args):
         init_phn_output(agent, phn, writer, max_step=1000)
     #     validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
     #     save_phn(phn, phn_opt, -1, args.title)
+    is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, -1) 
     for epoch in range(last_epoch, args.max_epoch):
         if epoch <=0:
             training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=True)

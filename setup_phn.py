@@ -14,17 +14,17 @@ def setup_phn(args, load_best=False):
     agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
-                 n_gae_layers=3,
-                 embed_dim=128,
+                 n_gae_layers=6,
+                 embed_dim=256,
                  gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)      
     phn = PHN(ray_hidden_size=args.ray_hidden_size, 
-            num_neurons=128,
+            num_neurons=256,
             num_dynamic_features=4,
             device=args.device)
     critic_phn = PHN(ray_hidden_size=args.ray_hidden_size, 
-            num_neurons=128,
+            num_neurons=256,
             num_dynamic_features=4,
             device=args.device)
     phn_opt = torch.optim.Adam(phn.parameters(), lr=args.lr)

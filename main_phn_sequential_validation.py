@@ -52,7 +52,7 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
                 total_loss = loss_obj
                 if is_initialize:
                     total_loss = 0
-                total_loss -= 0.1*spread_loss
+                total_loss -= 0.01*spread_loss
                 total_loss += args.ld*cos_penalty_loss
                 total_loss.backward()
                 loss_obj_list += [loss_obj.detach().cpu().numpy()]

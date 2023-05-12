@@ -142,7 +142,7 @@ def validation_one_epoch(agent, critic, crit_total_cost_list, validation_dataset
     return is_improving, crit_total_cost_list
 
 def run(args):
-    patience=20
+    patience=50
     not_improving_count = 0
     agent, agent_opt, critic, crit_total_cost_list, last_epoch, writer, test_env = setup(args)
     nn_list = [10,20,30]

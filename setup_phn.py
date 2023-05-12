@@ -27,7 +27,7 @@ def setup_phn(args, load_best=False):
             num_neurons=256,
             num_dynamic_features=4,
             device=args.device)
-    phn_opt = torch.optim.Adam(phn.parameters(), lr=args.lr)
+    phn_opt = torch.optim.AdamW(phn.parameters(), lr=args.lr)
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root

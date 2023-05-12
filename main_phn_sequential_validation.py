@@ -62,6 +62,9 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
             except StopIteration:
                 is_done=True
                 break 
+        # for name, param in phn.named_parameters():
+        #     print(param.grad)
+        # exit()
         update_phn_bp_only(agent, phn, phn_opt)
     loss_obj_list = np.asanyarray(loss_obj_list)
     cos_penalty_loss_list = np.asanyarray(cos_penalty_loss_list)
@@ -179,7 +182,7 @@ def run(args):
     patience = 50
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
-    nn_list = [10,20,30]
+    nn_list = [20,30]
     nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)
@@ -192,9 +195,9 @@ def run(args):
         init_phn_output(agent, phn, writer, max_step=1000)
     #     validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
     #     save_phn(phn, phn_opt, -1, args.title)
-    is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, -1) 
+    # is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, -1) 
     for epoch in range(last_epoch, args.max_epoch):
-        if epoch <=0:
+        if epoch <=1:
             training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=True)
         else:
             training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=False)

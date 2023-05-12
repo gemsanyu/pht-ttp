@@ -47,7 +47,7 @@ def get_parser():
     # PHN
     parser.add_argument('--num-ray',
                         type=int,
-                        default=128,
+                        default=4,
                         help="number of rays in training")
     parser.add_argument('--ld',
                         type=float,

@@ -4,7 +4,8 @@ import torch.nn as nn
 
 CPU_DEVICE = T.device("cpu")
 
-class PHN(T.jit.ScriptModule):
+# class PHN(T.jit.ScriptModule):
+class PHN(T.nn.Module):
     def __init__(
             self,
             ray_hidden_size: int=128,
@@ -39,7 +40,7 @@ class PHN(T.jit.ScriptModule):
         self.device = device
         self.to(device)
 
-    @T.jit.script_method
+    # @T.jit.script_method
     def forward(self, ray: T.Tensor) -> Dict[str, T.Tensor]:
         '''
         ### Calculate embedding.

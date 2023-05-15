@@ -1,2 +1,4 @@
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.pt_ filter=lfs diff=lfs merge=lfs -text
+*.pt_best filter=lfs diff=lfs merge=lfs -text
+*.pt_best_ filter=lfs diff=lfs merge=lfs -text

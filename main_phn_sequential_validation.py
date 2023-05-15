@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from scipy.stats import wilcoxon
+from scipy.stats import ranksums
 
 from policy.hv import Hypervolume
 from policy.non_dominated_sorting import fast_non_dominated_sort
@@ -138,7 +138,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
         critic_hv_list += [critic_hv]
     hv_list = np.asanyarray(hv_list)
     critic_hv_list = np.asanyarray(critic_hv_list)
-    res = wilcoxon(hv_list, critic_hv_list, alternative="greater")
+    res = ranksums(hv_list, critic_hv_list, alternative="greater")
     is_improving=False
     if res.pvalue < 0.05:
         is_improving = True
@@ -175,7 +175,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
 
 
 def run(args):
-    patience = 50
+    patience = 100
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
     nn_list = [10,20,30]
@@ -189,6 +189,7 @@ def run(args):
     
     if last_epoch == 0:
         init_phn_output(agent, phn, writer, max_step=1000)
+        is_improving, _, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, -1)
     #     validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
     #     save_phn(phn, phn_opt, -1, args.title)
     for epoch in range(last_epoch, args.max_epoch):

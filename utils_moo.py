@@ -80,7 +80,7 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, index_list, tr
     greedy_batch_f_list = torch.from_numpy(greedy_batch_f_list).to(device)
     ray_list = ray_list.unsqueeze(1).expand_as(batch_f_list)
     # print(logprob_list.shape, cosine_similarity(batch_f_list, ray_list, dim=2).shape)
-    cos_penalty = (1-cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2))
+    cos_penalty = (cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2))
     # cos_penalty = cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2)
     # critic_cos_penalty = cosine_similarity(greedy_batch_f_list, ray_list, dim=2).unsqueeze(2)
     A_cos = cos_penalty

@@ -27,7 +27,7 @@ def setup(args):
                  gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)   
-    agent_opt = torch.optim.Adam(agent.parameters(), lr=args.lr)
+    agent_opt = torch.optim.AdamW(agent.parameters(), lr=args.lr)
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root
     model_summary_dir = summary_dir/args.title

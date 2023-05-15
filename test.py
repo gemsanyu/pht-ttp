@@ -8,21 +8,17 @@ import torch
 from tqdm import tqdm
 
 from arguments import get_parser
-from setup import setup_phn
+from setup_phn import setup_phn
 from utils import solve_decode_only, encode
-
-CPU_DEVICE = torch.device("cpu")
-
-def prepare_args():
-    parser = get_parser()
-    args = parser.parse_args(sys.argv[1:])
-    args.device = torch.device(args.device)
-    return args
+from utils import prepare_args, CPU_DEVICE
+from ttp.ttp_env import TTPEnv
 
 @torch.no_grad()
-def test(agent, phn, test_env, x_file, y_file, time_file, n_solutions=200):
+def test(agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
     agent.eval()
     phn.eval()
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     
     #get static embeddings first, it can be widely reused
     encode_start = time.time()
@@ -58,8 +54,8 @@ def test(agent, phn, test_env, x_file, y_file, time_file, n_solutions=200):
     time_file.write(encode_elapsed_str+" "+decode_elapsed_str+"\n")
 
 def run(args):
-    agent, phn, phn_opt, last_epoch, writer, test_env, test_sample_solutions = setup_phn(args, load_best=True)
-    agent.gae = agent.gae.cpu()
+    agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args, load_best=False)
+    # agent.gae = agent.gae.cpu()
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)
@@ -67,11 +63,11 @@ def run(args):
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
     time_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".time")
     with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file, open(time_file_path.absolute(), "w") as time_file:
-        test(agent, phn, test_env, x_file, y_file, time_file)
+        test(agent, phn, test_batch, x_file, y_file, time_file)
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

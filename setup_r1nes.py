@@ -25,7 +25,8 @@ def setup_r1_nes(args, load_best=False):
     policy = R1_NES(num_neurons=args.encoder_size,
                     ld=args.ld,
                     negative_hv=args.negative_hv,
-                    pop_size=args.pop_size)
+                    pop_size=args.pop_size,
+                    lr=args.lr)
 
     summary_root = "runs"
     summary_dir = pathlib.Path(".")/summary_root

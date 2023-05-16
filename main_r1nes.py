@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from scipy.stats import wilcoxon
+from scipy.stats import wilcoxon, ranksums
 
 from agent.agent import Agent
 from setup_r1nes import setup_r1_nes
@@ -69,7 +69,7 @@ def train_one_generation(args, agent:Agent, policy:R1_NES, training_nondom_list,
     is_done=False
     while not is_done:
         score_list = []
-        param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
+        param_dict_list, sample_list = policy.generate_random_parameters(n_sample=policy.pop_size, use_antithetic=False)
         for i, dl_it in tqdm(enumerate(training_dataloader_list), desc="Training"):
             try:
                 batch_idx, batch = next(dl_it)
@@ -96,7 +96,7 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]
     
     #evaluate agent
-    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=args.pop_size, use_antithetic=False)
+    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=policy.pop_size, use_antithetic=False)
     f_list = []
     is_done=False
     while not is_done:
@@ -145,10 +145,12 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     best_hv_list = np.asanyarray(best_hv_list)
     is_improving=False
     try:
-        res = wilcoxon(hv_list, best_hv_list, alternative="greater")
+        res = ranksums(hv_list, best_hv_list, alternative="greater")
         is_improving = res.pvalue < 0.05
+        print(res.pvalue, is_improving)
     except ValueError:
         is_improving = False
+    
     if is_improving:
         best_f_list = f_list
     writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
@@ -170,7 +172,7 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
 
 def run(args):
     agent, policy, training_nondom_list, validation_nondom_list, best_f_list, last_epoch, writer, checkpoint_path, test_batch, sample_solutions = setup_r1_nes(args)
-    nn_list = [20,30]
+    nn_list = [10,20,30]
     nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)
@@ -178,11 +180,13 @@ def run(args):
     training_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
     validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
 
-    patience = 50
+    patience = 100
     not_improving_count = 0
     epoch = last_epoch
+    if last_epoch == 0:
+        is_improving, validation_nondom_list, _ = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, -1) 
     for epoch in range(last_epoch, args.max_epoch):
-        training_nondom_list = train_one_generation(args, agent, policy, training_nondom_list, writer, training_dataset_list, args.pop_size, epoch)
+        training_nondom_list = train_one_generation(args, agent, policy, training_nondom_list, writer, training_dataset_list, policy.pop_size, epoch)
         is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, epoch) 
         save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, args.title)
         if is_improving:
@@ -195,7 +199,7 @@ def run(args):
         
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

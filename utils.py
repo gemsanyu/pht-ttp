@@ -73,6 +73,8 @@ def encode(agent, static_features, num_nodes, num_items, batch_size):
     return static_embeddings
 
 def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
+    if param_dict is not None:
+        param_dict["v1"] = param_dict["v1"].to(agent.device)
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)

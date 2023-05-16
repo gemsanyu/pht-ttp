@@ -53,7 +53,7 @@ class R1_NES(Policy):
         att_params = att.named_parameters()
         for name, param in att_params:
             if name == "v":
-                v1 = param.data.ravel()
+                v1 = param.data.ravel().cpu()
             # if name == "features_embedder.weight":
             #     fe1_weight = param.data.ravel()
             # if name == "query_embedder.weight":
@@ -88,7 +88,7 @@ class R1_NES(Policy):
             y_list = self.norm_dist.sample((1, self.n_params))
             k_list = self.norm_dist.sample((1, 1))
 
-        print(y_list.device, self.principal_vector.device)
+        # print(y_list.device, self.principal_vector.device)
         g = math.exp(self.ld) * (y_list + k_list*self.principal_vector)
         random_params = self.mu + g
         random_params = random_params.to(device)

@@ -105,7 +105,7 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]
     
     #evaluate agent
-    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=args.pop_size, use_antithetic=False)
+    param_dict_list, sample_list = policy.generate_random_parameters(n_sample=policy.pop_size, use_antithetic=False)
     f_list = []
     is_done=False
     while not is_done:
@@ -201,7 +201,7 @@ def run(args):
     is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, -1)  
     epoch = last_epoch
     for epoch in range(last_epoch, args.max_epoch):
-        training_nondom_list = train_one_generation(args, agent, policy, training_nondom_list, writer, training_dataset_list, args.pop_size, epoch)
+        training_nondom_list = train_one_generation(args, agent, policy, training_nondom_list, writer, training_dataset_list, policy.pop_size, epoch)
         policy.write_progress_to_tb(writer, epoch)
         is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, epoch) 
         save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, args.title)

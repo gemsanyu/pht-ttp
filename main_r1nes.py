@@ -126,8 +126,8 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
         best_f = best_f_list[:,i,:]
         old_nondom_f = validation_nondom_list[i]
         combined_f = np.concatenate([agent_f, best_f], axis=0)
-        if old_nondom_f is not None:
-            combined_f = np.concatenate([combined_f, old_nondom_f], axis=0)
+#        if old_nondom_f is not None:
+#            combined_f = np.concatenate([combined_f, old_nondom_f], axis=0)
         nondom_f_idx = fast_non_dominated_sort(combined_f)[0]
         nondom_f = combined_f[nondom_f_idx,:]
         validation_nondom_list[i] = nondom_f
@@ -187,6 +187,7 @@ def run(args):
         is_improving, validation_nondom_list, _ = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, -1) 
     for epoch in range(last_epoch, args.max_epoch):
         training_nondom_list = train_one_generation(args, agent, policy, training_nondom_list, writer, training_dataset_list, policy.pop_size, epoch)
+        policy.write_progress_to_tb(writer, epoch)
         is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, epoch) 
         save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, args.title)
         if is_improving:

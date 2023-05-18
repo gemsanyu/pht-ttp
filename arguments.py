@@ -43,8 +43,9 @@ def get_parser():
                         default=1,
                         help="gradient clipping")
     parser.add_argument('--lr',
+                        nargs="?",
                         type=float,
-                        default=1e-4,
+                        default=None,
                         help="learning rate")
     
 
@@ -54,8 +55,9 @@ def get_parser():
                         default=0,
                         help="lambda e^ld in R1-NES")
     parser.add_argument('--pop-size',
+                        nargs="?",
                         type=int,
-                        default=10,
+                        default=None,
                         help="r1 nes pop size in 1 generation")
     parser.add_argument('--negative-hv',
                         type=float,

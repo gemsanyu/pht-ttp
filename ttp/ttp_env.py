@@ -67,6 +67,7 @@ class TTPEnv():
         self.item_selection = np.zeros((self.batch_size, self.num_items), dtype=np.bool)
         self.tour_list = np.zeros((self.batch_size, self.num_nodes), dtype=np.int64)
         self.num_visited_nodes = np.ones((self.batch_size,), dtype=np.int64)
+        # self.num_visited_nodes = self.num_nodes - np.sum(self.is_not_dummy_mask[:,self.num_items:], axis=-1)
         self.is_selected = np.zeros((self.batch_size, self.num_items+self.num_nodes))
         self.is_node_visited = np.zeros((self.batch_size, self.num_nodes), dtype=np.bool)
         self.is_node_visited[:, 0] = True
@@ -91,9 +92,21 @@ class TTPEnv():
         static_features[:, :, 0] = self.norm_weights
         static_features[:, :, 1] = self.norm_profits
         static_features[:, :, 2] = self.norm_profits/self.norm_weights
-
-        dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
+        static_features = np.nan_to_num(static_features, nan=0)
+        weights_per_city = self.norm_weights[:,np.newaxis,:]
+        weights_per_city = np.repeat(weights_per_city, repeats=self.num_nodes, axis=1)
+        weights_per_city = weights_per_city*self.item_city_mask
+        profits_per_city = self.norm_profits[:,np.newaxis,:]
+        profits_per_city = np.repeat(profits_per_city, repeats=self.num_nodes, axis=1)
+        profits_per_city = profits_per_city*self.item_city_mask
+        density_per_city = profits_per_city/weights_per_city
+        density_per_city = np.nan_to_num(density_per_city, nan=0)
+        weights_per_city = np.average(weights_per_city, axis=2, keepdims=True)
+        profits_per_city = np.average(profits_per_city, axis=2, keepdims=True)
+        density_per_city = np.average(density_per_city, axis=2, keepdims=True)
+        # dummy_static_features = np.zeros((self.batch_size, self.num_nodes, num_static_features), dtype=np.float32)
         # dummy_static_features[:,:,0] = np.linalg.norm(origin_coords-self.norm_coords, axis=2)
+        dummy_static_features = np.concatenate([weights_per_city,profits_per_city,density_per_city], axis=2)
         static_features = np.concatenate((static_features, dummy_static_features), axis=1)
         return static_features
 
@@ -140,7 +153,8 @@ class TTPEnv():
             self.visit_node(active_idx[is_visiting_node_only], selected_idx[is_visiting_node_only]-self.num_items)
 
         node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
-        return node_dynamic_features, global_dynamic_features, self.eligibility_mask
+        eligibility_mask = self.eligibility_mask
+        return node_dynamic_features, global_dynamic_features, eligibility_mask
 
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
@@ -208,4 +222,4 @@ class TTPEnv():
         total_profits = selected_profits.sum(axis=-1)
 
         total_cost = total_profits - tour_lengths*self.renting_rate
-        return torch.from_numpy(self.tour_list), torch.from_numpy(self.item_selection), torch.from_numpy(tour_lengths), torch.from_numpy(total_profits), torch.from_numpy(total_cost)
+        return self.tour_list, self.item_selection,tour_lengths, total_profits, total_cost

@@ -28,6 +28,7 @@ class R1_NES(Policy):
         stdv  = 1./math.sqrt(self.n_params)
         self.mu = torch.rand(size=(1, self.n_params), dtype=torch.float32)*2*stdv-stdv
         self.ld = ld
+        self.norm_dist = torch.distributions.Normal(0,1)
         # reparametrize self.v = e^c *self.z
         # c is the length of v
         # self.z must be ||z|| = 1
@@ -52,15 +53,15 @@ class R1_NES(Policy):
 
     def copy_to_mu(self, agent: Agent):
         for name, param in agent.named_parameters():
-            if name == "project_current_state.weight":
-                pcs_weight = param.data.ravel()
-            if name == "project_node_state.weight":
-                pns_weight = param.data.ravel()
+            # if name == "project_current_state.weight":
+            #     pcs_weight = param.data.ravel()
+            # if name == "project_node_state.weight":
+            #     pns_weight = param.data.ravel()
             if name == "project_out.weight":
                 po_weight = param.data.ravel()
         mu_list = []
-        mu_list += [pcs_weight]
-        mu_list += [pns_weight]
+        # mu_list += [pcs_weight]
+        # mu_list += [pns_weight]
         mu_list += [po_weight]
         self.mu = torch.cat(mu_list)
         self.mu = self.mu.unsqueeze(0)

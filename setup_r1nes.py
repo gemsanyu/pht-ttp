@@ -14,12 +14,12 @@ def setup_r1_nes(args, load_best=False):
     agent = Agent(n_heads=8,
                  num_static_features=3,
                  num_dynamic_features=4,
-                 n_gae_layers=3,
-                 embed_dim=128,
+                 n_gae_layers=6,
+                 embed_dim=256,
                  gae_ff_hidden=128,
                  tanh_clip=10,
                  device=args.device)        
-    policy = R1_NES(num_neurons=128, 
+    policy = R1_NES(num_neurons=256, 
                     num_dynamic_features=4,
                     ld=args.ld,
                     lr=args.lr,
@@ -48,15 +48,19 @@ def setup_r1_nes(args, load_best=False):
     else:
         print("CHECKPOINT NOT FOUND! new run?")
 
-
     last_epoch = 0
+    training_nondom_list = None
+    validation_nondom_list = None
+    best_f_list = None
     if checkpoint is not None:
         policy = checkpoint["policy"]
         last_epoch = checkpoint["epoch"]
+        training_nondom_list = checkpoint["training_nondom_list"]
+        validation_nondom_list = checkpoint["validation_nondom_list"]
+        best_f_list = checkpoint["best_f_list"]
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
-    test_batch = next(iter(test_dataloader))
-    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
-    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
-
-    return agent, policy, last_epoch, writer, checkpoint_path, test_env, test_dataset.prob.sample_solutions
+    _, test_batch = next(iter(test_dataloader))
+    
+    
+    return agent, policy, training_nondom_list, validation_nondom_list, best_f_list, last_epoch, writer, checkpoint_path, test_batch, test_dataset.prob.sample_solutions

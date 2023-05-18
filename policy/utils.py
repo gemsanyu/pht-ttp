@@ -50,7 +50,6 @@ def get_hv_contributions(solution_list:np.array, reference_point=None):
         solution_mask[i] = 1
     return hv_contributions
 
-
 def update_nondom_archive(curr_nondom_archive, f_list):
     if curr_nondom_archive is not None:
         f_list = torch.cat([curr_nondom_archive, f_list])
@@ -62,38 +61,6 @@ def combine_with_nondom(f_list, nondom_archive):
     exists_in_flist = exists_in_flist.any(dim=2).any(dim=1)
     combined_unique = torch.cat([f_list, nondom_archive[torch.logical_not(nondom_archive)]])
     return combined_unique
-
-class BatchProperty(NamedTuple):
-    num_nodes: int
-    num_items_per_city: int
-    num_clusters: int
-    item_correlation: int
-    capacity_factor: int
-
-
-def get_batch_properties(num_nodes_list, num_items_per_city_list):
-    """
-        training dataset information for each batch
-        1 batch will represent 1 possible problem configuration
-        including num of node clusters, capacity factor, item correlation
-        num_nodes, num_items_per_city_list
-    """
-    batch_properties = []
-    capacity_factor_list = [i+1 for i in range(10)]
-    num_clusters_list = [1]
-    item_correlation_list = [i for i in range(3)]
-
-    for num_nodes in num_nodes_list:
-        for num_items_per_city in num_items_per_city_list:
-            for capacity_factor in capacity_factor_list:
-                for num_clusters in num_clusters_list:
-                    for item_correlation in item_correlation_list:
-                        batch_property = BatchProperty(num_nodes, num_items_per_city,
-                                                       num_clusters, item_correlation,
-                                                       capacity_factor)
-                        batch_properties += [batch_property]
-    return batch_properties
-
 
 def custom_permute_2d(x, permutation):
     d1, d2 = x.size()
@@ -157,7 +124,6 @@ def bc_node_order(node_order_list):
     bc /= num_nodes
     return bc
 
-
 def get_bc_var(node_order_list, item_selection_list):
     bc_node = bc_node_order(node_order_list)
     mean_bc_node = torch.mean(bc_node, dim=0, keepdim=True)
@@ -170,13 +136,12 @@ def get_bc_var(node_order_list, item_selection_list):
     bc = 1-(bc_node_final+bc_item_final)/2
     return bc
 
-
 def get_score_hv_contributions(f_list, negative_hv, nondom_archive=None, reference_point=None):
     real_num_sample, M = f_list.shape
     if nondom_archive is not None:
         f_list = combine_with_nondom(f_list, nondom_archive)
     num_sample, _ = f_list.shape
-    f_list = f_list.numpy()
+    # f_list = f_list.numpy()
     # count hypervolume, first nondom sort then count, assign penalty hv too
     hv_contributions = np.full(shape=(num_sample,),fill_value=negative_hv, dtype=np.float32)
     nondom_idx = fast_non_dominated_sort(f_list)[0]

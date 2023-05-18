@@ -1,5 +1,6 @@
 import os
 import pathlib
+import sys
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
@@ -7,11 +8,19 @@ import numpy as np
 import torch
 
 from agent.agent import Agent
+from arguments import get_parser
 from ttp.ttp_env import TTPEnv
 from policy.hv import Hypervolume
+from policy.normalization import normalize
 from policy.non_dominated_sorting import fast_non_dominated_sort
 
 CPU_DEVICE = torch.device('cpu')
+
+def prepare_args():
+    parser = get_parser()
+    args = parser.parse_args(sys.argv[1:])
+    args.device = torch.device(args.device)
+    return args
 
 class BatchProperty(NamedTuple):
     num_nodes: int
@@ -49,7 +58,8 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
+        selected_idx, logp, entropy = agent(env.num_items,
+                                   static_embeddings[is_not_finished],
                                    fixed_context[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],
@@ -76,7 +86,7 @@ def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     static_features = torch.from_numpy(static_features).to(agent.device)
     item_init_embed = agent.item_init_embedder(static_features[:, :num_items, :])
     depot_init_embed = agent.depot_init_embed.expand(size=(batch_size,1,-1))
-    node_init_embed = agent.node_init_embed.expand(size=(batch_size,num_nodes-1,-1))
+    node_init_embed = agent.node_init_embed(static_features[:,num_items+1:,:])
     init_embed = torch.cat([item_init_embed, depot_init_embed, node_init_embed], dim=1)
     static_embeddings, graph_embeddings = agent.gae(init_embed)
     fixed_context = agent.project_fixed_context(graph_embeddings)
@@ -94,6 +104,8 @@ def solve_decode_only(agent:Agent,
                     logits_K_static,
                     param_dict=None):
     env.begin()
+    if param_dict is not None:
+        param_dict["po_weight"] = param_dict["po_weight"].to(agent.device)
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
@@ -108,7 +120,8 @@ def solve_decode_only(agent:Agent,
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(static_embeddings[is_not_finished],
+        selected_idx, logp, entropy = agent(env.num_items,
+                                   static_embeddings[is_not_finished],
                                    fixed_context[is_not_finished],
                                    previous_embeddings,
                                    node_dynamic_features[is_not_finished],
@@ -168,7 +181,7 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, validation_cost, epoch, 
         if best_validation_cost < validation_cost:
             torch.save(checkpoint, best_checkpoint_path.absolute())
 
-def save_nes(policy, epoch, title, best=False):
+def save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, title, best=False):
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -180,6 +193,9 @@ def save_nes(policy, epoch, title, best=False):
     checkpoint = {
         "policy":policy,  
         "epoch":epoch,
+        "training_nondom_list": training_nondom_list,
+        "validation_nondom_list":validation_nondom_list,
+        "best_f_list":best_f_list
     }
     # save twice to prevent failed saving,,, damn
     torch.save(checkpoint, checkpoint_path.absolute())
@@ -211,31 +227,14 @@ def write_test_progress(tour_length, total_profit, total_cost, logprob, writer):
     writer.add_scalar("Test NLL", -logprob)
     writer.flush()
 
-def write_test_phn_progress(writer, f_list, epoch, dataset_name, sample_solutions=None, nondominated_only=False):
-    plt.figure()
-    _f_list = f_list.clone().numpy()
-    _f_list[:,1] = -_f_list[:,1]
-    if sample_solutions is not None:
-        _ss = sample_solutions.clone().numpy()
-        _ss[:,1] = -_ss[:,1]
-        _all =  np.concatenate([_f_list,_ss], axis=0)
-    else:
-        _all = _f_list
-    _min,_max = np.min(_all, axis=0), np.max(_all, axis=0)
-    _min,_max = _min[np.newaxis,:], _max[np.newaxis,:]
-    _N  = (_f_list-_min)/((_max-_min)+1e-8)
-    reference_point = np.array([1.1,1.1])
-    hv_getter = Hypervolume(reference_point)
-    total_hv = hv_getter.calc(_N)
-    nondom_idx = fast_non_dominated_sort(_f_list)[0]
-    if nondominated_only:
-        plt.scatter(f_list[nondom_idx, 0], f_list[nondom_idx, 1], c="blue")
-    else:
-        plt.scatter(f_list[:, 0], f_list[:, 1], c="blue")
-
-    if sample_solutions is not None:
-        plt.scatter(sample_solutions[:, 0], sample_solutions[:, 1], c="red")
-    writer.add_figure("Solutions "+dataset_name, plt.gcf(), epoch)
-    writer.add_scalar("Test HV "+dataset_name, total_hv, epoch)
+def write_test_hv(writer, f_list, epoch, sample_solutions=None):
+    # write the HV
+    # get nadir and ideal point first
+    all = np.concatenate([f_list, sample_solutions])
+    ideal_point = np.min(all, axis=0)
+    nadir_point = np.max(all, axis=0)
+    _N = normalize(f_list, ideal_point, nadir_point)
+    _hv = Hypervolume(np.array([1,1])).calc(_N)
+    writer.add_scalar('Test HV', _hv, epoch)
     writer.flush()
 

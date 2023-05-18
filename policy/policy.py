@@ -20,23 +20,23 @@ class Policy(object):
 
         #hitung per component agar mudah plug in plug out component uji coba
         self.n_params = 0
-        self.n_params += self.num_neurons*self.current_state_dim
-        self.n_params += 3*self.num_neurons*self.num_node_dynamic_features
+        # self.n_params += self.num_neurons*self.current_state_dim
+        # self.n_params += 3*self.num_neurons*self.num_node_dynamic_features
         self.n_params += self.num_neurons*self.num_neurons
 
     def create_param_dict(self, param_vec):
         param_vec = param_vec.ravel()
         params_idx = 0
-        pcs_weight = param_vec[params_idx:params_idx+self.num_neurons*self.current_state_dim].view(self.num_neurons,self.current_state_dim)
-        params_idx += self.num_neurons*self.current_state_dim
-        pns_weight = param_vec[params_idx:params_idx+3*self.num_neurons*self.num_node_dynamic_features].view(3*self.num_neurons, self.num_node_dynamic_features)
-        params_idx += 3*self.num_neurons*self.num_node_dynamic_features
+        # pcs_weight = param_vec[params_idx:params_idx+self.num_neurons*self.current_state_dim].view(self.num_neurons,self.current_state_dim)
+        # params_idx += self.num_neurons*self.current_state_dim
+        # pns_weight = param_vec[params_idx:params_idx+3*self.num_neurons*self.num_node_dynamic_features].view(3*self.num_neurons, self.num_node_dynamic_features)
+        # params_idx += 3*self.num_neurons*self.num_node_dynamic_features
         po_weight = param_vec[params_idx:params_idx+self.num_neurons*self.num_neurons].view(self.num_neurons, self.num_neurons)
         params_idx += self.num_neurons*self.num_neurons        
 
         param_dict = {
-                     "pcs_weight":pcs_weight,
-                     "pns_weight":pns_weight,
+                    #  "pcs_weight":pcs_weight,
+                    #  "pns_weight":pns_weight,
                      "po_weight":po_weight,
                      }      
         return param_dict

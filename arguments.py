@@ -31,7 +31,11 @@ def get_parser():
     parser.add_argument('--num-training-samples',
                         type=int,
                         default=1000,
-                        help="dataloader batch size")
+                        help="num prob instances one epoch training")
+    parser.add_argument('--num-validation-samples',
+                        type=int,
+                        default=1000,
+                        help="num prob instances one epoch validation")
     
     # Agent
     parser.add_argument('--max-grad-norm',
@@ -51,11 +55,15 @@ def get_parser():
                         help="lambda e^ld in R1-NES")
     parser.add_argument('--pop-size',
                         type=int,
-                        default=1e-4,
+                        default=10,
                         help="r1 nes pop size in 1 generation")
     parser.add_argument('--negative-hv',
                         type=float,
                         default=-1e-5,
                         help="negative hv penalty")
+    parser.add_argument('--omega',
+                        type=int,
+                        default=10,
+                        help="max patience")
 
     return parser

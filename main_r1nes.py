@@ -190,7 +190,7 @@ def run(args):
     training_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
     validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
 
-    patience = 100
+    patience = 30
     not_improving_count = 0
     epoch = last_epoch
     if last_epoch == 0:

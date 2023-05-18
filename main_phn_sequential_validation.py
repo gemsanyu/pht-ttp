@@ -1,5 +1,6 @@
 import copy
 import random
+import pathlib
 
 import numpy as np
 import torch
@@ -90,6 +91,12 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
                 is_done=True
                 break
     f_list = np.concatenate(f_list,axis=1)
+    f_root = "f_files"
+    f_dir = pathlib.Path(".")/f_root
+    model_f_dir = f_dir/args.title
+    model_f_dir.mkdir(parents=True, exist_ok=True)
+    f_path = model_f_dir/(args.title+"_"+str(epoch)+".pt")
+    np.save(f_path.absolute(), f_list)
 
     #get critic solution list if not exist already
     if critic_solution_list is None:
@@ -110,7 +117,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
         critic_solution_list = np.concatenate(critic_solution_list,axis=1)
 
     # now compare the agent's solutions hv with the critics
-    # use wilcoxon signed rank
+    # use wilcoxon rank sum becuz HV is already normalized
     _, num_validation_instances, _ = f_list.shape
     if validation_nondom_list is None:
         validation_nondom_list = [None for _ in range(num_validation_instances)]
@@ -149,9 +156,12 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
     if is_improving:
         critic_phn.load_state_dict(copy.deepcopy(phn.state_dict()))
         critic_solution_list = f_list
-    tb_writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
-    tb_writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
-    tb_writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
+    # tb_writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
+    # tb_writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
+    # tb_writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
+    is_improving_val = 1 if is_improving else 0
+    tb_writer.add_scalar("is improving?", is_improving_val, epoch)
+    
 
     # Scatter plot with gradient colors
     ray_list = generate_rays(50, args.device, is_random=False)
@@ -175,7 +185,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
 
 
 def run(args):
-    patience = 100
+    patience = 30
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
     nn_list = [10,20,30]

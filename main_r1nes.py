@@ -1,4 +1,5 @@
 import math
+import pathlib
 import random
 
 import numpy as np
@@ -112,6 +113,13 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     f_list = np.concatenate(f_list,axis=1)
     if best_f_list is None:
         best_f_list = f_list
+    # save f_list to a file
+    f_root = "f_files"
+    f_dir = pathlib.Path(".")/f_root
+    model_f_dir = f_dir/args.title
+    model_f_dir.mkdir(parents=True, exist_ok=True)
+    f_path = model_f_dir/(args.title+"_"+str(epoch)+".pt")
+    np.save(f_path.absolute(), f_list)
 
     # now compare the agent's solutions hv with the critics
     # use wilcoxon signed rank
@@ -153,10 +161,12 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     
     if is_improving:
         best_f_list = f_list
-    writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
-    writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
-    writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
-
+    # writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
+    # writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
+    # writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
+    is_improving_val = 1 if is_improving else 0
+    writer.add_scalar("is improving?", is_improving_val, epoch)
+    
     # Scatter plot with gradient colors
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=50, use_antithetic=False)
     test_f_list,_,_ = solve_one_batch(agent, param_dict_list, test_batch, None,  None, None, True)

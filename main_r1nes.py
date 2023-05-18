@@ -195,7 +195,7 @@ def run(args):
     training_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
     validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
 
-    patience = 50
+    patience = 30
     not_improving_count = 0
     #get initial validation_nondom_list
     is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, -1)  

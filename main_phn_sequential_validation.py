@@ -188,7 +188,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
 
 
 def run(args):
-    patience = 100
+    patience = 30
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
     nn_list = [10,20,30]

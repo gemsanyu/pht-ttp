@@ -1,4 +1,5 @@
 import copy
+import pathlib
 import random
 
 import numpy as np
@@ -94,6 +95,12 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
                 is_done=True
                 break
     f_list = np.concatenate(f_list,axis=1)
+    f_root = "f_files"
+    f_dir = pathlib.Path(".")/f_root
+    model_f_dir = f_dir/args.title
+    model_f_dir.mkdir(parents=True, exist_ok=True)
+    f_path = model_f_dir/(args.title+"_"+str(epoch)+".pt")
+    np.save(f_path.absolute(), f_list)
 
     #get critic solution list if not exist already
     if critic_solution_list is None:
@@ -153,10 +160,12 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
     if is_improving:
         critic_phn.load_state_dict(copy.deepcopy(phn.state_dict()))
         critic_solution_list = f_list
-    tb_writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
-    tb_writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
-    tb_writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
-
+    # tb_writer.add_scalar("Mean Validation HV",hv_list.mean(),epoch)
+    # tb_writer.add_scalar("Std Validation HV",hv_list.std(),epoch)
+    # tb_writer.add_scalar("Median Validation HV",np.median(hv_list),epoch)
+    is_improving_val = 1 if is_improving else 0
+    tb_writer.add_scalar("is improving?", is_improving_val, epoch)
+    
     # Scatter plot with gradient colors
     ray_list = generate_rays(50, args.device, is_random=False)
     param_dict_list = generate_params(phn, ray_list)

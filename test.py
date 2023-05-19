@@ -11,17 +11,14 @@ from tqdm import tqdm
 from arguments import get_parser
 from setup_r1nes import setup_r1_nes
 from utils import solve_decode_only, encode
-
-CPU_DEVICE = torch.device("cpu")
-
-def prepare_args():
-    parser = get_parser()
-    args = parser.parse_args(sys.argv[1:])
-    return args
+from utils import prepare_args, CPU_DEVICE
+from ttp.ttp_env import TTPEnv
 
 @torch.no_grad()
-def test_one_epoch(agent, policy, test_env, x_file, y_file, time_file, pop_size=200):
+def test_one_epoch(agent, policy, test_batch, x_file, y_file, time_file, pop_size=200):
     agent.eval()
+    coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
+    test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     # reuse the static embeddings
     #get static embeddings first, it can be widely reused
     encode_start = time.time()
@@ -58,7 +55,7 @@ def test_one_epoch(agent, policy, test_env, x_file, y_file, time_file, pop_size=
     time_file.write(encode_elapsed_str+" "+decode_elapsed_str+"\n")
 
 def test(args):
-    agent, policy, last_epoch, writer, checkpoint_path, test_env, sample_solutions = setup_r1_nes(args, load_best=True)
+    agent, policy, training_nondom_list, validation_nondom_list, best_f_list, last_epoch, writer, checkpoint_path, test_batch, sample_solutions = setup_r1_nes(args, load_best=True)
     agent.gae = agent.gae.cpu()
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
@@ -67,13 +64,13 @@ def test(args):
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
     time_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".time")
     with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file, open(time_file_path.absolute(), "w") as time_file:
-        test_one_epoch(agent, policy, test_env, x_file, y_file, time_file)
+        test_one_epoch(agent, policy, test_batch, x_file, y_file, time_file)
 
 
 if __name__=='__main__':
     args = prepare_args()
     #torch.set_num_threads(os.cpu_count()-4)
-    torch.set_num_threads(4)
+    torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

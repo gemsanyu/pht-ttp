@@ -12,15 +12,7 @@ from agent.agent import Agent
 from arguments import get_parser
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
-from utils import solve
-
-CPU_DEVICE = torch.device("cpu")
-
-def prepare_args():
-    parser = get_parser()
-    args = parser.parse_args(sys.argv[1:])
-    args.device = torch.device(args.device)
-    return args
+from utils import solve, prepare_args, CPU_DEVICE
 
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):

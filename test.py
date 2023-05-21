@@ -15,15 +15,7 @@ from utils import solve_decode_only, encode
 from agent.agent import Agent
 from ttp.ttp_dataset import TTPDataset
 from ttp.ttp_env import TTPEnv
-# from utils import solve_fast as solve
-
-CPU_DEVICE = torch.device("cpu")
-
-def prepare_args():
-    parser = get_parser()
-    args = parser.parse_args(sys.argv[1:])
-    args.device = torch.device(args.device)
-    return args
+from utils import prepare_args, CPU_DEVICE
 
 @torch.no_grad()
 def test_one_epoch(agent, test_env, x_file, y_file):
@@ -47,13 +39,19 @@ def test_one_epoch(agent, test_env, x_file, y_file):
     y_file.write(tour_length+" "+total_profit+"\n")
     print(tour_length+" "+total_profit+"\n")    
 
-def load_agent_checkpoint(agent, title, weight_idx, total_weight, device=CPU_DEVICE):
+def load_agent_checkpoint(agent, title, weight_idx, total_weight, device=CPU_DEVICE, is_best=True):
     agent_title = title + str(weight_idx) + "_" + str(total_weight)
     checkpoint_root = "checkpoints"
     checkpoint_dir = pathlib.Path(".")/checkpoint_root/agent_title
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir/(args.title+".pt")
-    checkpoint = torch.load(checkpoint_path.absolute(), map_location=device)
+    if is_best:
+        checkpoint_path = checkpoint_dir/(args.title+".pt_best")
+    try:
+        checkpoint = torch.load(checkpoint_path.absolute(), map_location=device)
+    except FileNotFoundError:
+        checkpoint_path = checkpoint_dir/(args.title+".pt")
+        checkpoint = torch.load(checkpoint_path.absolute(), map_location=device)    
     agent.load_state_dict(checkpoint["agent_state_dict"])
     return agent
 

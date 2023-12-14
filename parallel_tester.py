@@ -57,7 +57,7 @@ if __name__=="__main__":
                 for idx in ["01","02","03","04","05","06","07","08","09","10"]:    
                     dataset_name = graph_name+"_n"+str(total_num_items)+"_"+instance_type+"_"+idx
                     dataset_name_list += [dataset_name]
-        config_list = [(dataset_name_list[i]) for i in range(len(dataset_name_list))]
+    config_list = [(dataset_name_list[i]) for i in range(len(dataset_name_list))]
         # run(config_list[0])
     num_cpus=20
     with mp.Pool(num_cpus) as pool:

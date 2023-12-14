@@ -99,7 +99,7 @@ class TTPEnv():
         profits_per_city = self.norm_profits[:,np.newaxis,:]
         profits_per_city = np.repeat(profits_per_city, repeats=self.num_nodes, axis=1)
         profits_per_city = profits_per_city*self.item_city_mask
-        density_per_city = profits_per_city/weights_per_city
+        density_per_city = profits_per_city/np.maximum(weights_per_city,1)
         density_per_city = np.nan_to_num(density_per_city, nan=0)
         weights_per_city = np.average(weights_per_city, axis=2, keepdims=True)
         profits_per_city = np.average(profits_per_city, axis=2, keepdims=True)

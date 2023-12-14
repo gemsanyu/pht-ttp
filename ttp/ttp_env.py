@@ -64,14 +64,14 @@ class TTPEnv():
     def reset(self):
         self.current_location = np.zeros((self.batch_size,), dtype=np.int64)
         self.current_load = np.zeros((self.batch_size,))
-        self.item_selection = np.zeros((self.batch_size, self.num_items), dtype=np.bool)
+        self.item_selection = np.zeros((self.batch_size, self.num_items), dtype=bool)
         self.tour_list = np.zeros((self.batch_size, self.num_nodes), dtype=np.int64)
         self.num_visited_nodes = np.ones((self.batch_size,), dtype=np.int64)
         self.is_selected = np.zeros((self.batch_size, self.num_items+self.num_nodes))
-        self.is_node_visited = np.zeros((self.batch_size, self.num_nodes), dtype=np.bool)
+        self.is_node_visited = np.zeros((self.batch_size, self.num_nodes), dtype=bool)
         self.is_node_visited[:, 0] = True
         # the dummy item for first city is prohibited until all nodes are visited
-        self.eligibility_mask = np.ones((self.batch_size, self.num_items+self.num_nodes), dtype=np.bool)
+        self.eligibility_mask = np.ones((self.batch_size, self.num_items+self.num_nodes), dtype=bool)
         self.eligibility_mask[:, self.num_items] = False
         dummy_idx = torch.arange(self.num_nodes, dtype=torch.long)
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes).numpy()
@@ -171,7 +171,7 @@ class TTPEnv():
         self.current_load[active_idx] += self.weights[active_idx, selected_item]
         current_cap = self.max_cap - self.current_load
         # append dummy zeros for dummy items
-        items_more_than_cap = np.zeros_like(self.eligibility_mask, dtype=np.bool)
+        items_more_than_cap = np.zeros_like(self.eligibility_mask, dtype=bool)
         items_more_than_cap[:, :self.num_items] = self.weights > current_cap[:, np.newaxis]
         self.eligibility_mask = np.logical_and(self.eligibility_mask, ~items_more_than_cap)
         

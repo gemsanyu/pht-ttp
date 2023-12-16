@@ -140,7 +140,7 @@ class TTPEnv():
         # global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
         # dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
         return node_dynamic_features, global_dynamic_features
-
+    @profile
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
         active_idx = active_idx.cpu().numpy()

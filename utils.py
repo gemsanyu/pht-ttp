@@ -79,6 +79,7 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None):
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish()
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
+@profile
 def solve_decode_only(agent:Agent, 
                     env:TTPEnv, 
                     static_embeddings, 
@@ -180,7 +181,7 @@ def save(agent: Agent, agent_opt:torch.optim.Optimizer, critic: Agent, critic_to
     checkpoint_backup_path = checkpoint_path.parent /(checkpoint_path.name + "_")
     torch.save(checkpoint, checkpoint_backup_path.absolute())
 
-
+@profile
 def encode(agent:Agent, static_features, num_nodes, num_items, batch_size):
     static_features = torch.from_numpy(static_features).to(agent.device)
     item_init_embed = agent.item_init_embedder(static_features[:, :num_items, :])

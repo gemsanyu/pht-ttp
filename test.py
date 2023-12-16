@@ -14,6 +14,7 @@ from utils import prepare_args, CPU_DEVICE
 from ttp.ttp_env import TTPEnv
 
 @torch.no_grad()
+@profile
 def test(agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
     agent.eval()
     phn.eval()
@@ -31,7 +32,7 @@ def test(agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
     decode_start = time.time()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
     for ray in ray_list:
-        
+        print(ray)
         param_dict = phn(ray.to(agent.device))
         solve_output = solve_decode_only(agent, test_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
         tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_output

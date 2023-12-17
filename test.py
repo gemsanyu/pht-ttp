@@ -7,20 +7,30 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+from agent.agent import Agent
 from arguments import get_parser
 from setup_phn import setup_phn
-from utils import solve_decode_only, encode
+from utils import solve_decode_only,solve_decode_only_inf, encode
 from utils import prepare_args, CPU_DEVICE
 from ttp.ttp_env import TTPEnv
 
 @torch.no_grad()
-@profile
-def test(agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
+def test(agent:Agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
     agent.eval()
     phn.eval()
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     
+    # # let's trace some module so that it is faster?
+    # static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = test_env.begin()
+    # static_features = torch.from_numpy(static_features).to(CPU_DEVICE)
+    # node_dynamic_features = torch.from_numpy(node_dynamic_features).to(agent.device)
+    # global_dynamic_features = torch.from_numpy(global_dynamic_features).to(agent.device)
+    # eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+    # num_items = test_env.num_items
+    # agent.project_item_state = torch.jit.trace(agent.project_item_state, node_dynamic_features[:,:num_items,:])
+    # agent.project_node_state = torch.jit.trace(agent.project_node_state, node_dynamic_features[:,num_items:,:])
+
     #get static embeddings first, it can be widely reused
     encode_start = time.time()
     static_features = test_env.get_static_features()
@@ -29,12 +39,14 @@ def test(agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
     static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static = encode_output
     encode_elapsed_time = (time.time()-encode_start)
     
+
+
     decode_start = time.time()
     ray_list = [torch.tensor([[float(i)/n_solutions,1-float(i)/n_solutions]]) for i in range(n_solutions)]
     for ray in ray_list:
         print(ray)
         param_dict = phn(ray.to(agent.device))
-        solve_output = solve_decode_only(agent, test_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
+        solve_output = solve_decode_only_inf(agent, test_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
         tour_list, item_selection, tour_length, total_profit, total_cost, logprob, sum_entropies = solve_output
         node_order_str = ""
         for i in tour_list[0]:

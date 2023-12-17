@@ -2,7 +2,92 @@ from typing import Optional, Tuple
 from matplotlib.pyplot import axis
 import torch
 import numpy as np
+import numba as nb
+from sklearn.metrics.pairwise import euclidean_distances
 
+# @nb.njit(nb.types.Tuple((nb.float32[:,:,:],nb.float32[:,:,:]))(nb.float32, nb.float32[:,:,:], nb.int64[:], nb.int64[:,:], nb.int64, nb.float32[:,:], nb.boolean[:,:]))
+# def get_node_dynamic_features(current_vel,
+#                               norm_coords,
+#                               current_location,
+#                               item_city_idx,
+#                               batch_size,
+#                               norm_weights,
+#                               item_selection
+#                               ):
+    
+#     # per item features = distance
+#     current_coords = np.take_along_axis(norm_coords, current_location[:,np.newaxis,np.newaxis], 1)
+#     item_coords = np.take_along_axis(norm_coords, item_city_idx[:,:,np.newaxis], 1) 
+#     item_dist_to_curr = np.linalg.norm(current_coords-item_coords, axis=2)
+#     dummy_dist_to_curr = np.linalg.norm(norm_coords-current_coords, axis=2)
+#     dist_to_curr = np.concatenate((item_dist_to_curr, dummy_dist_to_curr), axis=1)
+#     dist_to_curr = dist_to_curr[:,:,np.newaxis]
+#     trav_time_to_curr = dist_to_curr/current_vel[:, np.newaxis, np.newaxis]
+#     trav_time_to_curr = trav_time_to_curr.astype(np.float32)
+#     origin_coords = np.expand_dims(norm_coords[:,0,:],axis=1)
+#     item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
+#     dummy_dist_to_origin = np.linalg.norm(norm_coords-origin_coords, axis=2)
+#     dist_to_origin = np.concatenate((item_dist_to_origin, dummy_dist_to_origin), axis=1)
+#     dist_to_origin = dist_to_origin[:,:,np.newaxis]
+#     trav_time_to_origin = dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
+#     trav_time_to_origin = trav_time_to_origin.astype(np.float32)
+#     node_dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr], axis=2)
+
+#     # global features weigh and velocity
+#     global_dynamic_features = np.zeros((batch_size, 2), dtype=np.float32)
+#     global_dynamic_features[:, 0] = np.sum(norm_weights*item_selection, axis=1)
+#     global_dynamic_features[:, 1] = current_vel
+#     global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
+#     # global_dynamic_features = np.repeat(global_dynamic_features, num_items+num_nodes, axis=1)
+#     # dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
+#     return node_dynamic_features, global_dynamic_features
+
+@nb.njit((nb.float32[:,:])(nb.float32[:,:], nb.float32[:,:,:], nb.int64[:], nb.int64[:,:], nb.float64[:], nb.int64, nb.int64, nb.int64), cache=True)
+def get_trav_time_to_curr(out, 
+                          distance_matrix, 
+                          current_location, 
+                          item_city_idx,
+                          current_vel,
+                          batch_size,
+                          num_items,
+                          num_nodes):
+    for bi in range(batch_size):
+        curr = current_location[bi]
+        c_vel = current_vel[bi]
+        for i in range(num_items):
+            out[bi, i] = distance_matrix[bi,item_city_idx[bi,i],curr]/c_vel
+        for i in range(num_nodes):
+            out[bi,num_items+i] = distance_matrix[bi,i,curr]/c_vel
+    return out
+
+
+# global_dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
+#         global_dynamic_features[:, 1] = current_vel
+
+        # global_dynamic_features_ = np.empty((self.batch_size, 2), dtype=np.float32)
+@nb.njit((nb.float32[:,:])(nb.float32[:,:], nb.float32[:,:], nb.boolean[:,:], nb.float64[:], nb.int64, nb.int64), cache=True)
+def get_global_dynamic_features(out, 
+                                norm_weights, 
+                                item_selection, 
+                                current_vel,
+                                batch_size,
+                                num_items):
+    for bi in range(batch_size):
+        sum_weights:float = 0
+        for i in range(num_items):
+            sum_weights += norm_weights[bi,i]*item_selection[bi,i]
+        out[bi,0] = sum_weights
+        out[bi,1] = current_vel[bi]
+    return out
+
+@nb.njit((nb.boolean[:,:])(nb.boolean[:,:], nb.float32[:], nb.float64[:], nb.float32[:,:], nb.int64, nb.int64), cache=True)
+def update_eligbility_mask_by_cap(out, max_cap, current_load, weights, batch_size, num_items):
+    for bi in range(batch_size):
+        for i in range(num_items):
+            out[bi,i] = out[bi,i] and (weights[bi,i] <= max_cap[bi]-current_load[bi])
+    return out
+
+        
 class TTPEnv():
     def __init__(self,
                  coords, 
@@ -41,6 +126,13 @@ class TTPEnv():
         self.best_profit_kp = best_profit_kp.numpy()
         self.best_route_length_tsp = best_route_length_tsp.numpy()
         self.max_travel_time = 0
+
+        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
+        origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
+        item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
+        dummy_dist_to_origin = np.linalg.norm(self.norm_coords-origin_coords, axis=2)
+        dist_to_origin = np.concatenate((item_dist_to_origin, dummy_dist_to_origin), axis=1)
+        self.dist_to_origin = dist_to_origin[:,:,np.newaxis]
         
         # prepare features with dummy items padded
         # add #num_nodes dummy item to the features
@@ -49,7 +141,7 @@ class TTPEnv():
         self.node_batch_idx = batch_idx.repeat_interleave(self.num_nodes).numpy()
         self.batch_idx = batch_idx.squeeze(1).numpy()
         self.batch_idx_W = np.repeat(np.arange(self.batch_size)[:,np.newaxis], self.num_nodes, axis=1)
-
+        self.distance_matrix = np.concatenate([euclidean_distances(norm_coords[i,:,:])[np.newaxis,:,:] for i in range(self.batch_size)])
         self.current_location = None
         self.current_load = None
         self.item_selection = None
@@ -111,35 +203,22 @@ class TTPEnv():
         return static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
+    @profile
     def get_dynamic_features(self) -> torch.Tensor:
         current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
         current_vel = np.maximum(current_vel, self.min_v)
-        # per item features = distance
-        current_coords = np.take_along_axis(self.norm_coords, self.current_location[:,np.newaxis,np.newaxis], 1)
-        item_coords = np.take_along_axis(self.norm_coords, self.item_city_idx[:,:,np.newaxis], 1) 
-        item_dist_to_curr = np.linalg.norm(current_coords-item_coords, axis=2)
-        dummy_dist_to_curr = np.linalg.norm(self.norm_coords-current_coords, axis=2)
-        dist_to_curr = np.concatenate((item_dist_to_curr, dummy_dist_to_curr), axis=1)
-        dist_to_curr = dist_to_curr[:,:,np.newaxis]
-        trav_time_to_curr = dist_to_curr/current_vel[:, np.newaxis, np.newaxis]
-        trav_time_to_curr = trav_time_to_curr.astype(np.float32)
-        origin_coords = np.expand_dims(self.norm_coords[:,0,:],axis=1)
-        item_dist_to_origin = np.linalg.norm(item_coords-origin_coords, axis=2)
-        dummy_dist_to_origin = np.linalg.norm(self.norm_coords-origin_coords, axis=2)
-        dist_to_origin = np.concatenate((item_dist_to_origin, dummy_dist_to_origin), axis=1)
-        dist_to_origin = dist_to_origin[:,:,np.newaxis]
-        trav_time_to_origin = dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
+        trav_time_to_curr = np.empty((self.batch_size, self.num_items+self.num_nodes), dtype=np.float32)
+        trav_time_to_curr = get_trav_time_to_curr(trav_time_to_curr, self.distance_matrix, self.current_location, self.item_city_idx, current_vel, self.batch_size, self.num_items, self.num_nodes)
+        trav_time_to_curr = trav_time_to_curr[:,:,np.newaxis]
+        trav_time_to_origin = self.dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
         trav_time_to_origin = trav_time_to_origin.astype(np.float32)
         node_dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr], axis=2)
-
-        # global features weigh and velocity
-        global_dynamic_features = np.zeros((self.batch_size, 2), dtype=np.float32)
-        global_dynamic_features[:, 0] = np.sum(self.norm_weights*self.item_selection, axis=1)
-        global_dynamic_features[:, 1] = current_vel
+        global_dynamic_features = np.empty((self.batch_size, 2), dtype=np.float32)
+        global_dynamic_features = get_global_dynamic_features(global_dynamic_features, self.norm_weights, self.item_selection, current_vel, self.batch_size, self.num_items)
         global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
-        # global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
-        # dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
         return node_dynamic_features, global_dynamic_features
+    
+
     @profile
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
@@ -155,7 +234,8 @@ class TTPEnv():
         node_dynamic_features, global_dynamic_features = self.get_dynamic_features()
         eligibility_mask = self.eligibility_mask
         return node_dynamic_features, global_dynamic_features, eligibility_mask
-
+    
+    @profile
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
         self.is_selected[active_idx, selected_item] = True
@@ -164,12 +244,7 @@ class TTPEnv():
         
         # update current weight
         self.current_load[active_idx] += self.weights[active_idx, selected_item]
-        current_cap = self.max_cap - self.current_load
-        # append dummy zeros for dummy items
-        items_more_than_cap = np.zeros_like(self.eligibility_mask, dtype=bool)
-        items_more_than_cap[:, :self.num_items] = self.weights > current_cap[:, np.newaxis]
-        self.eligibility_mask = np.logical_and(self.eligibility_mask, ~items_more_than_cap)
-        
+        self.eligibility_mask = update_eligbility_mask_by_cap(self.eligibility_mask, self.max_cap, self.current_load, self.weights, self.batch_size, self.num_items)
         # check if the selected item's location is not the current location too
         selected_item_location = self.item_city_idx[active_idx, selected_item]
         is_diff_location = self.current_location[active_idx] != selected_item_location

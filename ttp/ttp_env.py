@@ -80,7 +80,8 @@ def get_global_dynamic_features(out,
         out[bi,1] = current_vel[bi]
     return out
 
-@nb.njit((nb.boolean[:,:])(nb.boolean[:,:], nb.float32[:], nb.float64[:], nb.float32[:,:], nb.int64, nb.int64), cache=True)
+@nb.njit([(nb.boolean[:,:])(nb.boolean[:,:], nb.float32[:], nb.float64[:], nb.float32[:,:], nb.int64, nb.int64),
+          (nb.boolean[:,:])(nb.boolean[:,:], nb.float64[:], nb.float64[:], nb.float32[:,:], nb.int64, nb.int64)], cache=True)
 def update_eligbility_mask_by_cap(out, max_cap, current_load, weights, batch_size, num_items):
     for bi in range(batch_size):
         for i in range(num_items):
@@ -203,7 +204,7 @@ class TTPEnv():
         return static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
-    @profile
+    
     def get_dynamic_features(self) -> torch.Tensor:
         current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
         current_vel = np.maximum(current_vel, self.min_v)
@@ -219,7 +220,7 @@ class TTPEnv():
         return node_dynamic_features, global_dynamic_features
     
 
-    @profile
+    
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
         active_idx = active_idx.cpu().numpy()
@@ -235,7 +236,7 @@ class TTPEnv():
         eligibility_mask = self.eligibility_mask
         return node_dynamic_features, global_dynamic_features, eligibility_mask
     
-    @profile
+    
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
         self.is_selected[active_idx, selected_item] = True

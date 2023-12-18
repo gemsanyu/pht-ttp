@@ -60,34 +60,14 @@ def compute_loss(logprob_list, batch_f_list, greedy_batch_f_list, index_list, tr
     utopia = utopia[np.newaxis,:,:]
     denom = (nadir-utopia)
     denom[denom==0] = 1
-    batch_f_list = (batch_f_list-utopia)/denom
-    greedy_batch_f_list = (greedy_batch_f_list-utopia)/denom
-    A = batch_f_list-greedy_batch_f_list
+    batch_f_list = (batch_f_list-utopia)/denom    
     
-    hv_d_list = get_hv_d(A.transpose((1,0,2))).transpose(1,0)
-    # compute loss now
-    hv_d_list = hv_d_list.to(device)
-    A = torch.from_numpy(A).to(device)
-    logprob_list = logprob_list.unsqueeze(2)
-    loss_per_obj = logprob_list*A
-    final_loss_per_obj = loss_per_obj*hv_d_list
-    final_loss_per_instance = final_loss_per_obj.sum(dim=2)
-    final_loss_per_ray = final_loss_per_instance.mean(dim=1)
-    final_loss = final_loss_per_ray.sum()
-    
-    
-    batch_f_list = torch.from_numpy(batch_f_list).to(device)
-    greedy_batch_f_list = torch.from_numpy(greedy_batch_f_list).to(device)
-    ray_list = ray_list.unsqueeze(1).expand_as(batch_f_list)
-    # print(logprob_list.shape, cosine_similarity(batch_f_list, ray_list, dim=2).shape)
-    cos_penalty = (cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2))
-    # cos_penalty = cosine_similarity(batch_f_list, ray_list, dim=2).unsqueeze(2)
-    # critic_cos_penalty = cosine_similarity(greedy_batch_f_list, ray_list, dim=2).unsqueeze(2)
-    A_cos = cos_penalty
-    cos_penalty_loss = logprob_list*A_cos
-    cos_penalty_loss_per_ray = cos_penalty_loss.mean(dim=0)
-    total_cos_penalty_loss = cos_penalty_loss_per_ray.sum()
-    return final_loss, total_cos_penalty_loss, training_nondom_list
+    tch_reward = ray_list.unsqueeze(1)*torch.from_numpy(batch_f_list).to(logprob_list.device)
+    tch_reward, _ = tch_reward.max(dim=-1)
+    # tch_reward = tch_reward.to(logprob_list.device)
+    loss = tch_reward*logprob_list
+    loss = loss.mean()
+    return loss, training_nondom_list
 
 def update_phn(agent, phn, opt, final_loss):
     agent.zero_grad(set_to_none=True)
@@ -250,10 +230,8 @@ def write_test_hv(writer, f_list, epoch, sample_solutions=None):
     writer.add_scalar('Test HV', _hv, epoch)
     writer.flush()
 
-def write_training_phn_progress(writer, loss_obj, cos_penalty_loss, spread_loss, epoch):
+def write_training_phn_progress(writer, loss_obj, epoch):
     writer.add_scalar("HV Loss", loss_obj, epoch)
-    writer.add_scalar("Cos Penalty Loss", cos_penalty_loss, epoch)
-    writer.add_scalar("Spread Loss", spread_loss, epoch)
 
 
 def initialize(target_param,phn,opt,tb_writer):

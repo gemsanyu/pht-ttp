@@ -23,18 +23,18 @@ from utils_moo import update_phn_bp_only, save_phn, write_test_hv
 def compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list, num_ray=16):
     agent.train()
     agent.gae.eval()
-    ray_list = generate_rays(num_ray, phn.device, is_random=True)
+    ray_list = generate_rays(1, phn.device, is_random=True)
+    crit_ray_list = generate_rays(6, phn.device, is_random=False)
     param_dict_list = generate_params(phn, ray_list)
-    critic_param_dict_list = generate_params(critic_phn, ray_list)
+    critic_param_dict_list = generate_params(critic_phn, crit_ray_list)
     index_list, batch = batch
     logprob_list, f_list, sum_entropies_list = solve_one_batch(agent, param_dict_list, batch)
     with torch.no_grad():
         agent.eval()
         _, greedy_f_list, _ = solve_one_batch(agent, critic_param_dict_list, batch)
-    loss_obj, cos_penalty_loss, training_nondom_list = compute_loss(logprob_list, f_list, greedy_f_list, index_list, training_nondom_list, ray_list)
-    spread_loss = compute_spread_loss(logprob_list, f_list)
+    loss_obj, training_nondom_list = compute_loss(logprob_list, f_list, greedy_f_list, index_list, training_nondom_list, ray_list)
     
-    return loss_obj, cos_penalty_loss, spread_loss, training_nondom_list
+    return loss_obj, training_nondom_list
     
 def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=False):
     phn.train()
@@ -42,7 +42,6 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
     training_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset, shuffle=True, pin_memory=True)) for train_dataset in training_dataset_list]
     is_done=False
     loss_obj_list = []
-    cos_penalty_loss_list = []
     spread_loss_list = []
     if training_nondom_list is None:
         training_nondom_list = [[None for _ in range(len(training_dataset_list[i]))] for i in range(len(training_dataloader_list))]
@@ -50,16 +49,10 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
         for i, dl_it in tqdm(enumerate(training_dataloader_list), desc="Training"):
             try:
                 batch_idx, batch = next(dl_it)
-                loss_obj, cos_penalty_loss, spread_loss, training_nondom_list[i] = compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list[i], args.num_ray)
+                loss_obj, training_nondom_list[i] = compute_loss_one_batch(agent, phn, critic_phn, batch, training_nondom_list[i], args.num_ray)
                 total_loss = loss_obj
-                if is_initialize:
-                    total_loss = 0
-                total_loss -= 0.01*spread_loss
-                total_loss += args.ld*cos_penalty_loss
                 total_loss.backward()
                 loss_obj_list += [loss_obj.detach().cpu().numpy()]
-                cos_penalty_loss_list += [cos_penalty_loss.detach().cpu().numpy()]
-                spread_loss_list += [spread_loss.detach().cpu().numpy()]
             except StopIteration:
                 is_done=True
                 break 
@@ -68,9 +61,8 @@ def train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list,
         # exit()
         update_phn_bp_only(agent, phn, phn_opt)
     loss_obj_list = np.asanyarray(loss_obj_list)
-    cos_penalty_loss_list = np.asanyarray(cos_penalty_loss_list)
     spread_loss_list = np.asanyarray(spread_loss_list)
-    write_training_phn_progress(writer, loss_obj_list.mean(), cos_penalty_loss_list.mean(), spread_loss_list.mean(), epoch)
+    write_training_phn_progress(writer, loss_obj_list.mean(), epoch)
     return training_nondom_list
 
 @torch.no_grad()        
@@ -204,12 +196,12 @@ def run(args):
         init_phn_output(agent, phn, writer, max_step=1000)
     #     validate_one_epochv2(args, agent, phn, validator, validation_dataset,test_batch,test_sample_solutions, writer, -1)  
     #     save_phn(phn, phn_opt, -1, args.title)
-        is_improving, _, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, -1) 
+        # is_improving, _, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, -1) 
     for epoch in range(last_epoch, args.max_epoch):
-        if epoch <=1:
-            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=True)
-        else:
-            training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=False)
+        # if epoch <=1:
+        #     training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=True)
+        # else:
+        training_nondom_list = train_one_epoch(args, agent, phn, phn_opt, critic_phn, training_nondom_list, writer, training_dataset_list, epoch, is_initialize=False)
         is_improving, critic_solution_list, validation_nondom_list = validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, validation_nondom_list, validation_dataset_list, test_batch, test_sample_solutions, writer, epoch) 
         save_phn(phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, epoch, args.title)
         if is_improving:

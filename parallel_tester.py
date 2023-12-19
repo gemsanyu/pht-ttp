@@ -16,23 +16,22 @@ def run(dataset_name:str):
 if __name__=="__main__":
     
     graph_name_list = [
-                    # "ch130",
-                    # "d657",
-                    "eil76",
-                    # "eil51",
-                    # "eil101",
-                    # "gil262",
+                    "ch130",
+                    "d657",
+                    "eil51",
+                    "eil101",
+                    "gil262",
                     
-                    # "kroA100",
-                    # "kroA150",
-                    # "kroA200",
-                    # "kroB100",
-                    # "kroB150",
+                    "kroA100",
+                    "kroA150",
+                    "kroA200",
+                    "kroB100",
+                    "kroB150",
                     
-                    # "kroB200",
-                    # "kroC100",
-                    # "kroD100",
-                    # "kroE100"
+                    "kroB200",
+                    "kroC100",
+                    "kroD100",
+                    "kroE100"
                     ]
     num_nodes_list = []
     for graph_name in graph_name_list:
@@ -57,6 +56,6 @@ if __name__=="__main__":
                     dataset_name_list += [dataset_name]
     config_list = [dataset_name_list[i] for i in range(len(dataset_name_list))]
     config_list = config_list[:1]
-    num_cpus=1
+    num_cpus=32
     with mp.Pool(num_cpus) as pool:
         pool.map(run, config_list)

@@ -99,7 +99,7 @@ class Agent(torch.nn.Module):
 
     # num_step = 1
     # @torch.jit.script_method 
-    @profile   
+       
     def forward(self, 
                 num_items: int,
                 item_embeddings: torch.Tensor,

@@ -1,4 +1,5 @@
 import pathlib
+import os
 import random
 import sys
 import time
@@ -66,6 +67,16 @@ def test(agent:Agent, phn, test_batch, x_file, y_file, time_file, n_solutions=20
     decode_elapsed_str = "{:.16f}".format(decode_elapsed_time)
     time_file.write(encode_elapsed_str+" "+decode_elapsed_str+"\n")
 
+def is_tested(y_file_path,num_solutions=200):
+    if not os.path.isfile(y_file_path.absolute()):
+        return False
+    with open(y_file_path.absolute(), "r") as y_file:
+        for count, line in enumerate(y_file):
+            pass
+        if count + 1 == num_solutions:
+            return True
+    return False
+
 def run(args):
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args, load_best=False)
     # agent.gae = agent.gae.cpu()
@@ -74,6 +85,9 @@ def run(args):
     model_result_dir.mkdir(parents=True, exist_ok=True)
     x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
+    if is_tested(y_file_path):
+        print("alread tested")
+        return
     time_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".time")
     with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file, open(time_file_path.absolute(), "w") as time_file:
         test(agent, phn, test_batch, x_file, y_file, time_file)

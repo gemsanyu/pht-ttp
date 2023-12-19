@@ -69,12 +69,16 @@ def test(agent:Agent, phn, test_batch, x_file, y_file, time_file, n_solutions=20
 
 def is_tested(y_file_path,num_solutions=200):
     if not os.path.isfile(y_file_path.absolute()):
+        print("GAK ADA")
         return False
+    
     with open(y_file_path.absolute(), "r") as y_file:
         for count, line in enumerate(y_file):
             pass
         if count + 1 == num_solutions:
             return True
+        print(count+1)
+    
     return False
 
 def run(args):
@@ -88,6 +92,7 @@ def run(args):
     if is_tested(y_file_path):
         print("alread tested")
         return
+    exit()
     time_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".time")
     with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file, open(time_file_path.absolute(), "w") as time_file:
         test(agent, phn, test_batch, x_file, y_file, time_file)

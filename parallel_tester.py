@@ -18,20 +18,20 @@ if __name__=="__main__":
     graph_name_list = [
                     # "ch130",
                     "d657",
-                    # "eil51",
-#                     "eil101",
-#                     "gil262",
+                    "eil51",
+                    "eil101",
+                    "gil262",
                     
-#                     "kroA100",
-#                     "kroA150",
-#                     "kroA200",
-#                     "kroB100",
-#                     "kroB150",
+                    "kroA100",
+                    "kroA150",
+                    "kroA200",
+                    "kroB100",
+                    "kroB150",
                     
-#                     "kroB200",
-#                     "kroC100",
-#                     "kroD100",
-#                     "kroE100"
+                    "kroB200",
+                    "kroC100",
+                    "kroD100",
+                    "kroE100"
                     ]
     num_nodes_list = []
     for graph_name in graph_name_list:
@@ -40,7 +40,7 @@ if __name__=="__main__":
             if c in "0123456789":
                 num_nodes = num_nodes*10+int(c)
         num_nodes_list += [num_nodes]
-    num_items_list = [10]
+    num_items_list = [1,3,5,10]
     instance_type_list = [
         "bounded-strongly-corr",
         "uncorr",

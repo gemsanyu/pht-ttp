@@ -72,12 +72,11 @@ def is_tested(y_file_path,num_solutions=200):
         return False
     
     with open(y_file_path.absolute(), "r") as y_file:
+        count = 0
         for count, line in enumerate(y_file):
             pass
         if count + 1 >= num_solutions:
             return True
-        
-    
     return False
 
 def run(args):

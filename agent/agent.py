@@ -1,5 +1,5 @@
 import math
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from torch.nn import Linear, Parameter
 import torch.nn.functional as F
@@ -9,7 +9,49 @@ from agent.graph_encoder import GraphAttentionEncoder
 
 CPU_DEVICE = torch.device("cpu")
 
-# class Agent(torch.jit.ScriptModule):
+
+# @torch.jit.script
+def get_glimpses(projected_item_state:torch.Tensor, projected_node_state:torch.Tensor):
+    projected_item_node_state = torch.cat([projected_item_state, projected_node_state], dim=1)
+    glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = projected_item_node_state.chunk(3, dim=-1)
+    return glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic
+
+# @torch.jit.script
+def compute_lk_and_ch(glimpse_V_static: torch.Tensor,
+                      glimpse_V_dynamic: torch.Tensor,
+                      glimpse_K_static: torch.Tensor,
+                      glimpse_K_dynamic: torch.Tensor,
+                      logit_K_static: torch.Tensor,
+                      logit_K_dynamic: torch.Tensor,
+                      fixed_context: torch.Tensor,
+                      projected_current_state: torch.Tensor,
+                      eligibility_mask: torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
+    n_heads, batch_size, _, key_size = glimpse_V_static.shape
+    embed_dim = key_size*n_heads
+    glimpse_V = glimpse_V_static + glimpse_V_dynamic
+    glimpse_K = glimpse_K_static + glimpse_K_dynamic
+    logit_K = logit_K_static + logit_K_dynamic
+    query = fixed_context + projected_current_state
+    glimpse_Q = query.view(batch_size, n_heads, 1, key_size)
+    glimpse_Q = glimpse_Q.permute(1,0,2,3)
+    compatibility = glimpse_Q@glimpse_K.permute(0,1,3,2) / math.sqrt(glimpse_Q.size(-1)) # glimpse_K => n_heads, batch_size, num_items, embed_dim
+    mask = eligibility_mask.unsqueeze(0).unsqueeze(2) # batch_size, num_items -> 1, bs, 1, ni : broadcastable
+    compatibility = compatibility + mask.float().log()
+    attention = torch.softmax(compatibility, dim=-1)
+    heads = attention@glimpse_V
+    # supaya n_heads jadi dim nomor -2
+    concated_heads = heads.permute(1,2,0,3).contiguous()
+    concated_heads = concated_heads.view(batch_size, 1, embed_dim)
+    return logit_K, concated_heads
+
+# @torch.jit.script
+def get_probs(final_Q:torch.Tensor, logit_K:torch.Tensor, eligibility_mask:torch.Tensor):
+    logits = final_Q@logit_K.permute(0,2,1) / math.sqrt(final_Q.size(-1)) #batch_size, num_items, embed_dim
+    logits = torch.tanh(logits) * 10
+    logits = logits.squeeze(1) + eligibility_mask.float().log()
+    probs = torch.softmax(logits, dim=-1)
+    return probs
+
 class Agent(torch.nn.Module):
     def __init__(self,
                  num_static_features: int,
@@ -49,10 +91,14 @@ class Agent(torch.nn.Module):
         self.project_item_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_node_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_out = Linear(embed_dim, embed_dim, bias=False)
+        self.compute_lk_and_ch = None
+        self.get_glimpses = None
+        self.get_probs = None
         self.to(self.device)
 
     # num_step = 1
-    # @torch.jit.script_method    
+    # @torch.jit.script_method 
+       
     def forward(self, 
                 num_items: int,
                 item_embeddings: torch.Tensor,
@@ -75,34 +121,58 @@ class Agent(torch.nn.Module):
         projected_current_state = self.project_current_state(current_state)
         projected_item_state = self.project_item_state(node_dynamic_features[:, :num_items, :])
         projected_node_state = self.project_node_state(node_dynamic_features[:, num_items:, :])
-        projected_item_node_state = torch.cat([projected_item_state, projected_node_state], dim=1)
-        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = projected_item_node_state.chunk(3, dim=-1)
+
+        if self.get_glimpses is None:
+            if self.training:
+                self.get_glimpses = torch.jit.script(get_glimpses)
+            else:
+                self.get_glimpses = torch.jit.trace(get_glimpses, (projected_item_state, projected_node_state))
+        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.get_glimpses(projected_item_state, projected_node_state)
+        
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
-        glimpse_V = glimpse_V_static + glimpse_V_dynamic
-        glimpse_K = glimpse_K_static + glimpse_K_dynamic
-        logit_K = logit_K_static + logit_K_dynamic
-        query = fixed_context + projected_current_state
-        glimpse_Q = query.view(batch_size, self.n_heads, 1, self.key_size)
-        glimpse_Q = glimpse_Q.permute(1,0,2,3)
-        compatibility = glimpse_Q@glimpse_K.permute(0,1,3,2) / math.sqrt(glimpse_Q.size(-1)) # glimpse_K => n_heads, batch_size, num_items, embed_dim
-        mask = eligibility_mask.unsqueeze(0).unsqueeze(2) # batch_size, num_items -> 1, bs, 1, ni : broadcastable
-        compatibility = compatibility + mask.float().log()
-        attention = torch.softmax(compatibility, dim=-1)
-        heads = attention@glimpse_V
-        # supaya n_heads jadi dim nomor -2
-        concated_heads = heads.permute(1,2,0,3).contiguous()
-        concated_heads = concated_heads.view(batch_size, 1, self.embed_dim)
+        if self.compute_lk_and_ch is None and not self.training:
+            if self.training:
+                self.compute_lk_and_ch = torch.jit.script(compute_lk_and_ch)
+            else:
+                self.compute_lk_and_ch = torch.jit.trace(compute_lk_and_ch, (glimpse_V_static,
+                                                        glimpse_V_dynamic,
+                                                        glimpse_K_static,
+                                                        glimpse_K_dynamic,
+                                                        logit_K_static,
+                                                        logit_K_dynamic,
+                                                        fixed_context,
+                                                        projected_current_state,
+                                                        eligibility_mask))
+    
+        logit_K, concated_heads = self.compute_lk_and_ch(glimpse_V_static,
+                                                    glimpse_V_dynamic,
+                                                    glimpse_K_static,
+                                                    glimpse_K_dynamic,
+                                                    logit_K_static,
+                                                    logit_K_dynamic,
+                                                    fixed_context,
+                                                    projected_current_state,
+                                                    eligibility_mask)
+        
+
         if param_dict is not None:
             final_Q = F.linear(concated_heads, param_dict["po_weight"])
         else:
             final_Q = self.project_out(concated_heads)
-        logits = final_Q@logit_K.permute(0,2,1) / math.sqrt(final_Q.size(-1)) #batch_size, num_items, embed_dim
-        logits = torch.tanh(logits) * self.tanh_clip
-        logits = logits.squeeze(1) + eligibility_mask.float().log()
+        # logits = final_Q@logit_K.permute(0,2,1) / math.sqrt(final_Q.size(-1)) #batch_size, num_items, embed_dim
+        # logits = torch.tanh(logits) * self.tanh_clip
+        # logits = logits.squeeze(1) + eligibility_mask.float().log()
         # sudah dapat logits, ini untuk probability seleksinya
         # logits is unnormalized probs/weights
-        probs = torch.softmax(logits, dim=-1)
+        # probs = torch.softmax(logits, dim=-1)
+        if self.get_probs is None:
+            if self.training:
+                self.get_probs = torch.jit.script(get_probs)
+            else:
+                self.get_probs = torch.jit.trace(get_probs, (final_Q, logit_K, eligibility_mask))
+        probs = self.get_probs(final_Q, logit_K, eligibility_mask)
+        
         selected_idx, logp, entropy = self.select(probs)
         return selected_idx, logp, entropy
 

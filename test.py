@@ -30,7 +30,8 @@ def test_one_epoch(agent, policy, test_batch, x_file, y_file, time_file, pop_siz
 
     decode_start = time.time()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False)
-    for param_dict in param_dict_list:
+    for pi, param_dict in enumerate(param_dict_list):
+        print(pi)
         for k in param_dict.keys():
             param_dict[k] = param_dict[k].to(agent.device)
         solve_output = solve_decode_only(agent, test_env, static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static, param_dict)
@@ -56,7 +57,7 @@ def test_one_epoch(agent, policy, test_batch, x_file, y_file, time_file, pop_siz
 
 def test(args):
     agent, policy, training_nondom_list, validation_nondom_list, best_f_list, last_epoch, writer, checkpoint_path, test_batch, sample_solutions = setup_r1_nes(args, load_best=True)
-    agent.gae = agent.gae.cpu()
+    # agent.gae = agent.gae.cpu()
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)

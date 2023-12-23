@@ -38,8 +38,34 @@ class Attention(nn.Module):
     def forward(
             self,
             features: T.Tensor,
+            query: T.Tensor) -> Tuple[T.Tensor, T.Tensor]:
+        '''
+        ### Calculate attentions' score.
+        -----
+
+        Parameter:
+            features: features of the environment
+            pointer_hidden_state: hidden state of the previous pointer
+
+        Return: attentions' score with shape ([batch_size, num_items])
+        '''
+        batch_size, _, _ = features.shape
+        projected_features = self.features_embedder(features)
+        projected_query = self.query_embedder(query)
+        v = self.v.expand(batch_size, 1, self.num_neurons)
+        
+        hidden =(projected_features+projected_query).tanh()
+        hidden = hidden.permute(0,2,1)
+        u = T.bmm(v,hidden)
+
+        logits = self.tanh_clip*u.tanh()
+        return projected_features, logits
+    
+    def forward_final(
+            self,
+            features: T.Tensor,
             query: T.Tensor,
-            param_dict: Optional[Dict[str, T.Tensor]]=None,
+            param_dict: Dict[str, T.Tensor],
         ) -> Tuple[T.Tensor, T.Tensor]:
         '''
         ### Calculate attentions' score.
@@ -52,26 +78,11 @@ class Attention(nn.Module):
         Return: attentions' score with shape ([batch_size, num_items])
         '''
         batch_size, _, _ = features.shape
-        if param_dict is None:
-            projected_features = self.features_embedder(features)
-            projected_query = self.query_embedder(query)
-            v = self.v.expand(batch_size, 1, self.num_neurons)
-        else:
-            # fe_weight, qe_weight = param_dict["fe_weight"], param_dict["qe_weight"]
-            # projected_features = F.linear(features, fe_weight)
-            # qe_weight = param_dict["qe_weight"]
-            # projected_query = F.linear(query, qe_weight)
-            projected_features = self.features_embedder(features)
-            projected_query = self.query_embedder(query)
-            v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
-            # v = param_dict["v"]
-        
+        projected_features = self.features_embedder(features)
+        projected_query = self.query_embedder(query)
+        v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
         hidden =(projected_features+projected_query).tanh()
         hidden = hidden.permute(0,2,1)
         u = T.bmm(v,hidden)
-
-        if self.use_tanh:
-            logits = self.tanh_clip*u.tanh()
-        else:
-            logits = u
+        logits = self.tanh_clip*u.tanh()
         return projected_features, logits

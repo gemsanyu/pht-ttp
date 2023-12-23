@@ -27,7 +27,8 @@ def test_one_epoch(agent, policy:R1_NES, test_batch, x_file, y_file, time_file, 
     
     decode_start = time.time()
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=pop_size, use_antithetic=False, device=agent.device)   
-    for param_dict in param_dict_list:
+    for pi, param_dict in enumerate(param_dict_list):
+        print(pi)
         solve_output = solve_decode_only(agent, test_env, static_embeddings, param_dict)
         tour_list, item_selection, tour_length, total_profit, total_costs, logprobs, sum_entropies = solve_output
         node_order_str = ""

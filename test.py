@@ -55,6 +55,18 @@ def load_agent_checkpoint(agent, title, weight_idx, total_weight, device=CPU_DEV
     agent.load_state_dict(checkpoint["agent_state_dict"])
     return agent
 
+def is_tested(y_file_path,num_solutions=100):
+    if not os.path.isfile(y_file_path.absolute()):
+        return False
+    
+    with open(y_file_path.absolute(), "r") as y_file:
+        count = 0
+        for count, line in enumerate(y_file):
+            pass
+        if count + 1 >= num_solutions:
+            return True
+    return False
+
 def run(args):
     agent = Agent(n_heads=8,
                  num_static_features=3,
@@ -74,10 +86,14 @@ def run(args):
     results_dir = pathlib.Path(".")/"results"
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)
+    print(args.dataset_name)
     for weight_idx in range(1,args.total_weight+1):
         agent = load_agent_checkpoint(agent, args.title, weight_idx, args.total_weight, args.device)        
         x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
         y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
+        if is_tested(y_file_path):
+            print("alread tested")
+            return
         start = time.time()
         with open(x_file_path.absolute(), "a+") as x_file, open(y_file_path.absolute(), "a+") as y_file:
             test_one_epoch(agent, test_env, x_file, y_file)

@@ -44,7 +44,7 @@ if __name__=="__main__":
             if c in "0123456789":
                 num_nodes = num_nodes*10+int(c)
         num_nodes_list += [num_nodes]
-    num_items_list = [10]
+    num_items_list = [1,3,5,10]
     instance_type_list = [
         "bounded-strongly-corr",
         # "uncorr",

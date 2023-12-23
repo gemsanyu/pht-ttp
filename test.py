@@ -44,16 +44,7 @@ def load_agent_checkpoint(agent, title, weight_idx, total_weight, device=CPU_DEV
     return agent
 
 def run(args):
-    agent = Agent(device=args.device,
-                  num_static_features=3,
-                  num_dynamic_features=4,
-                  static_encoder_size=args.encoder_size,
-                  dynamic_encoder_size=args.encoder_size,
-                  decoder_encoder_size=args.encoder_size,
-                  pointer_num_layers=args.pointer_layers,
-                  pointer_num_neurons=args.encoder_size,
-                  dropout=args.dropout,
-                  n_glimpses=args.n_glimpses)   
+      
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     test_batch = next(iter(test_dataloader))
@@ -66,6 +57,16 @@ def run(args):
     model_result_dir = results_dir/args.title
     model_result_dir.mkdir(parents=True, exist_ok=True)
     for weight_idx in range(1,args.total_weight+1):
+        agent = Agent(device=args.device,
+                  num_static_features=3,
+                  num_dynamic_features=4,
+                  static_encoder_size=args.encoder_size,
+                  dynamic_encoder_size=args.encoder_size,
+                  decoder_encoder_size=args.encoder_size,
+                  pointer_num_layers=args.pointer_layers,
+                  pointer_num_neurons=args.encoder_size,
+                  dropout=args.dropout,
+                  n_glimpses=args.n_glimpses) 
         agent = load_agent_checkpoint(agent, args.title, weight_idx, args.total_weight, args.device)
         x_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".x")
         y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")

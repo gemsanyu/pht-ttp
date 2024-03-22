@@ -53,7 +53,7 @@ def generate(num_nodes, num_items_per_city, item_correlation, capacity_factor, i
     data_root = "data_full" 
     data_dir = pathlib.Path(".")/data_root/"test_new_m_city"
     data_dir.mkdir(parents=True, exist_ok=True)
-    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_"+str(idx)
+    dataset_name = "nn_"+str(num_nodes)+"_nipc_"+str(num_items_per_city)+"_ic_"+str(item_correlation)+"_cf_"+str(capacity_factor)+"_"+str(idx)
     dataset_path = data_dir/(dataset_name+".pt")
     dataset_text_path = data_dir/(dataset_name+".txt")
     with open(dataset_path.absolute(), "wb") as handle:

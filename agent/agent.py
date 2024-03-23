@@ -92,9 +92,9 @@ class Agent(torch.nn.Module):
         self.project_item_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_node_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_out = Linear(embed_dim, embed_dim, bias=False)
-        self.compute_lk_and_ch = None
-        self.get_glimpses = None
-        self.get_probs = None
+        self.compute_lk_and_ch = torch.jit.script(compute_lk_and_ch)
+        self.get_glimpses = torch.jit.script(get_glimpses)
+        self.get_probs = torch.jit.script(get_probs)
         self.to(self.device)
 
     # num_step = 1
@@ -124,27 +124,21 @@ class Agent(torch.nn.Module):
         projected_node_state = self.project_node_state(node_dynamic_features[:, num_items:, :])
 
         if self.get_glimpses is None:
-            if self.training:
-                self.get_glimpses = torch.jit.script(get_glimpses)
-            else:
-                self.get_glimpses = torch.jit.trace(get_glimpses, (projected_item_state, projected_node_state))
+            self.get_glimpses = torch.jit.trace(get_glimpses, (projected_item_state, projected_node_state))
         glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.get_glimpses(projected_item_state, projected_node_state)
         
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
         if self.compute_lk_and_ch is None and not self.training:
-            if self.training:
-                self.compute_lk_and_ch = torch.jit.script(compute_lk_and_ch)
-            else:
-                self.compute_lk_and_ch = torch.jit.trace(compute_lk_and_ch, (glimpse_V_static,
-                                                        glimpse_V_dynamic,
-                                                        glimpse_K_static,
-                                                        glimpse_K_dynamic,
-                                                        logit_K_static,
-                                                        logit_K_dynamic,
-                                                        fixed_context,
-                                                        projected_current_state,
-                                                        eligibility_mask))
+            self.compute_lk_and_ch = torch.jit.trace(compute_lk_and_ch, (glimpse_V_static,
+                                                    glimpse_V_dynamic,
+                                                    glimpse_K_static,
+                                                    glimpse_K_dynamic,
+                                                    logit_K_static,
+                                                    logit_K_dynamic,
+                                                    fixed_context,
+                                                    projected_current_state,
+                                                    eligibility_mask))
     
         logit_K, concated_heads = self.compute_lk_and_ch(glimpse_V_static,
                                                     glimpse_V_dynamic,
@@ -168,10 +162,7 @@ class Agent(torch.nn.Module):
         # logits is unnormalized probs/weights
         # probs = torch.softmax(logits, dim=-1)
         if self.get_probs is None:
-            if self.training:
-                self.get_probs = torch.jit.script(get_probs)
-            else:
-                self.get_probs = torch.jit.trace(get_probs, (final_Q, logit_K, eligibility_mask))
+            self.get_probs = torch.jit.trace(get_probs, (final_Q, logit_K, eligibility_mask))
         probs = self.get_probs(final_Q, logit_K, eligibility_mask)
         
         selected_idx, logp, entropy = self.select(probs)

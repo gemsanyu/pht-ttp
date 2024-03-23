@@ -119,7 +119,7 @@ class TTPEnv():
         self.norm_weights = norm_weights.numpy()
         self.min_v = min_v.numpy()
         self.max_v = max_v.numpy()
-        self.max_cap = max_cap.numpy()
+        self.max_cap = max_cap.numpy().astype(np.float32)
         self.renting_rate = renting_rate.numpy()
         self.item_city_idx = item_city_idx.numpy()
         self.item_city_mask = item_city_mask.numpy()

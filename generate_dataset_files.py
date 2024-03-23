@@ -85,7 +85,7 @@ def generate(num_nodes, num_items_per_city, item_correlation, capacity_factor, i
 
 def run(args):
     generate_args = [(args.num_nodes, nic, ic, cf, idx, args.dataseed) for nic in args.num_items_per_city for ic in range(3) for cf in range(1,11) for idx in range(args.num_dataset)]
-    with Pool(processes=4) as pool:
+    with Pool(processes=19) as pool:
         L = pool.starmap(generate, generate_args)
 
 if __name__ == "__main__":

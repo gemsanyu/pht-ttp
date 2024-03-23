@@ -80,7 +80,9 @@ class Attention(nn.Module):
         batch_size, _, _ = features.shape
         projected_features = self.features_embedder(features)
         projected_query = self.query_embedder(query)
-        v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
+        v = self.v.expand(batch_size, 1, self.num_neurons)
+        if param_dict is not None:
+            v = param_dict["v"].expand(batch_size, 1, self.num_neurons)
         hidden =(projected_features+projected_query).tanh()
         hidden = hidden.permute(0,2,1)
         u = T.bmm(v,hidden)

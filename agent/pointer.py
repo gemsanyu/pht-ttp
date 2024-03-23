@@ -89,7 +89,9 @@ class Pointer(nn.Module):
         # compute glimpse first, but what is glimpse really?
         # its like there are multiple layers of attention
         q = rnn_out
-        att_param_dict = {"v":param_dict["v1"]}
+        att_param_dict = None
+        if param_dict is not None:
+            att_param_dict = {"v":param_dict["v1"]}
 
         for i in range(self.n_glimpses):
             embedded_features, glimpse_logits = self.glimpse(query=q, features=features) #1*n

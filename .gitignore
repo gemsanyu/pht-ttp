@@ -3,5 +3,7 @@ runs*
 data/*
 logs/*
 data_full/training/
+data_full/training_nrw
+data_full/validation_nrw
 .ipynb_checkpoints*
 *.ipynb_checkpoints*

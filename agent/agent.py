@@ -107,7 +107,8 @@ class Agent(torch.nn.Module):
                 glimpse_V_static: torch.Tensor,
                 glimpse_K_static: torch.Tensor,
                 logit_K_static: torch.Tensor,
-                eligibility_mask: torch.Tensor):
+                eligibility_mask: torch.Tensor,
+                param_dict: Dict[str, torch.Tensor]=None):
         batch_size = item_embeddings.shape[0]
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
         projected_current_state = self.project_current_state(current_state)

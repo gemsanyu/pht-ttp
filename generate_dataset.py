@@ -19,7 +19,7 @@ def get_args():
 
     parser.add_argument('--num-dataset',
                         type=int,
-                        default=64,
+                        default=16,
                         help="num of datasets generated per config")
 
     parser.add_argument('--num-nodes-list',
@@ -48,7 +48,7 @@ def get_args():
      
     parser.add_argument('--mode',
                         type=str,
-                        default="training_nrw",
+                        default="validation_nrw",
                         help="where to use the generated instance, training/validation")   
     args = parser.parse_args(sys.argv[1:])
     return args
@@ -69,7 +69,7 @@ def generate(num_nodes, num_items_per_city, item_correlation, capacity_factor, i
 
 def run(args):
     generate_args = [(nn, nic, ic, cf, idx, args.dataseed, args.mode) for nn in args.num_nodes_list for nic in args.num_items_per_city for ic in args.item_correlation_list for cf in args.capacity_factor_list for idx in range(args.num_dataset)]
-    with Pool(processes=4) as pool:
+    with Pool(processes=18) as pool:
         L = pool.starmap(generate, generate_args)
 
 if __name__ == "__main__":

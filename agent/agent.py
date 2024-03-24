@@ -91,9 +91,9 @@ class Agent(torch.nn.Module):
         self.project_current_state = Linear(current_state_dim, embed_dim, bias=False)
         self.project_node_state = Linear(self.num_node_dynamic_features, 3*embed_dim, bias=False)
         self.project_out = Linear(embed_dim, embed_dim, bias=False)
-        self.compute_lk_and_ch = None
-        self.get_glimpses = None
-        self.get_probs = None
+        self.compute_lk_and_ch = torch.jit.script(compute_lk_and_ch)
+        self.get_glimpses = torch.jit.script(get_glimpses)
+        self.get_probs = torch.jit.script(get_probs)
         self.to(self.device)
 
     # num_step = 1
@@ -107,34 +107,13 @@ class Agent(torch.nn.Module):
                 glimpse_V_static: torch.Tensor,
                 glimpse_K_static: torch.Tensor,
                 logit_K_static: torch.Tensor,
-                eligibility_mask: torch.Tensor,
-                param_dict: Optional[Dict[str, torch.Tensor]]=None
-                ):
+                eligibility_mask: torch.Tensor):
         batch_size = item_embeddings.shape[0]
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
-        # if param_dict is not None:
-        #     projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
-        #     glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
-        # else:
         projected_current_state = self.project_current_state(current_state)
         glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.project_node_state(node_dynamic_features).chunk(3, dim=-1)
         glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
         glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
-
-        if self.compute_lk_and_ch is None and not self.training:
-            if self.training:
-                self.compute_lk_and_ch = torch.jit.script(compute_lk_and_ch)
-            else:
-                self.compute_lk_and_ch = torch.jit.trace(compute_lk_and_ch, (glimpse_V_static,
-                                                        glimpse_V_dynamic,
-                                                        glimpse_K_static,
-                                                        glimpse_K_dynamic,
-                                                        logit_K_static,
-                                                        logit_K_dynamic,
-                                                        fixed_context,
-                                                        projected_current_state,
-                                                        eligibility_mask))
-
         logit_K, concated_heads = self.compute_lk_and_ch(glimpse_V_static,
                                                     glimpse_V_dynamic,
                                                     glimpse_K_static,
@@ -144,15 +123,7 @@ class Agent(torch.nn.Module):
                                                     fixed_context,
                                                     projected_current_state,
                                                     eligibility_mask)
-        if param_dict is not None:
-            final_Q = F.linear(concated_heads, param_dict["po_weight"])
-        else:
-            final_Q = self.project_out(concated_heads)
-        if self.get_probs is None:
-            if self.training:
-                self.get_probs = torch.jit.script(get_probs)
-            else:
-                self.get_probs = torch.jit.trace(get_probs, (final_Q, logit_K, eligibility_mask))
+        final_Q = self.project_out(concated_heads)
         probs = self.get_probs(final_Q, logit_K, eligibility_mask)
         selected_idx, logp, entropy = self.select(probs)
         return selected_idx, logp, entropy

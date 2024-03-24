@@ -186,7 +186,7 @@ class TTPEnv():
         global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
         dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
         return dynamic_features
-
+    @profile
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
         # print("--------------",self.num_items, self.num_nodes)
@@ -203,7 +203,7 @@ class TTPEnv():
         
         dynamic_features = self.get_dynamic_features()
         return dynamic_features, self.eligibility_mask
-
+    @profile
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
         self.is_selected[active_idx, selected_item] = True
@@ -224,7 +224,7 @@ class TTPEnv():
         # print(selected_item)
         if np.any(is_diff_location):
             self.visit_node(active_idx[is_diff_location], selected_item_location[is_diff_location])
-
+    @profile
     def visit_node(self, active_idx, selected_node):
         # print(self.tour_list[active_idx], selected_node)
         # print(self.eligibility_mask[active_idx])

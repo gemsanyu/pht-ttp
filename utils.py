@@ -23,7 +23,7 @@ def encode(agent, static_features, num_nodes, num_items, batch_size):
     node_static_embeddings = agent.node_encoder(static_features[:,num_items+1:,:])
     static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings], dim=1)
     return static_embeddings
-
+@profile
 def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
     env.reset()
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)

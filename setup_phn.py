@@ -66,6 +66,10 @@ def setup_phn(args, load_best=False):
         validation_nondom_list = checkpoint["validation_nondom_list"]
         last_epoch = checkpoint["epoch"]
 
+    # compiling model
+    # compiling each module
+    agent.item_dynamic_encoder = torch.compile(agent.item_dynamic_encoder)
+    agent.item_static_encoder = torch.compile(agent.item_static_encoder)
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     _, test_batch = next(iter(test_dataloader))

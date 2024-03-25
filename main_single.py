@@ -147,13 +147,13 @@ def run(args):
     patience=50
     not_improving_count = 0
     agent, agent_opt, critic, crit_total_cost_list, last_epoch, writer, test_env = setup(args)
-    nn_list = [10, 20, 30]
+    nn_list = [30,40,50]
     nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)
     validation_num_samples_per_dataset = int(args.num_validation_samples/len_types)
-    train_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
-    validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
+    train_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training_nrw")
+    validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation_nrw")
 
     for epoch in range(last_epoch, args.max_epoch):
         train_one_epoch(agent, critic, agent_opt, train_dataset_list, epoch, writer)

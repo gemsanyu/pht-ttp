@@ -4,3 +4,4 @@ runs*
 data/*
 logs/*
 data_full/training*
+data_full/validation_nrw

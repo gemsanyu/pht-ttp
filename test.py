@@ -15,7 +15,6 @@ from utils import prepare_args, CPU_DEVICE
 from ttp.ttp_env import TTPEnv
 
 @torch.no_grad()
-@profile
 def test_one_epoch(agent, phn, test_batch, x_file, y_file, time_file, n_solutions=200):
     agent.eval()
     phn.eval()

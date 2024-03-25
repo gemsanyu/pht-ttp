@@ -43,8 +43,6 @@ def get_global_dynamic_features(out,
         out[bi,:,1] = current_vel[bi]
     return out
     
-
-
 class TTPEnv():
     def __init__(self,
                  coords, 
@@ -166,7 +164,6 @@ class TTPEnv():
         return static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
-    @profile
     def get_dynamic_features(self) -> torch.Tensor:
         current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
         current_vel = np.maximum(current_vel, self.min_v)
@@ -176,7 +173,6 @@ class TTPEnv():
         # global features weigh and velocity
         self.dynamic_features[:,:,2:4] = get_global_dynamic_features(self.dynamic_features[:,:,2:4], self.norm_weights, self.item_selection, current_vel, self.batch_size, self.num_items)
         return self.dynamic_features
-    @profile
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
         # print("--------------",self.num_items, self.num_nodes)
@@ -194,7 +190,6 @@ class TTPEnv():
         dynamic_features = self.get_dynamic_features()
         return dynamic_features, self.eligibility_mask
     
-    @profile
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection
         self.is_selected[active_idx, selected_item] = True
@@ -215,7 +210,6 @@ class TTPEnv():
         # print(selected_item)
         if np.any(is_diff_location):
             self.visit_node(active_idx[is_diff_location], selected_item_location[is_diff_location])
-    @profile
     def visit_node(self, active_idx, selected_node):
         # print(self.tour_list[active_idx], selected_node)
         # print(self.eligibility_mask[active_idx])

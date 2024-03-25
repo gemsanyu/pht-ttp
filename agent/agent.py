@@ -21,6 +21,24 @@ Encoder input: last customers static features
 """
 CPU_DEVICE = T.device("cpu")
 
+@T.jit.script
+def select(probs: T.Tensor) -> Tuple[T.Tensor, T.Tensor, int]:
+    '''
+    ### Select next operation to be executed.
+    -----
+    operation is pair of vec x cust
+    Parameter:
+        probs: probabilities of each operation
+
+    Return: index of operations, log of probabilities
+    '''
+    prob, selected_idx = T.max(probs, dim=2)
+    logprob = T.log(prob)
+    entropy = 0
+    selected_idx = selected_idx.squeeze(1)
+    logprob = logprob.squeeze(1)
+    return selected_idx, logprob, entropy
+
 # class Agent(T.jit.ScriptModule):
 class Agent(nn.Module):
     def __init__(
@@ -100,38 +118,5 @@ class Agent(nn.Module):
         probs = self.softmax(logits)
         return next_pointer_hidden_state, logits, probs
 
-    # @T.jit.ignore
-    def select(self, probs: T.Tensor) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
-        '''
-        ### Select next operation to be executed.
-        -----
-        operation is pair of vec x cust
-        Parameter:
-            probs: probabilities of each operation
-
-        Return: index of operations, log of probabilities
-        '''
-        batch_size, _, _ = probs.shape
-        batch_idx = T.arange(batch_size, device=self.device)
-        if self.training:
-            # print(probs)
-            dist = T.distributions.Categorical(probs)
-            selected_idx = dist.sample()
-            # print(probs[batch_idx,0,selected_idx[:,0]])
-            probs_selected = probs[batch_idx,0,selected_idx[:,0]]
-            while T.any(probs_selected==0):
-                selected_idx = dist.sample()
-                probs_selected = probs[batch_idx,0,selected_idx[:,0]]
-            logprob = dist.log_prob(selected_idx)
-            entropy = dist.entropy()
-            entropy = entropy.squeeze(1)        
-        else:
-            prob, selected_idx = T.max(probs, dim=2)
-            logprob = T.log(prob)
-            # no_probs = probs == 0
-            # probs[no_probs] = 1
-            # entropy = (-probs*T.log(probs)).sum(dim=2)
-            entropy = 0
-        selected_idx = selected_idx.squeeze(1)
-        logprob = logprob.squeeze(1)
-        return selected_idx, logprob, entropy
+    # @T.jit.script_method
+    

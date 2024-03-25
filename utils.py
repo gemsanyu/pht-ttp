@@ -4,7 +4,7 @@ import sys
 import torch
 
 from arguments import get_parser
-from agent.agent import Agent
+from agent.agent import Agent, select
 from ttp.ttp_env import TTPEnv
 
 CPU_DEVICE = torch.device('cpu')
@@ -23,7 +23,7 @@ def encode(agent, static_features, num_nodes, num_items, batch_size):
     node_static_embeddings = agent.node_encoder(static_features[:,num_items+1:,:])
     static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings], dim=1)
     return static_embeddings
-@profile
+
 def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
     env.reset()
     logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
@@ -52,7 +52,7 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
         forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
-        selected_idx, logprob, entropy = agent.select(probs)
+        selected_idx, logprob, entropy = select(probs)
         #save logprobs
         logprobs[active_idx] += logprob
         sum_entropies[active_idx] += entropy

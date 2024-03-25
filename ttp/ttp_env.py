@@ -20,13 +20,15 @@ def get_trav_time_to_curr(out,
     for bi in range(batch_size):
         curr = current_location[bi]
         c_vel = current_vel[bi]
+        dm_temp = distance_matrix[bi,:,curr]
+        ic_temp = item_city_idx[bi,:]
         for i in range(num_items):
-            out[bi, i] = distance_matrix[bi,item_city_idx[bi,i],curr]/c_vel
+            out[bi, i] = dm_temp[ic_temp[i]]/c_vel
         for i in range(num_nodes):
-            out[bi,num_items+i] = distance_matrix[bi,i,curr]/c_vel
+            out[bi,num_items+i] = dm_temp[i]/c_vel
     return out
 
-@nb.njit((nb.float32[:,:])(nb.float32[:,:], nb.float32[:,:], nb.boolean[:,:], nb.float64[:], nb.int64, nb.int64), cache=True)
+@nb.njit((nb.float32[:,:,:])(nb.float32[:,:,:], nb.float32[:,:], nb.boolean[:,:], nb.float64[:], nb.int64, nb.int64), cache=True)
 def get_global_dynamic_features(out, 
                                 norm_weights, 
                                 item_selection, 
@@ -37,16 +39,10 @@ def get_global_dynamic_features(out,
         sum_weights:float = 0
         for i in range(num_items):
             sum_weights += norm_weights[bi,i]*item_selection[bi,i]
-        out[bi,0] = sum_weights
-        out[bi,1] = current_vel[bi]
+        out[bi,:,0] = sum_weights
+        out[bi,:,1] = current_vel[bi]
     return out
-
-@nb.njit((nb.boolean[:,:])(nb.boolean[:,:], nb.float32[:], nb.float64[:], nb.float32[:,:], nb.int64, nb.int64), cache=True)
-def update_eligbility_mask_by_cap(out, max_cap, current_load, weights, batch_size, num_items):
-    for bi in range(batch_size):
-        for i in range(num_items):
-            out[bi,i] = out[bi,i] and (weights[bi,i] <= max_cap[bi]-current_load[bi])
-    return out
+    
 
 
 class TTPEnv():
@@ -130,7 +126,9 @@ class TTPEnv():
         dummy_idx = dummy_idx.unsqueeze(0).expand(self.batch_size, self.num_nodes).numpy()
         self.all_city_idx = np.concatenate((self.item_city_idx, dummy_idx),axis=1)
         self.static_features = self.get_static_features()
+        self.dynamic_features = np.zeros((self.batch_size, self.num_items+self.num_nodes,4), dtype=np.float32)
         
+
     def begin(self):
         self.reset()
         dynamic_features = self.get_dynamic_features()
@@ -168,24 +166,16 @@ class TTPEnv():
         return static_features
 
         # trav_time_to_origin, trav_time_to_curr, current_weight, current_velocity
+    @profile
     def get_dynamic_features(self) -> torch.Tensor:
         current_vel = self.max_v - (self.current_load/self.max_cap)*(self.max_v-self.min_v)
         current_vel = np.maximum(current_vel, self.min_v)
-        # per item features = distance
-        trav_time_to_curr = np.empty((self.batch_size, self.num_items+self.num_nodes), dtype=np.float32)
-        trav_time_to_curr = get_trav_time_to_curr(trav_time_to_curr, self.distance_matrix, self.current_location, self.item_city_idx, current_vel, self.batch_size, self.num_items, self.num_nodes)
-        trav_time_to_curr = trav_time_to_curr[:,:,np.newaxis]
-        trav_time_to_origin = self.dist_to_origin/current_vel[:, np.newaxis, np.newaxis]
-        trav_time_to_origin = trav_time_to_origin.astype(np.float32)
+        self.dynamic_features[:,:,0] = (self.dist_to_origin/current_vel[:, np.newaxis, np.newaxis])[:,:,0]
+        self.dynamic_features[:,:,1] = get_trav_time_to_curr(self.dynamic_features[:,:,1], self.distance_matrix, self.current_location, self.item_city_idx, current_vel, self.batch_size, self.num_items, self.num_nodes)
         
-
         # global features weigh and velocity
-        global_dynamic_features = np.empty((self.batch_size, 2), dtype=np.float32)
-        global_dynamic_features = get_global_dynamic_features(global_dynamic_features, self.norm_weights, self.item_selection, current_vel, self.batch_size, self.num_items)
-        global_dynamic_features = global_dynamic_features[:,np.newaxis,:]
-        global_dynamic_features = np.repeat(global_dynamic_features, self.num_items+self.num_nodes, axis=1)
-        dynamic_features = np.concatenate([trav_time_to_origin, trav_time_to_curr, global_dynamic_features], axis=2)
-        return dynamic_features
+        self.dynamic_features[:,:,2:4] = get_global_dynamic_features(self.dynamic_features[:,:,2:4], self.norm_weights, self.item_selection, current_vel, self.batch_size, self.num_items)
+        return self.dynamic_features
     @profile
     def act(self, active_idx:torch.Tensor, selected_idx:torch.Tensor)->Tuple[torch.Tensor, torch.Tensor]:
         # filter which is taking item, which is visiting nodes only
@@ -203,6 +193,7 @@ class TTPEnv():
         
         dynamic_features = self.get_dynamic_features()
         return dynamic_features, self.eligibility_mask
+    
     @profile
     def take_item(self, active_idx, selected_item):
         # set item as selected in item selection

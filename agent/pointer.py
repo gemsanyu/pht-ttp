@@ -91,12 +91,12 @@ class Pointer(nn.Module):
         q = rnn_out
         att_param_dict = {"v":param_dict["v1"]}
 
-        for i in range(self.n_glimpses):
-            embedded_features, glimpse_logits = self.glimpse(query=q, features=features) #1*n
-            # mask the logit
-            masked_glimpse_logits = glimpse_logits + mask.float().log()
-            glimpse_att =  F.softmax(masked_glimpse_logits, dim=2)
-            q = glimpse_att@embedded_features   
+        # for i in range(self.n_glimpses):
+        embedded_features, glimpse_logits = self.glimpse(query=q, features=features) #1*n
+        # mask the logit
+        masked_glimpse_logits = glimpse_logits + mask.float().log()
+        glimpse_att =  F.softmax(masked_glimpse_logits, dim=2)
+        q = glimpse_att@embedded_features   
         _, logits = self.attention_layer.forward_final(query=q, features=features, param_dict=att_param_dict)
         masked_logits = logits + mask.float().log()
         return masked_logits, pointer_hidden_state

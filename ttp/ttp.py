@@ -111,6 +111,35 @@ class TTP(object):
         self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
 
 
+    def generate_items_only(self):
+        W = self.location_data.W
+        profits, weights, item_city_idx = generate_items(self.num_nodes,
+                                                         self.num_items_per_city,
+                                                         self.item_correlation,
+                                                         self.device)
+        total_weights = torch.sum(weights, dim=0)
+        self.max_cap = total_weights*self.capacity_factor/CAPACITY_CONSTANT
+        self.max_cap = torch.ceil(self.max_cap).double()
+        self.max_cap.to(self.device)
+
+        norm_profits, profit_scale = normalize(profits)
+        norm_weights, weight_scale = normalize(weights)
+        self.profit_data = ProfitData(profits, norm_profits, profit_scale)
+        self.weight_data = WeightData(weights, norm_weights, weight_scale)
+        self.item_city_idx = item_city_idx
+        self.num_items = (self.num_nodes-1)*self.num_items_per_city
+
+        self.item_city_mask = generate_item_city_mask(self.num_nodes, self.num_items, self.item_city_idx)
+        # self.min_tour_length, self.max_profit, self.renting_rate = 0,0,0
+        self.min_tour_length, self.max_profit, self.renting_rate = get_renting_rate(W, weights, profits, self.max_cap)
+        self.min_tour_length = torch.tensor(self.min_tour_length, dtype=torch.float32)
+        self.max_profit = torch.tensor(self.max_profit, dtype=torch.float32)        
+        self.density = self.profit_data.norm_profits/self.weight_data.norm_weights
+        self.max_profit = torch.sum(self.profit_data.profits, dim=0)
+        self.max_travel_time = get_max_travel_time(self.num_nodes, self.location_data.W, 
+                                                    self.min_v, self.device)
+        self.max_travel_time=-1
+
     def init_dataset_from_file(self, dataset_name):
         data_path = self.dataset_dir/(dataset_name+".txt")
         try:

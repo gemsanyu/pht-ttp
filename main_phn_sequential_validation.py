@@ -193,8 +193,8 @@ def run(args):
     len_types = len(nn_list)*len(nipc_list)
     train_num_samples_per_dataset = int(args.num_training_samples/len_types)
     validation_num_samples_per_dataset = int(args.num_validation_samples/len_types)
-    training_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training")
-    validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation")
+    training_dataset_list = get_dataset_list(train_num_samples_per_dataset, nn_list, nipc_list, mode="training_nrw")
+    validation_dataset_list = get_dataset_list(validation_num_samples_per_dataset, nn_list, nipc_list, mode="validation_nrw")
 
     
     if last_epoch == 0:

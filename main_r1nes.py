@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import wilcoxon, ranksums
 
 from agent.agent import Agent
+from agent.encoder import Encoder
 from setup_r1nes import setup_r1_nes
 from ttp.ttp_env import TTPEnv
 from ttp.ttp_dataset import get_dataset_list
@@ -19,19 +20,19 @@ from policy.utils import get_score_hv_contributions, fast_non_dominated_sort
 from utils import solve_decode_only, encode, save_nes
 from utils import prepare_args, write_test_hv
 
-def solve_one_batch(agent, param_dict_list, batch, index_list, training_nondom_list, negative_hv, is_validate=False):
+def solve_one_batch(agent:Agent, encoder:Encoder, param_dict_list, batch, index_list, training_nondom_list, negative_hv, is_validate=False):
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = batch
     train_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)
     # encode/embed first, it can be reused for same env/problem
     num_nodes, num_items, batch_size = train_env.num_nodes, train_env.num_items, train_env.batch_size
     static_features, dynamic_features, eligibility_mask = train_env.begin()
-    static_embeddings = encode(agent, static_features, num_nodes, num_items, batch_size)
+    static_embeddings = encode(encoder, static_features, num_nodes, num_items, batch_size)
 
     pop_size = len(param_dict_list)
     travel_time_list = np.zeros((pop_size, batch_size), dtype=np.float32)
     total_profit_list = np.zeros((pop_size, batch_size), dtype=np.float32)
     for n, param_dict in enumerate(param_dict_list):
-        solve_output = solve_decode_only(agent, train_env, static_embeddings, param_dict)
+        solve_output = solve_decode_only(agent, encoder, train_env, static_embeddings, param_dict)
         tour_list, item_selection, tour_lengths, total_profits, total_costs, logprobs, sum_entropies = solve_output
         travel_time_list[n,:] = tour_lengths
         total_profit_list[n,:] = total_profits
@@ -61,8 +62,7 @@ def solve_one_batch(agent, param_dict_list, batch, index_list, training_nondom_l
     return f_list, training_nondom_list, score
 
 @torch.no_grad()
-def train_one_generation(args, agent:Agent, policy:R1_NES, training_nondom_list, writer, training_dataset_list, pop_size, epoch):
-    agent.eval()
+def train_one_generation(args, agent:Agent, encoder:Encoder, policy:R1_NES, training_nondom_list, writer, training_dataset_list, pop_size, epoch):
     batch_size_per_dataset = int(args.batch_size/len(training_dataset_list))
     training_dataloader_list = [enumerate(DataLoader(train_dataset, batch_size=batch_size_per_dataset, shuffle=True, pin_memory=True)) for train_dataset in training_dataset_list]
     if training_nondom_list is None:
@@ -75,7 +75,7 @@ def train_one_generation(args, agent:Agent, policy:R1_NES, training_nondom_list,
             try:
                 batch_idx, batch = next(dl_it)
                 index_list, batch = batch
-                batch_f_list, training_nondom_list[i], score = solve_one_batch(agent, param_dict_list, batch, index_list, training_nondom_list[i], policy.negative_hv)    
+                batch_f_list, training_nondom_list[i], score = solve_one_batch(agent, encoder, param_dict_list, batch, index_list, training_nondom_list[i], policy.negative_hv)    
                 score_list += [score]
             except StopIteration:
                 is_done=True
@@ -91,8 +91,7 @@ def train_one_generation(args, agent:Agent, policy:R1_NES, training_nondom_list,
     return training_nondom_list
 
 @torch.no_grad()
-def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, test_sample_solutions, epoch):
-    agent.eval()
+def validate_one_epoch(args, agent:Agent, encoder:Encoder, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, test_sample_solutions, epoch):
     batch_size_per_dataset = int(args.batch_size/len(validation_dataset_list))
     validation_dataloader_list = [enumerate(DataLoader(validation_dataset, batch_size=batch_size_per_dataset, shuffle=False, pin_memory=True)) for validation_dataset in validation_dataset_list]
     
@@ -105,7 +104,7 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
             try:
                 batch_idx, batch = next(dl_it)
                 index_list, batch = batch
-                batch_f_list, _, _ = solve_one_batch(agent, param_dict_list, batch, None, None, None, True)
+                batch_f_list, _, _ = solve_one_batch(agent, encoder, param_dict_list, batch, None, None, None, True)
                 f_list += [batch_f_list] 
             except StopIteration:
                 is_done=True
@@ -169,7 +168,7 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     
     # Scatter plot with gradient colors
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=50, use_antithetic=False)
-    test_f_list,_,_ = solve_one_batch(agent, param_dict_list, test_batch, None,  None, None, True)
+    test_f_list,_,_ = solve_one_batch(agent, encoder, param_dict_list, test_batch, None,  None, None, True)
     
     plt.figure()
     plt.scatter(test_sample_solutions[:,0], -test_sample_solutions[:,1], c="red")
@@ -181,7 +180,7 @@ def validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list,
     return is_improving, validation_nondom_list, best_f_list
 
 def run(args):
-    agent, policy, training_nondom_list, validation_nondom_list, best_f_list, last_epoch, writer, checkpoint_path, test_batch, sample_solutions = setup_r1_nes(args)
+    agent, encoder, policy, training_nondom_list, validation_nondom_list, best_f_list, last_epoch, writer, checkpoint_path, test_batch, sample_solutions = setup_r1_nes(args)
     nn_list = [20,30,50]
     nipc_list = [1,3,5]
     len_types = len(nn_list)*len(nipc_list)
@@ -194,11 +193,11 @@ def run(args):
     not_improving_count = 0
     epoch = last_epoch
     if last_epoch == 0:
-        is_improving, validation_nondom_list, _ = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, -1) 
+        is_improving, validation_nondom_list, _ = validate_one_epoch(args, agent, encoder, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, -1) 
     for epoch in range(last_epoch, args.max_epoch):
-        training_nondom_list = train_one_generation(args, agent, policy, training_nondom_list, writer, training_dataset_list, policy.pop_size, epoch)
+        training_nondom_list = train_one_generation(args, agent, encoder, policy, training_nondom_list, writer, training_dataset_list, policy.pop_size, epoch)
         policy.write_progress_to_tb(writer, epoch)
-        is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, epoch) 
+        is_improving, validation_nondom_list, best_f_list = validate_one_epoch(args, agent, encoder, policy, validation_nondom_list, best_f_list, validation_dataset_list, writer, test_batch, sample_solutions, epoch) 
         save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, args.title)
         if is_improving:
             save_nes(policy, training_nondom_list, validation_nondom_list, best_f_list, epoch, args.title, best=True)

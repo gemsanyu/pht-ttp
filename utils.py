@@ -9,7 +9,8 @@ import torch
 from tqdm import tqdm
 
 from arguments import get_parser
-from agent.agent import Agent
+from agent.agent import Agent, select
+from agent.encoder import Encoder
 from policy.hv import Hypervolume
 from policy.normalization import normalize
 from policy.non_dominated_sorting import fast_non_dominated_sort
@@ -63,29 +64,29 @@ def solve(agent: Agent, env: TTPEnv, param_dict=None, normalized=False):
     tour_list, item_selection, tour_lengths, total_profits, total_cost = env.finish(normalized=normalized)
     return tour_list, item_selection, tour_lengths, total_profits, total_cost, logprobs, sum_entropies
 
-def encode(agent, static_features, num_nodes, num_items, batch_size):
-    static_features =  torch.from_numpy(static_features).to(agent.device)
-    item_static_embeddings = agent.item_static_encoder(static_features[:,:num_items,:])
-    depot_static_embeddings = agent.depot_init_embed.expand((batch_size,1,-1))
+def encode(encoder:Encoder, static_features, num_nodes, num_items, batch_size):
+    static_features =  torch.from_numpy(static_features).to(encoder.device)
+    item_static_embeddings = encoder.item_static_encoder(static_features[:,:num_items,:])
+    depot_static_embeddings = encoder.depot_init_embed.expand((batch_size,1,-1))
     # node_static_embeddings = agent.node_init_embed.expand((batch_size, num_nodes-1, -1))
-    node_static_embeddings = agent.node_encoder(static_features[:,num_items+1:,:])
+    node_static_embeddings = encoder.node_encoder(static_features[:,num_items+1:,:])
     static_embeddings = torch.cat([item_static_embeddings, depot_static_embeddings, node_static_embeddings], dim=1)
     return static_embeddings
 
-def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
+def solve_decode_only(agent: Agent, encoder: Encoder, env: TTPEnv, static_embeddings, param_dict=None, normalized=False):
     if param_dict is not None:
-        param_dict["v1"] = param_dict["v1"].to(agent.device)
-    logprobs = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    sum_entropies = torch.zeros((env.batch_size,), device=agent.device, dtype=torch.float32)
-    last_pointer_hidden_states = torch.zeros((agent.pointer.num_layers, env.batch_size, agent.pointer.num_neurons), device=agent.device, dtype=torch.float32)
+        param_dict["v1"] = param_dict["v1"].to(encoder.device)
+    logprobs = torch.zeros((env.batch_size,), device=encoder.device, dtype=torch.float32)
+    sum_entropies = torch.zeros((env.batch_size,), device=encoder.device, dtype=torch.float32)
+    last_pointer_hidden_states = torch.zeros((2, env.batch_size, 128), device=encoder.device, dtype=torch.float32)
     static_features, dynamic_features, eligibility_mask = env.begin()
     num_items = env.num_items
-    dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
-    eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
-    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=agent.device)
+    dynamic_features = torch.from_numpy(dynamic_features).to(encoder.device)
+    eligibility_mask = torch.from_numpy(eligibility_mask).to(encoder.device)
+    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=encoder.device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
     # initially pakai initial input
-    previous_embeddings = agent.inital_input.repeat_interleave(env.batch_size, dim=0)
+    previous_embeddings = encoder.inital_input.repeat_interleave(env.batch_size, dim=0)
     first_turn = True
     while torch.any(eligibility_mask):
         is_not_finished = torch.any(eligibility_mask, dim=1)
@@ -94,19 +95,19 @@ def solve_decode_only(agent: Agent, env: TTPEnv, static_embeddings, param_dict=N
             previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :]
             previous_embeddings = previous_embeddings.unsqueeze(1)
         next_pointer_hidden_states = last_pointer_hidden_states
-        item_dynamic_embeddings = agent.item_dynamic_encoder(dynamic_features[:,:num_items,:])
-        node_dynamic_embeddings = agent.node_dynamic_encoder(dynamic_features[:,num_items:,:])
+        item_dynamic_embeddings = encoder.item_dynamic_encoder(dynamic_features[:,:num_items,:])
+        node_dynamic_embeddings = encoder.node_dynamic_encoder(dynamic_features[:,num_items:,:])
         dynamic_embeddings = torch.cat([item_dynamic_embeddings, node_dynamic_embeddings], dim=1)
         forward_results = agent(last_pointer_hidden_states[:, active_idx, :], static_embeddings[active_idx], dynamic_embeddings[active_idx],eligibility_mask[active_idx], previous_embeddings, param_dict)
         next_pointer_hidden_states[:, active_idx, :], logits, probs = forward_results
         last_pointer_hidden_states = next_pointer_hidden_states
-        selected_idx, logprob, entropy = agent.select(probs)
+        selected_idx, logprob, entropy = select(probs)
         #save logprobs
         logprobs[active_idx] += logprob
         sum_entropies[active_idx] += entropy
         dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        dynamic_features = torch.from_numpy(dynamic_features).to(agent.device)
-        eligibility_mask = torch.from_numpy(eligibility_mask).to(agent.device)
+        dynamic_features = torch.from_numpy(dynamic_features).to(encoder.device)
+        eligibility_mask = torch.from_numpy(eligibility_mask).to(encoder.device)
         prev_selected_idx[active_idx] = selected_idx
         first_turn = False
     # # get total profits and tour lenghts

@@ -7,6 +7,8 @@ import time
 import numpy as np
 import torch
 
+from agent.agent import Agent
+from agent.encoder import Encoder
 from setup_r1nes import setup_r1_nes
 from policy.r1_nes import R1_NES
 from utils import solve_decode_only, encode, prepare_args, CPU_DEVICE
@@ -14,7 +16,7 @@ from ttp.ttp_env import TTPEnv
 
 
 @torch.no_grad()
-def test_one_epoch(agent, policy:R1_NES, test_batch, x_file, y_file, time_file, pop_size=200):
+def test_one_epoch(agent:Agent, encoder:Encoder, policy:R1_NES, test_batch, x_file, y_file, time_file, pop_size=200):
     agent.eval()
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)

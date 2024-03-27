@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from agent.agent import Agent
+from agent.agent import Agent, select
 from arguments import get_parser
 from ttp.ttp_env import TTPEnv
 from policy.hv import Hypervolume
@@ -120,7 +120,7 @@ def solve_decode_only(agent:Agent,
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
         previous_embeddings = static_embeddings[active_idx, prev_selected_idx[active_idx], :].unsqueeze(1)
-        selected_idx, logp, entropy = agent(env.num_items,
+        probs = agent(env.num_items,
                                    static_embeddings[is_not_finished],
                                    fixed_context[is_not_finished],
                                    previous_embeddings,
@@ -131,7 +131,7 @@ def solve_decode_only(agent:Agent,
                                    logits_K_static[is_not_finished],
                                    eligibility_mask[is_not_finished],
                                    param_dict)
-
+        selected_idx, logp, entropy = select(probs)
         #save logprobs
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy

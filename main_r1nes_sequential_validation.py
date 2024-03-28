@@ -41,7 +41,7 @@ def train_one_generation(args, agent:Agent, policy: R1_NES, training_dataset, po
         train_one_batch(agent, policy, batch, pop_size)
     
 def run(args):
-    agent, policy, last_epoch, writer, test_batch, test_sample_solutions = setup_r1_nes(args)
+    agent, encoder, policy, last_epoch, writer, test_batch, test_sample_solutions = setup_r1_nes(args)
     validator = load_validator(args)
     training_dataset = TTPDataset(num_samples=args.num_training_samples, mode="training")
     validation_dataset = TTPDataset(num_samples=args.num_validation_samples, mode="validation")
@@ -57,7 +57,7 @@ def run(args):
 if __name__ == '__main__':
     args = prepare_args()
     # torch.set_num_threads(os.cpu_count())
-    torch.set_num_threads(1)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

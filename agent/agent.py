@@ -52,6 +52,12 @@ def get_probs(final_Q:torch.Tensor, logit_K:torch.Tensor, eligibility_mask:torch
     probs = torch.softmax(logits, dim=-1)
     return probs
 
+def make_heads(x: torch.Tensor)->torch.Tensor:
+    x = x.unsqueeze(2).view(x.size(0), x.size(1), 8, -1)
+    x = x.permute(2,0,1,3)
+    return x
+    
+
 def select(probs:torch.Tensor)->Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
     '''
     ### Select next to be executed.
@@ -111,7 +117,7 @@ class Agent(torch.nn.Module):
     # @torch.jit.script_method 
        
     def forward(self, 
-                num_items: int,
+                num_items: torch.Tensor,
                 item_embeddings: torch.Tensor,
                 fixed_context: torch.Tensor,
                 prev_item_embeddings: torch.Tensor,
@@ -123,20 +129,16 @@ class Agent(torch.nn.Module):
                 eligibility_mask: torch.Tensor,
                 param_dict: Optional[Dict[str, torch.Tensor]]=None
                 ) -> torch.Tensor:
-        batch_size = item_embeddings.shape[0]
+        
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
-#        if param_dict is not None:
-#            projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
-#            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
-#        else:
         projected_current_state = self.project_current_state(current_state)
         projected_item_state = self.project_item_state(node_dynamic_features[:, :num_items, :])
         projected_node_state = self.project_node_state(node_dynamic_features[:, num_items:, :])
 
         glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = get_glimpses(projected_item_state, projected_node_state)
         
-        glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
-        glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
+        glimpse_V_dynamic = make_heads(glimpse_V_dynamic)
+        glimpse_K_dynamic = make_heads(glimpse_K_dynamic)
     
         logit_K, concated_heads = compute_lk_and_ch(glimpse_V_static,
                                                     glimpse_V_dynamic,
@@ -157,10 +159,6 @@ class Agent(torch.nn.Module):
         return probs
 
     # @torch.jit.script_method
-    def _make_heads(self, x: torch.Tensor)->torch.Tensor:
-        x = x.unsqueeze(2).view(x.size(0), x.size(1), self.n_heads, self.key_size)
-        x = x.permute(2,0,1,3)
-        return x
     
 
     # @torch.jit.ignore

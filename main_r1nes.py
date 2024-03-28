@@ -176,7 +176,7 @@ def validate_one_epoch(args, agent:Agent, encoder:Encoder, policy, validation_no
     
     # Scatter plot with gradient colors
     param_dict_list, sample_list = policy.generate_random_parameters(n_sample=200, use_antithetic=False)
-    test_f_list,_,_ = solve_one_batch(agent, param_dict_list, test_batch, None,  None, None, True)
+    test_f_list,_,_ = solve_one_batch(agent, encoder, param_dict_list, test_batch, None,  None, None, True)
     
     plt.figure()
     plt.scatter(test_sample_solutions[:,0], -test_sample_solutions[:,1], c="red")

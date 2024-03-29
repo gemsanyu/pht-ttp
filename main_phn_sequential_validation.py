@@ -188,7 +188,7 @@ def validate_one_epoch(args, agent, phn, critic_phn, critic_solution_list, valid
 
 
 def run(args):
-    patience = 30
+    patience = 50
     not_improving_count = 0
     agent, phn, phn_opt, critic_phn, critic_solution_list, training_nondom_list, validation_nondom_list, last_epoch, writer, test_batch, test_sample_solutions = setup_phn(args)
     nn_list = [20,30,50]
@@ -222,7 +222,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
-    torch.set_num_threads(16)
+    torch.set_num_threads(4)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

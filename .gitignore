@@ -4,3 +4,11 @@ data/*
 logs/*
 data_full/training*
 data_full/validation_nrw
+agent_boss.pt
+depot_init_embed
+inital_input
+item_dynamic_encoder
+item_static_encoder
+node_dynamic_encoder
+node_encoder
+traced_agent-nrw.pt

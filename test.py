@@ -16,7 +16,7 @@ from ttp.ttp_env import TTPEnv
 
 
 @torch.no_grad()
-def test_one_epoch(agent:Agent, encoder:Encoder, policy:R1_NES, test_batch, x_file, y_file, time_file, pop_size=200):
+def test_one_epoch(agent:Agent, encoder:Encoder, policy:R1_NES, test_batch, x_file, y_file, time_file, pop_size=15):
     agent.eval()
     coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp = test_batch
     test_env = TTPEnv(coords, norm_coords, W, norm_W, profits, norm_profits, weights, norm_weights, min_v, max_v, max_cap, renting_rate, item_city_idx, item_city_mask, best_profit_kp, best_route_length_tsp)

@@ -196,7 +196,12 @@ class TTPEnv():
         
         # update current weight
         self.current_load[active_idx] += self.weights[active_idx, selected_item]
-        self.eligibility_mask = update_eligbility_mask_by_cap(self.eligibility_mask, self.max_cap, self.current_load, self.weights, self.batch_size, self.num_items)
+        current_cap = self.max_cap - self.current_load
+        # append dummy zeros for dummy items
+        items_more_than_cap = np.zeros_like(self.eligibility_mask, dtype=bool)
+        items_more_than_cap[:, :self.num_items] = self.weights > current_cap[:, np.newaxis]
+        self.eligibility_mask = np.logical_and(self.eligibility_mask, ~items_more_than_cap)
+        
         # check if the selected item's location is not the current location too
         selected_item_location = self.item_city_idx[active_idx, selected_item]
         is_diff_location = self.current_location[active_idx] != selected_item_location

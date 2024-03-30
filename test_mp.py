@@ -46,7 +46,7 @@ def test_mp(encoder, phn, test_batch, x_file, y_file, n_solutions=200):
     param_dict_list = [phn(ray.to(phn.device)) for ray in ray_list]
     static_embeddings = static_embeddings.to(CPU_DEVICE)
     input_list = [(pi, test_batch, param_dict, static_embeddings, "cuda") for pi, param_dict in enumerate(param_dict_list)]
-    num_proc = 2
+    num_proc = 12
     with mp.Pool(num_proc) as pool:
         for result in pool.starmap(decode_mp, input_list):
             tour_length, total_profit = result
@@ -65,7 +65,7 @@ def run(args):
 
 if __name__ == '__main__':
     # torch.backends.cudnn.enabled = False
-    # mp.set_start_method("spawn")
+    mp.set_start_method("spawn")
     args = prepare_args()
     torch.set_num_threads(1)
     torch.manual_seed(args.seed)

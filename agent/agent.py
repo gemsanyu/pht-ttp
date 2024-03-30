@@ -53,6 +53,17 @@ def get_probs(final_Q:torch.Tensor, logit_K:torch.Tensor, eligibility_mask:torch
     probs = torch.softmax(logits, dim=-1)
     return probs
 
+def make_heads(x: torch.Tensor)->torch.Tensor:
+    x = x.unsqueeze(2).view(x.size(0), x.size(1), 8, -1)
+    x = x.permute(2,0,1,3)
+    return x
+
+def select(probs):
+    prob, op = torch.max(probs, dim=1)
+    logprob = torch.log(prob)
+    entropy = -torch.sum(prob*logprob)
+    return op, logprob, entropy
+
 class Agent(torch.nn.Module):
     def __init__(self,
                  num_static_features: int,
@@ -101,7 +112,7 @@ class Agent(torch.nn.Module):
     # @torch.jit.script_method 
        
     def forward(self, 
-                num_items: int,
+                num_items: torch.Tensor,
                 item_embeddings: torch.Tensor,
                 fixed_context: torch.Tensor,
                 prev_item_embeddings: torch.Tensor,
@@ -113,34 +124,15 @@ class Agent(torch.nn.Module):
                 eligibility_mask: torch.Tensor,
                 param_dict: Optional[Dict[str, torch.Tensor]]=None
                 ):
-        batch_size = item_embeddings.shape[0]
         current_state = torch.cat((prev_item_embeddings, global_dynamic_features), dim=-1)
-#        if param_dict is not None:
-#            projected_current_state = F.linear(current_state, param_dict["pcs_weight"])
-#            glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = F.linear(node_dynamic_features, param_dict["pns_weight"]).chunk(3, dim=-1)
-#        else:
         projected_current_state = self.project_current_state(current_state)
         projected_item_state = self.project_item_state(node_dynamic_features[:, :num_items, :])
         projected_node_state = self.project_node_state(node_dynamic_features[:, num_items:, :])
-
-        if self.get_glimpses is None:
-            self.get_glimpses = torch.jit.trace(get_glimpses, (projected_item_state, projected_node_state))
-        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = self.get_glimpses(projected_item_state, projected_node_state)
+        glimpse_V_dynamic, glimpse_K_dynamic, logit_K_dynamic = get_glimpses(projected_item_state, projected_node_state)
         
-        glimpse_V_dynamic = self._make_heads(glimpse_V_dynamic)
-        glimpse_K_dynamic = self._make_heads(glimpse_K_dynamic)
-        if self.compute_lk_and_ch is None and not self.training:
-            self.compute_lk_and_ch = torch.jit.trace(compute_lk_and_ch, (glimpse_V_static,
-                                                    glimpse_V_dynamic,
-                                                    glimpse_K_static,
-                                                    glimpse_K_dynamic,
-                                                    logit_K_static,
-                                                    logit_K_dynamic,
-                                                    fixed_context,
-                                                    projected_current_state,
-                                                    eligibility_mask))
-    
-        logit_K, concated_heads = self.compute_lk_and_ch(glimpse_V_static,
+        glimpse_V_dynamic = make_heads(glimpse_V_dynamic)
+        glimpse_K_dynamic = make_heads(glimpse_K_dynamic)
+        logit_K, concated_heads = compute_lk_and_ch(glimpse_V_static,
                                                     glimpse_V_dynamic,
                                                     glimpse_K_static,
                                                     glimpse_K_dynamic,
@@ -151,28 +143,14 @@ class Agent(torch.nn.Module):
                                                     eligibility_mask)
         
 
-        if param_dict is not None:
-            final_Q = F.linear(concated_heads, param_dict["po_weight"])
-        else:
-            final_Q = self.project_out(concated_heads)
-        # logits = final_Q@logit_K.permute(0,2,1) / math.sqrt(final_Q.size(-1)) #batch_size, num_items, embed_dim
-        # logits = torch.tanh(logits) * self.tanh_clip
-        # logits = logits.squeeze(1) + eligibility_mask.float().log()
-        # sudah dapat logits, ini untuk probability seleksinya
-        # logits is unnormalized probs/weights
-        # probs = torch.softmax(logits, dim=-1)
-        if self.get_probs is None:
-            self.get_probs = torch.jit.trace(get_probs, (final_Q, logit_K, eligibility_mask))
-        probs = self.get_probs(final_Q, logit_K, eligibility_mask)
+        final_Q = F.linear(concated_heads, param_dict["po_weight"])
+        probs = get_probs(final_Q, logit_K, eligibility_mask)
         
-        selected_idx, logp, entropy = self.select(probs)
+        selected_idx, logp, entropy = select(probs)
         return selected_idx, logp, entropy
 
     # @torch.jit.script_method
-    def _make_heads(self, x: torch.Tensor)->torch.Tensor:
-        x = x.unsqueeze(2).view(x.size(0), x.size(1), self.n_heads, self.key_size)
-        x = x.permute(2,0,1,3)
-        return x
+
     
 
     # @torch.jit.ignore

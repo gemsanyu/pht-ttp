@@ -97,7 +97,7 @@ def encode(encoder:Encoder, static_features, num_nodes, num_items, batch_size):
     return static_embeddings, fixed_context, glimpse_K_static, glimpse_V_static, logits_K_static
 
 def solve_decode_only(agent:Agent, 
-                    encoder:Encoder,
+                    device:torch.device,
                     env:TTPEnv, 
                     static_embeddings, 
                     fixed_context,
@@ -107,17 +107,17 @@ def solve_decode_only(agent:Agent,
                     param_dict=None):
     env.begin()
     if param_dict is not None:
-        param_dict["po_weight"] = param_dict["po_weight"].to(encoder.device)
-    logprobs = torch.zeros((env.batch_size,), device=encoder.device, dtype=torch.float32)
-    sum_entropies = torch.zeros((env.batch_size,), device=encoder.device, dtype=torch.float32)
+        param_dict["po_weight"] = param_dict["po_weight"].to(device)
+    logprobs = torch.zeros((env.batch_size,), device=device, dtype=torch.float32)
+    sum_entropies = torch.zeros((env.batch_size,), device=device, dtype=torch.float32)
     static_features, node_dynamic_features, global_dynamic_features, eligibility_mask = env.begin()
-    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(encoder.device)
-    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(encoder.device)
-    eligibility_mask = torch.from_numpy(eligibility_mask).to(encoder.device)
+    node_dynamic_features = torch.from_numpy(node_dynamic_features).to(device)
+    global_dynamic_features = torch.from_numpy(global_dynamic_features).to(device)
+    eligibility_mask = torch.from_numpy(eligibility_mask).to(device)
     
-    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=encoder.device)
+    prev_selected_idx = torch.zeros((env.batch_size,), dtype=torch.long, device=device)
     prev_selected_idx = prev_selected_idx + env.num_nodes
-    num_items = torch.tensor(env.num_items).to(encoder.device)
+    num_items = torch.tensor(env.num_items).to(device)
     while torch.any(eligibility_mask):
         is_not_finished = torch.any(eligibility_mask, dim=1)
         active_idx = is_not_finished.nonzero().long().squeeze(1)
@@ -138,9 +138,9 @@ def solve_decode_only(agent:Agent,
         logprobs[is_not_finished] += logp
         sum_entropies[is_not_finished] += entropy
         node_dynamic_features, global_dynamic_features, eligibility_mask = env.act(active_idx, selected_idx)
-        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(encoder.device)
-        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(encoder.device)
-        eligibility_mask = torch.from_numpy(eligibility_mask).to(encoder.device)
+        node_dynamic_features = torch.from_numpy(node_dynamic_features).to(device)
+        global_dynamic_features = torch.from_numpy(global_dynamic_features).to(device)
+        eligibility_mask = torch.from_numpy(eligibility_mask).to(device)
         prev_selected_idx[active_idx] = selected_idx
 
     # get total profits and tour lenghts

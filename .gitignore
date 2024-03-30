@@ -5,3 +5,10 @@ logs/*
 data_full/training*
 data_full/validation_nrw
 *.ipynb_checkpoints*
+depot_init_embed
+gae
+item_init_embedder
+node_init_embedder
+project_embeddings
+project_fixed_context
+traced_agent

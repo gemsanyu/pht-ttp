@@ -30,7 +30,7 @@ def setup_master(args, load_best=False):
     # check traced agent
     # if not os.path.isfile("traced_agent"):
     trace_and_save_agent(args, phn)
-    encoder = load_encoder("cuda")
+    encoder = load_encoder("cpu")
     test_dataset = TTPDataset(dataset_name=args.dataset_name)
     test_dataloader = DataLoader(test_dataset, batch_size=1)
     _, test_batch = next(iter(test_dataloader))

@@ -43,7 +43,7 @@ def select(probs: T.Tensor) -> Tuple[T.Tensor, T.Tensor, int]:
 class Agent(nn.Module):
     def __init__(
             self,
-            device: CPU_DEVICE,
+            device: T.device = CPU_DEVICE,
             num_static_features: int = 4,
             num_dynamic_features: int = 3,
             static_encoder_size: int = 64,
@@ -89,7 +89,6 @@ class Agent(nn.Module):
         initial_input = T.randn(size=(1,1,static_encoder_size), dtype=T.float32, device=self.device)
         self.inital_input = nn.parameter.Parameter(initial_input)
         self.softmax = nn.Softmax(dim=2)
-        self.pointer_traced = None
         self.to(self.device)
 
     # @T.jit.script_method   
@@ -112,9 +111,7 @@ class Agent(nn.Module):
         eligibility_mask = eligibility_mask.view(batch_size, 1, -1)
         decoder_input = self.decoder_input_encoder(previous_embeddings)
         features = T.cat((static_embeddings, dynamic_embeddings), dim=-1)
-        if self.pointer_traced is None:
-            self.pointer_traced = T.jit.trace(self.pointer, (features, decoder_input, last_pointer_hidden_states, eligibility_mask, param_dict))
-        logits, next_pointer_hidden_state = self.pointer_traced(features, decoder_input, last_pointer_hidden_states, eligibility_mask, param_dict)
+        logits, next_pointer_hidden_state = self.pointer(features, decoder_input, last_pointer_hidden_states, eligibility_mask, param_dict)
         probs = self.softmax(logits)
         return next_pointer_hidden_state, logits, probs
 

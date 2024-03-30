@@ -77,6 +77,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
+    mp.set_start_method("spawn")
     torch.set_num_threads(1)
     torch.manual_seed(args.seed)
     random.seed(args.seed)

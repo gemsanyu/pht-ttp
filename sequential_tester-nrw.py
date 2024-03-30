@@ -5,7 +5,7 @@ import subprocess
 
 def run(dataset_name:str):
     process_args = ["python",
-                    "test.py",
+                    "test_mp.py",
                     "--title",
                     "AM-MBPS-nrw",
                     "--dataset-name",

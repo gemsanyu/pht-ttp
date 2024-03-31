@@ -59,7 +59,7 @@ def test_mp(encoder, phn, test_batch, x_file, y_file, n_solutions=200):
     for i in range(len(param_dict_list)):
         param_dict_list[i]["po_weight"] = param_dict_list[i]["po_weight"].to(CPU_DEVICE)
     input_list = [(pi, param_dict, test_batch, "cuda", encode_output) for pi,param_dict in enumerate(param_dict_list)]
-    num_cpu = 8
+    num_cpu = 12
     with mp.Pool(num_cpu) as pool:
         for result in pool.starmap(decode_mp, input_list):
             tour_length, total_profit = result

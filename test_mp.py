@@ -16,6 +16,7 @@ from utils import solve_decode_only,solve_decode_only_inf, encode
 from utils import prepare_args, CPU_DEVICE
 from ttp.ttp_env import TTPEnv
 
+@torch.no_grad()
 def decode_mp(pi, param_dict, test_batch, device_str, encode_result):
     print(pi)
     device = torch.device(device_str)

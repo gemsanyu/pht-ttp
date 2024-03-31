@@ -57,6 +57,7 @@ def run(args):
 
 if __name__ == '__main__':
     args = prepare_args()
+    mp.set_start_method("spawn")
     # torch.set_num_threads(2)
     # torch.set_num_threads(os.cpu_count()-4)
     torch.set_num_threads(1)

@@ -65,10 +65,11 @@ if __name__=="__main__":
     model_result_dir = results_dir/"AM-MBPS-nrw"
     for it, dataset_name in enumerate(config_list):
         y_file_path = model_result_dir/("AM-MBPS-nrw"+"_"+dataset_name+".f")
+        print("--------it:",it)
         with open(y_file_path.absolute(), "r") as y_file:
             lines = y_file.readlines()
             if len(lines)>=200:
+                print("Tested")
                 continue
-            # print("--------it:",it,"-->",len(lines))
-        # break
+        # print("Testing")
         run(dataset_name)

@@ -26,7 +26,7 @@ if __name__=="__main__":
     # prepare models first
     for i in range(1,101):
         print("tracing",i,"-th model")
-    #     trace_and_save_model(TITLE,i,100)
+        trace_and_save_model(TITLE,i,100)
     
     nipc_list = [20,30,50]
     ic_list = [0,1,2]

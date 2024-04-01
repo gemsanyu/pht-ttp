@@ -21,11 +21,19 @@ Encoder input: last customers static features
 """
 CPU_DEVICE = T.device("cpu")
 
+def select(probs: T.Tensor) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
+    prob, selected_idx = T.max(probs, dim=2)
+    logprob = T.log(prob)
+    entropy = T.tensor(0)
+    selected_idx = selected_idx.squeeze(1)
+    logprob = logprob.squeeze(1)
+    return selected_idx, logprob, entropy
+
 # class Agent(T.jit.ScriptModule):
 class Agent(nn.Module):
     def __init__(
             self,
-            device: CPU_DEVICE,
+            device= CPU_DEVICE,
             num_static_features: int = 4,
             num_dynamic_features: int = 3,
             static_encoder_size: int = 64,
@@ -79,8 +87,7 @@ class Agent(nn.Module):
                 static_embeddings: T.Tensor, 
                 dynamic_embeddings: T.Tensor,
                 eligibility_mask: T.Tensor,
-                previous_embeddings: T.Tensor,
-                param_dict=None) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
+                previous_embeddings: T.Tensor) -> Tuple[T.Tensor, T.Tensor, T.Tensor]:
         '''
         ### get probs and selection
 

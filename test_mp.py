@@ -55,9 +55,11 @@ def run(args):
     weight_idx_list = list(range(1,args.total_weight+1))
     config_list = [(test_batch, args.title, weight_idx, args.total_weight) for weight_idx in weight_idx_list]
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
-    num_cpu = 12       
-    with mp.Pool(num_cpu) as pool, open(y_file_path.absolute(), "a+") as y_file:
-        for result in pool.starmap(decode_mp, config_list):
+    # num_cpu = 12       
+    # with mp.Pool(num_cpu) as pool, open(y_file_path.absolute(), "a+") as y_file:
+    with open(y_file_path.absolute(), "a+") as y_file:
+        for config in config_list:
+            result = decode_mp(*config)
             tour_length, total_profit = result
             y_file.write(tour_length+" "+total_profit+"\n")
     
@@ -66,7 +68,7 @@ if __name__ == '__main__':
     args = prepare_args()
     mp.set_start_method("spawn")
     # torch.set_num_threads(os.cpu_count()-4)
-    torch.set_num_threads(1)
+    torch.set_num_threads(8)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)

@@ -81,5 +81,6 @@ if __name__=="__main__":
             lines = y_file.readlines()
             if len(lines)>=50:
                 print("tested")
+                continue
             run(dataset_name)
 

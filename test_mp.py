@@ -55,7 +55,7 @@ def run(args):
     weight_idx_list = list(range(1,args.total_weight+1))
     config_list = [(test_batch, args.title, weight_idx, args.total_weight) for weight_idx in weight_idx_list]
     y_file_path = model_result_dir/(args.title+"_"+args.dataset_name+".f")
-    num_cpu = 8       
+    num_cpu = 12       
     with mp.Pool(num_cpu) as pool, open(y_file_path.absolute(), "a+") as y_file:
         for result in pool.starmap(decode_mp, config_list):
             tour_length, total_profit = result

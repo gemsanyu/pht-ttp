@@ -70,6 +70,16 @@ if __name__=="__main__":
                     dataset_name = graph_name+"_n"+str(total_num_items)+"_"+instance_type+"_"+idx
                     dataset_name_list += [dataset_name]
     config_list = [dataset_name_list[i] for i in range(len(dataset_name_list))]
+    results_dir = pathlib.Path(".")/"results"
+    model_result_dir = results_dir/TITLE
+    model_result_dir.mkdir(parents=True, exist_ok=True)
+    
     for it, dataset_name in enumerate(config_list):
         print("---------it:",it)
-        run(dataset_name)
+        y_file_path = model_result_dir/(TITLE+"_"+dataset_name+".f")
+        with open(y_file_path.absolute(), "r") as y_file:
+            lines = y_file.readlines()
+            if len(lines)>=50:
+                print("tested")
+            run(dataset_name)
+

@@ -76,10 +76,10 @@ if __name__=="__main__":
     
     for it, dataset_name in enumerate(config_list):
         print("---------it:",it)
-        y_file_path = model_result_dir/(TITLE+"_"+dataset_name+".f")
-        with open(y_file_path.absolute(), "r") as y_file:
-            lines = y_file.readlines()
-            if len(lines)>=50:
-                print("tested")
-                continue
-            run(dataset_name)
+        # y_file_path = model_result_dir/(TITLE+"_"+dataset_name+".f")
+        # with open(y_file_path.absolute(), "r") as y_file:
+        #     lines = y_file.readlines()
+        #     if len(lines)>=50:
+        #         print("tested")
+        #         continue
+        run(dataset_name)

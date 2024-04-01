@@ -56,9 +56,9 @@ if __name__=="__main__":
         num_nodes_list += [num_nodes]
     num_items_list = [1,3,5,10]
     instance_type_list = [
-        "bounded-strongly-corr",
+        # "bounded-strongly-corr",
         "uncorr",
-        "uncorr-similar-weights"
+        # "uncorr-similar-weights"
         ]
     dataset_name_list = []
     for gi, graph_name in enumerate(graph_name_list):
